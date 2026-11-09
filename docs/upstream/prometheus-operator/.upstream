@@ -1,0 +1,15 @@
+{
+  "name": "prometheus-operator",
+  "team": "commons",
+  "about": "Prometheus Operator docs (latest): ServiceMonitor, PodMonitor, PrometheusRule",
+  "repo": "prometheus-operator/prometheus-operator",
+  "ref": "main",
+  "commit": "854d33a40caad1dd773f73deb55726732803bcb8",
+  "paths": [
+    "Documentation"
+  ],
+  "files": 42,
+  "bytes": 1409261,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:06:28Z"
+}

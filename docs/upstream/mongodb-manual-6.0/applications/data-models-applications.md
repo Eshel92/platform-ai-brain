@@ -1,0 +1,26 @@
+<!-- Converted from applications/data-models-applications.txt (reStructuredText). Includes are inlined. -->
+
+# Model Specific Application Contexts
+
+/tutorial/model-data-for-atomic-operations
+   Illustrates how embedding fields related to an atomic update
+   within the same document ensures that the fields are in sync.
+
+/tutorial/model-data-for-keyword-search
+   Describes one method for supporting keyword search by storing
+   keywords in an array in the same document as the text field.
+   Combined with a multi-key index, this pattern can support
+   application's keyword search operations.
+
+/tutorial/model-data-for-schema-versioning
+   Describes one method for schema iteration without downtime.
+
+/tutorial/model-monetary-data
+   Describes two methods to model monetary data in MongoDB.
+
+/tutorial/model-iot-data
+   Describes how to deal with IoT data in MongoDB.
+
+/tutorial/model-computed-data
+   Describes how to derive a value from source data and store that 
+   value in a database.

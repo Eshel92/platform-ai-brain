@@ -1,0 +1,299 @@
+<!-- Converted from reference/ulimit.txt (reStructuredText). Includes are inlined. -->
+
+# UNIX `ulimit` Settings for Self-Managed Deployments
+
+Most UNIX-like operating systems, including Linux and macOS, provide
+ways to limit and control the usage of system resources such as
+threads, files, and network connections on a per-process and per-user
+basis. These "ulimits" prevent single users from using too many system
+resources. Sometimes, these limits have low default values that can
+cause several issues during normal MongoDB operations.
+
+## Resource Usage
+
+`mongod` and `mongos` each use threads and file
+descriptors to track connections and manage internal operations. This
+section outlines the general resource usage patterns for MongoDB.
+Use these figures with your deployment information to determine
+ideal `ulimit` settings.
+
+Generally, all `mongod` and `mongos` instances:
+
+- track each incoming connection with two file descriptors *and* a
+  thread.
+
+- track each internal thread or *pthread* as a system process.
+
+### `mongod`
+
+- 1 file descriptor for each data file in use by the
+  `mongod` instance.
+
+- 1 file descriptor for each journal file used by the `mongod` 
+  instance.
+
+- In replica sets, each `mongod` maintains a connection to
+  all other members of the set.
+
+`mongod` uses background threads for several internal
+processes, including TTL collections,
+replication, and replica set health checks, which may require several
+additional resources.
+
+### `mongos`
+
+In addition to the threads and file descriptors for client connections,
+`mongos` must maintain connections to all config servers and
+all shards, which includes all members of all replica sets.
+
+For `mongos`, consider the following behaviors:
+
+- `mongos` instances maintain a connection pool to each shard
+  so that the `mongos` can reuse connections and quickly
+  fulfill requests without needing to create new connections.
+
+- You can limit the number of incoming connections using
+  the `net.maxIncomingConnections` run-time option.
+  By restricting the number of incoming connections you can prevent a
+  cascade effect where the `mongos` creates too many
+  connections on the `mongod` instances.
+
+## Review and Set Resource Limits
+
+### `ulimit`
+
+You can use the `ulimit` command at the system prompt to check
+system limits, as in the following example:
+
+```bash
+$ ulimit -a
+-t: cpu time (seconds)         unlimited
+-f: file size (blocks)         unlimited
+-d: data seg size (kbytes)     unlimited
+-s: stack size (kbytes)        8192
+-c: core file size (blocks)    0
+-m: resident set size (kbytes) unlimited
+-u: processes                  64000
+-n: file descriptors           64000
+-l: locked-in-memory size (kb) unlimited
+-v: address space (kb)         unlimited
+-x: file locks                 unlimited
+-i: pending signals            192276
+-q: bytes in POSIX msg queues  819200
+-e: max nice                   30
+-r: max rt priority            65
+-N 15:                         unlimited
+```
+
+`ulimit` refers to the per-*user* limitations for various
+resources. Therefore, if your `mongod` instance executes as a
+user that is also running multiple processes, or multiple
+`mongod` processes, you might see contention for these
+resources. The `processes` value (that is, `-u`) refers to the
+combined number of distinct processes and sub-process threads.
+
+On Linux, you can change `ulimit` settings by issuing a command in the
+following form:
+
+```bash
+ulimit -n <value>
+```
+
+`ulimit` has two types:
+
+- **"hard"** `ulimit`: The maximum value that the "soft" `ulimit`
+  for a resource can be raised to. No non-root process can increase it.
+- **"soft"** `ulimit`: The limit enforced for a session or process.
+  Any process can increase it up to the "hard" `ulimit`.
+
+**Important:**
+
+A low "soft" `ulimit` can cause ``can't create new thread,
+closing connection`` errors if the number of connections grows
+too high. Set *both* `ulimit` values to the recommended values.
+
+If the `ulimit` value for number of open files is under `64000`, MongoDB 
+generates a startup warning.
+
+Low `ulimit` values can negatively affect MongoDB under heavy use
+and can lead to failed connections and loss of service.
+
+`ulimit` modifies both "hard" and "soft" values unless the
+`-H` or `-S` modifiers are specified when modifying limit
+values.
+
+For many distributions of Linux you can change values by substituting
+the `-n` option for any possible value in the output of ``ulimit
+-a``.
+
+After changing the `ulimit` settings, you *must* restart the
+process to take advantage of the modified settings. On Linux, you can
+use the `/proc` file system to see the current limitations on a
+running process.
+
+Depending on your system's configuration, and default settings, any
+change to system limits made using `ulimit` may revert following
+a system restart. Check your distribution and operating
+system documentation for more information.
+
+You should typically start `mongod` using `systemctl`,
+which uses the `ulimit` settings:
+
+```bash
+systemctl start mongod.service
+```
+
+If you *do not* start `mongod` using `systemctl`,
+`systemd` overrides some of the `ulimit` settings. For example, if
+you start `mongod` as shown in the following command, then
+a user slice (such as `user-1000.slice`) `systemd` setting is used:
+
+```bash
+mongod --config ~/mongod.conf
+```
+
+**Note:**
+
+A `systemd` user slice limits the resources for the user's
+processes.
+
+#### macOS
+
+For macOS systems that have installed MongoDB Community using the 
+brew installation method, the
+recommended open files value is automatically set when you start
+MongoDB through `brew services`.
+
+For macOS systems running MongoDB Enterprise or using the TGZ
+installation method, use the `ulimit` command to set the
+recommended values. See your
+operating system documentation for the precise procedure for changing
+system limits on running systems.
+
+#### Red Hat Linux Enterprise Server and CentOS
+
+Red Hat Enterprise Linux and CentOS 7 enforce a separate max process
+limitation, `nproc`, which overrides `ulimit` settings. By default,
+this limit is 4096 and is defined in the
+`/etc/security/limits.d/20-nproc.conf` configuration file.
+
+To configure an `nproc` value, create a file named
+`/etc/security/limits.d/99-mongodb-nproc.conf` with new `soft nproc` and
+`hard nproc` values to increase the process limit. For recommended values,
+see recommended-ulimit-settings.
+
+With RHEL / CentOS 8, separate `nproc` values are no longer necessary.
+The `ulimit` command is sufficient to configure the required max
+process values on RHEL / CentOS 8.
+
+### Recommended `ulimit` Settings
+
+The following settings are particularly important for
+`mongod` and `mongos` deployments:
+
+- `-f` (file size): `unlimited`
+- `-t` (cpu time): `unlimited`
+- `-v` (virtual memory): `unlimited` [#memory-size]_
+- `-l` (locked-in-memory size): `unlimited`
+- `-n` (open files): `64000`
+- `-m` (memory size): `unlimited` [#memory-size]_ [#rss-linux]_
+- `-u` (processes/threads): `64000`
+
+Restart your `mongod` and `mongos`
+instances after changing the `ulimit` settings to apply the
+changes.
+
+#### Considerations
+
+- .. include:: /includes/4.2-changes/open-file-connection-increase.rst
+
+- For the macOS platform, the recommended process limit is `2500`,
+  which is the maximum configurable value for this platform.
+
+### Linux distributions using `systemd`
+
+If you start a `mongod` or `mongos`
+instance as a `systemd` service, you can specify limits within the 
+`[Service]` section of its service file. The service file has a 
+location like `/etc/systemd/system/<process-name>.service`.
+
+You can set limits by using [resource limit directives](http://www.freedesktop.org/software/systemd/man/systemd.exec.html#LimitCPU=).
+
+Specify the recommended-ulimit-settings, as in the following
+example:
+
+```bash
+[Service]
+# Other directives omitted
+# (file size)
+LimitFSIZE=infinity
+# (cpu time)
+LimitCPU=infinity
+# (virtual memory size)
+LimitAS=infinity
+# (locked-in-memory size)
+LimitMEMLOCK=infinity
+# (open files)
+LimitNOFILE=64000
+# (processes/threads)
+LimitNPROC=64000
+```
+
+Each `systemd` limit directive sets both the "hard" and "soft" limits to the value
+specified.
+
+After changing `limit` stanzas, ensure that the changes take
+effect by restarting the application services, using the following
+form:
+
+```bash
+systemctl restart <service name>
+```
+
+**Note:**
+
+If you installed MongoDB through a package manager such as `yum` or
+`apt`, the service file installed as part of your installation
+already contains these ulimit values.
+
+### `/proc` File System
+
+**Note:**
+
+This section applies only to Linux operating systems.
+
+The `/proc` file-system stores the per-process limits in the
+file system object located at `/proc/<pid>/limits`, where `<pid>`
+is the process's PID or process identifier. You can use the
+following `bash` function to return the content of the `limits`
+object for a process or processes with a given name:
+
+```bash
+return-limits(){
+
+     for process in $@; do
+          process_pids=`ps -C $process -o pid --no-headers | cut -d " " -f 2`
+
+          if [ -z "$process_pids" ]; then
+             echo "[no $process running]"
+          else
+             for pid in $process_pids; do
+                   echo "[$process #$pid -- limits]"
+                   cat /proc/$pid/limits
+             done
+          fi
+
+     done
+
+}
+```
+
+You can copy and paste this function into a current shell session or
+load it as part of a script. Call the function with one the following
+invocations:
+
+```bash
+return-limits mongod
+return-limits mongos
+return-limits mongod mongos
+```

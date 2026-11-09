@@ -1,0 +1,212 @@
+<!-- Converted from reference/operator/aggregation/dateToParts.txt (reStructuredText). Includes are inlined. -->
+
+# $dateToParts (expression operator)
+
+   
+
+## Definition
+
+**`$dateToParts`**
+
+Returns a document that contains the constituent parts of a given
+BSON Date value as individual properties. The properties returned
+are `year`, `month`, `day`, `hour`, `minute`, `second`
+and `millisecond`.
+
+You can set the `iso8601` property to `true` to return the parts
+representing an
+[ISO week date](https://en.wikipedia.org/wiki/ISO_week_date)
+instead. This will return a document where the properties are
+`isoWeekYear`, `isoWeek`, `isoDayOfWeek`, `hour`,
+`minute`, `second` and `millisecond`.
+
+The `$dateToParts` expression has the following syntax:
+
+```javascript
+{ 
+    $dateToParts: {
+        'date' : <dateExpression>,
+        'timezone' : <timezone>,
+        'iso8601' : <boolean>
+    }
+}
+```
+
+The `$dateToParts` takes a document with the following fields:
+
+* - Field
+  - Required/Optional
+  - Description
+
+* - `date`
+  - Required 
+  - The input date for which to return parts.
+    `<dateExpression>` can be any
+    expression that resolves to a
+    Date, a
+    Timestamp, or an
+    ObjectID. For more
+    information on expressions, see
+    aggregation-expressions.
+
+* - `timezone`
+  - Optional
+  - The timezone to use to format the date. By default,
+    `$dateToParts` uses UTC.
+
+    `<timezone>` can be any expression that evaluates to a string whose
+    value is either:
+
+    - an [Olson Timezone Identifier](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), 
+      such as `"Europe/London"` or `"America/New_York"`, or
+
+    - a UTC offset in the form:
+
+      - `+/-[hh]:[mm]`, e.g. `"+04:45"`, or
+
+      - `+/-[hh][mm]`, e.g. `"-0530"`, or
+
+      - `+/-[hh]`, e.g. `"+03"`.
+
+    For more information on expressions, see
+    aggregation-expressions.
+
+* - `iso8601`
+  - Optional
+  - If set to `true`, modifies the output document to use ISO
+    week date fields. Defaults to `false`.
+
+## Behavior
+
+When using an Olson Timezone Identifier in the `<timezone>`
+field, MongoDB applies the DST (Daylight Savings Time) offset
+if applicable for the specified timezone.
+
+For example, consider a `sales` collection with the following document:
+
+```javascript
+ :copyable: true
+
+ db.sales.insertOne(
+  {
+   "_id" : 1,
+   "item" : "abc",
+   "price" : 10,
+   "quantity" : 2,
+   "date" : ISODate("2014-01-01T08:15:39.736Z")
+  } 
+)
+```
+
+The following aggregation illustrates how MongoDB handles the DST
+offset for the Olson Timezone Identifier. The example uses the
+`$hour` and `$minute` operators to return the
+corresponding portions of the `date` field:
+
+```javascript
+db.sales.aggregate([
+{
+   $project: { 
+      "nycHour": { 
+         $hour: { date: "$date", timezone: "-05:00" }
+       }, 
+       "nycMinute": { 
+          $minute: { date: "$date", timezone: "-05:00" }
+       },
+       "gmtHour": {
+          $hour: { date: "$date", timezone: "GMT" }
+       },
+       "gmtMinute": {
+          $minute: { date: "$date", timezone: "GMT" } },
+       "nycOlsonHour": {
+          $hour: { date: "$date", timezone: "America/New_York" }
+       },
+       "nycOlsonMinute": {
+          $minute: { date: "$date", timezone: "America/New_York" }
+       }
+   }
+}])
+```
+
+The operation returns the following result:
+
+```javascript
+{
+   "_id": 1,
+   "nycHour" : 5,
+   "nycMinute" : 24,
+   "gmtHour" : 10,
+   "gmtMinute" : 24,
+   "nycOlsonHour" : 6,
+   "nycOlsonMinute" : 24
+}
+```
+
+## Example
+
+Consider a `sales` collection with the following document:
+
+```javascript
+{
+  "_id" : 2,
+  "item" : "abc",
+  "price" : 10,
+  "quantity" : 2,
+  "date" : ISODate("2017-01-01T01:29:09.123Z")
+}
+```
+
+The following aggregation uses `$dateToParts` to return a
+document that contains the constituent parts of the `date` field.
+
+```javascript
+ db.sales.aggregate([
+ {
+    $project: {
+       date: {
+          $dateToParts: { date: "$date" } 
+       },
+       date_iso: { 
+          $dateToParts: { date: "$date", iso8601: true }
+       },
+       date_timezone: {
+          $dateToParts: { date: "$date", timezone: "America/New_York" }
+       }  
+    }
+}])
+```
+
+The operation returns the following result:
+
+```javascript
+{
+   "_id" : 2,
+   "date" : {
+      "year" : 2017,
+      "month" : 1,
+      "day" : 1,
+      "hour" : 1,
+      "minute" : 29,
+      "second" : 9,
+      "millisecond" : 123
+   },
+   "date_iso" : {
+      "isoWeekYear" : 2016,
+      "isoWeek" : 52,
+      "isoDayOfWeek" : 7,
+      "hour" : 1,
+      "minute" : 29,
+      "second" : 9,
+      "millisecond" : 123
+   },
+   "date_timezone" : {
+      "year" : 2016,
+      "month" : 12,
+      "day" : 31,
+      "hour" : 20,
+      "minute" : 29,
+      "second" : 9,
+      "millisecond" : 123
+   }
+}
+```

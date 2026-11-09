@@ -1,0 +1,15 @@
+{
+  "name": "cassandra-reaper",
+  "team": "team1-mongodb-cassandra",
+  "about": "Reaper repair scheduling for Cassandra (latest release docs)",
+  "repo": "thelastpickle/cassandra-reaper",
+  "ref": "5.1.0",
+  "commit": "a207a8595a52381255172726c5040d3162cbaf12",
+  "paths": [
+    "src/docs/content"
+  ],
+  "files": 32,
+  "bytes": 136225,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:06:04Z"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "victoriametrics",
+  "team": "commons",
+  "about": "VictoriaMetrics docs (latest): long-term storage for Prometheus metrics, MetricsQL",
+  "repo": "VictoriaMetrics/VictoriaMetrics",
+  "ref": "master",
+  "commit": "bed0f8900ba43a5b5f866f33e910899304c714ca",
+  "paths": [
+    "docs"
+  ],
+  "files": 176,
+  "bytes": 5110707,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:06:25Z"
+}

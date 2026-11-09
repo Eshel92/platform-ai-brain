@@ -1,0 +1,17 @@
+{
+  "name": "ops-manager-7.0",
+  "team": "team1-mongodb-cassandra",
+  "about": "Ops Manager 7.0: automation, monitoring, backup (S3 blockstore), API",
+  "repo": "mongodb/docs",
+  "ref": "main",
+  "commit": "bb28b24eedd8ac907aa736452e8657f48193f774",
+  "paths": [
+    "content/ops-manager/v7.0/source"
+  ],
+  "files": 621,
+  "bytes": 4846287,
+  "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+  "format": "Markdown, converted from reStructuredText (includes inlined)",
+  "notes": [],
+  "synced": "2026-11-09T08:12:12Z"
+}

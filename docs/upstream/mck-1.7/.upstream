@@ -1,0 +1,17 @@
+{
+  "name": "mck-1.7",
+  "team": "team1-mongodb-cassandra",
+  "about": "MongoDB Controllers for Kubernetes (MCK) 1.7: MongoDB / MongoDBUser resources, TLS, Ops Manager integration",
+  "repo": "mongodb/docs",
+  "ref": "main",
+  "commit": "bb28b24eedd8ac907aa736452e8657f48193f774",
+  "paths": [
+    "content/kubernetes/v1.7/source"
+  ],
+  "files": 152,
+  "bytes": 1518884,
+  "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+  "format": "Markdown, converted from reStructuredText (includes inlined)",
+  "notes": [],
+  "synced": "2026-11-09T08:12:18Z"
+}

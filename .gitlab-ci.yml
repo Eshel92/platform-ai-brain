@@ -1,0 +1,26 @@
+# Optional safety net for the brain. Saves already run these checks before they push; this catches
+# anything pushed another way, and reports stale pages weekly.
+#
+# Inactive until you set the CI/CD variable BRAIN_CI_IMAGE (Settings → CI/CD → Variables) to an image
+# in your internal registry that has python3 (3.9+), git and bash. Until then no pipeline is created.
+# Weekly stale report: add a pipeline schedule (Build → Pipeline schedules).
+
+stages: [check]
+
+brain-check:
+  stage: check
+  image: $BRAIN_CI_IMAGE
+  rules:
+    - if: '$BRAIN_CI_IMAGE && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - python3 scripts/brain.py validate
+    - bash tests/test_flow.sh
+
+brain-stale-report:
+  stage: check
+  image: $BRAIN_CI_IMAGE
+  rules:
+    - if: '$BRAIN_CI_IMAGE && $CI_PIPELINE_SOURCE == "schedule"'
+  script:
+    - python3 scripts/brain.py stale --days 180
+  allow_failure: true

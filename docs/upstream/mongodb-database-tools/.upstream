@@ -1,0 +1,17 @@
+{
+  "name": "mongodb-database-tools",
+  "team": "team1-mongodb-cassandra",
+  "about": "mongodump, mongorestore, mongoexport and the other Database Tools, latest docs",
+  "repo": "mongodb/docs",
+  "ref": "main",
+  "commit": "bb28b24eedd8ac907aa736452e8657f48193f774",
+  "paths": [
+    "content/database-tools/source"
+  ],
+  "files": 60,
+  "bytes": 434330,
+  "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+  "format": "Markdown, converted from reStructuredText (includes inlined)",
+  "notes": [],
+  "synced": "2026-11-09T08:12:29Z"
+}

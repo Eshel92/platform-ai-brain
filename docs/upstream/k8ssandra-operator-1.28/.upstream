@@ -1,0 +1,15 @@
+{
+  "name": "k8ssandra-operator-1.28",
+  "team": "team1-mongodb-cassandra",
+  "about": "K8ssandra operator 1.28.0: K8ssandraCluster, Medusa and Reaper integration, CRD reference (current only)",
+  "repo": "k8ssandra/k8ssandra-operator",
+  "ref": "v1.28.0",
+  "commit": "4e05bb758f65b8226e233e67ab2d5833ccb04d87",
+  "paths": [
+    "docs/content/en"
+  ],
+  "files": 79,
+  "bytes": 5307010,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:05:56Z"
+}

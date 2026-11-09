@@ -1,0 +1,486 @@
+<!-- Converted from tutorial/sharding-segmenting-data-by-location.txt (reStructuredText). Includes are inlined. -->
+
+# Segmenting Data by Location
+
+In sharded clusters, you can create zones of sharded data
+based on the shard key. You can associate each zone with one or
+more shards in the cluster. A shard can associate with any number of
+zones. In a balanced cluster, MongoDB migrates chunks
+covered by a zone only to those shards associated with the zone. 
+
+**Tip:**
+
+By defining the zones and the zone ranges *before* sharding an empty
+or a non-existing collection, the shard collection operation creates
+chunks for the defined zone ranges as well as any additional chunks
+to cover the entire range of the shard key values and performs an
+initial chunk distribution based on the zone ranges. This initial
+creation and distribution of chunks allows for faster setup of zoned
+sharding. After the initial distribution, the balancer manages the
+chunk distribution going forward.
+
+See pre-define-zone-range-example for an example.
+
+This tutorial uses zone-sharding to segment data based on a
+geographic area.
+
+The following are some example use cases for segmenting data by
+geographic area:
+
+* An application that has to segment user data by country
+* A database that has to allocate resources by country
+
+The following diagram illustrates a sharded cluster that uses
+geographic zones to manage and satisfy data segmentation requirements.
+
+(Figure: /images/sharding-segmenting-data-by-location-overview.bakedsvg.svg)
+
+## Scenario
+
+A financial chat application logs messages, tracking the country of the
+originating user. The application stores the logs in the `chat` database
+under the `messages` collection. The chats contain information that must be
+segmented by country to have servers local to the country serve read and write
+requests for the country's users. A group of countries can be assigned
+same zone in order to share resources.
+
+The application currently has users in the US, UK, and Germany. The
+`country` field represents the user's country based on its
+[ISO 3166-1 Alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)
+two-character country codes.
+
+The following documents represent a partial view of three chat messages:
+
+```javascript
+{
+  "_id" : ObjectId("56f08c447fe58b2e96f595fa"),
+  "country" : "US",
+  "userid" : 123,
+  "message" : "Hello there",
+  ...,
+}
+{
+  "_id" : ObjectId("56f08c447fe58b2e96f595fb"),
+  "country" : "UK",
+  "userid" : 456,
+  "message" : "Good Morning"
+  ...,
+}
+{
+  "_id" : ObjectId("56f08c447fe58b2e96f595fc"),
+  "country" : "DE",
+  "userid" : 789,
+  "message" : "Guten Tag"
+  ...,
+}
+```
+
+### Shard Key
+
+The `messages` collection uses the `{ country : 1, userid : 1 }` compound
+index as the shard key.
+
+The `country` field in each document allows for creating a zone for
+each distinct country value.
+
+The `userid` field provides a high cardinality
+and low frequency component to the shard key
+relative to `country`.
+
+See Choosing a Shard Key for more
+general instructions on selecting a shard key.
+
+### Architecture
+
+The sharded cluster has shards in two data centers - one in Europe, and
+one in North America.
+
+(Figure: /images/sharding-segmenting-data-by-location-architecture.bakedsvg.svg)
+
+### Zones
+
+This application requires one zone per data center.
+
+`EU` - European data center
+   Shards deployed on this data center are assigned to the `EU` zone.
+
+   For each country using the `EU` data center for local reads and writes,
+   create a zone range for the `EU` zone with:
+
+   * a lower bound of `{ "country" : <country>, "userid" : MinKey }`
+   * an upper bound of `{ "country" : <next country>, "userid" : MinKey }`
+
+`NA` - North American data center
+   Shards deployed on this data center are assigned to the `NA` zone.
+
+   For each country using the `NA` data center for local reads and writes,
+   create a zone range for the `NA` zone with:
+
+   * a lower bound of `{ "country" : <country>, "userid" : MinKey }`
+   * an upper bound of `{ "country" : <next country>, "userid" : MinKey }`
+
+**Note:**
+
+The `MinKey` and `MaxKey` values are reserved special
+values for comparisons
+
+### Write Operations
+
+With zones, if an inserted or updated document matches a
+configured zone, it can only be written to a shard inside of that zone.
+
+MongoDB can write documents that do not match a configured zone to any
+shard in the cluster.
+
+**Note:**
+
+The behavior described above requires the cluster to be in a steady state
+with no chunks violating a configured zone. See the following section on
+the balancer for
+more information.
+
+### Read Operations
+
+MongoDB can route queries to a specific shard if the query includes at least
+the `country` field.
+
+For example, MongoDB can attempt a targeted read operation on the following query:
+
+```javascript
+chatDB = db.getSiblingDB("chat")
+chatDB.messages.find( { "country" : "UK" , "userid" : "123" } )
+```
+
+Queries without the `country` field perform broadcast operations.
+
+### Balancer
+
+The balancer migrates chunks to the appropriate shard respecting any
+configured zones. Until the migration, shards may contain chunks that violate
+configured zones. Once balancing completes, shards should only
+contain chunks whose ranges do not violate its assigned zones.
+
+Adding or removing zones or zone ranges can result in chunk migrations.
+Depending on the size of your data set and the number of chunks a zone or zone
+range affects, these migrations may impact cluster performance. Consider
+running your balancer during specific scheduled
+windows. See sharding-schedule-balancing-window for a tutorial on how
+to set a scheduling window.
+
+### Security
+
+For sharded clusters running with authorization, authenticate as a user
+with at least the `clusterManager` role on the `admin` database.
+
+## Procedure
+
+You must be connected to a `mongos` to create zones and zone ranges.
+You cannot create zones or zone ranges by connecting directly to a
+shard.
+
+**Step 1: Disable the Balancer (Optional)**
+
+To reduce performance impacts, the balancer may be disabled on the entire
+sharded cluster to ensure no migrations take place while configuring the new zones.
+
+Use `sh.stopBalancer()` to stop the balancer for the cluster.
+
+```javascript
+sh.stopBalancer()
+```
+
+Use `sh.isBalancerRunning()` to check if the balancer process 
+is currently running. Wait until any current balancing rounds have completed
+before proceeding.
+
+**Step 2: Add each shard to the appropriate zone**
+
+Add each shard in the North American data center to the `NA` zone.
+
+```javascript
+sh.addShardTag(<shard name>, "NA")
+```
+
+Add each shard in the European data center to the `EU` zone.
+
+```javascript
+sh.addShardTag(<shard name>, "EU")
+```
+
+You can review the zones assigned to any given shard by running 
+`sh.status()`. 
+
+**Step 3: Define ranges for each zone**
+
+For shard key values where `country : US`, define a shard key range
+and associate it to the `NA` zone using the `sh.addTagRange()`
+method. This method requires:
+
+* The full namespace of the target collection. 
+* The inclusive lower bound of the range. 
+* The exclusive upper bound of the range. 
+* The name of the zone.
+
+```javascript
+sh.addTagRange( 
+  "chat.messages",
+  { "country" : "US", "userid" : MinKey },
+  { "country" : <next country>, "userid" : MinKey }, 
+  "NA"
+)
+```
+
+For shard key values where `country : UK`, define a shard key range
+and associate it to the `EU` zone using the `sh.addTagRange()`
+method. This method requires:
+
+* The full namespace of the target collection. 
+* The inclusive lower bound of the range. 
+* The exclusive upper bound of the range. 
+* The name of the zone.
+
+```javascript
+sh.addTagRange( 
+  "chat.messages",
+  { "country" : "UK", "userid" : MinKey },
+  { "country" : "US", "userid" : MinKey }, 
+  "EU"
+)
+```
+
+For shard key values where `country : DE`, define a shard key range
+and associate it to the `EU` zone using the `sh.addTagRange()`
+method. This method requires:
+
+* The full namespace of the target collection. 
+* The inclusive lower bound of the range. 
+* The exclusive upper bound of the range. 
+* The name of the zone.
+
+```javascript
+sh.addTagRange( 
+  "chat.messages",
+  { "country" : "DE", "userid" : MinKey },
+  { "country" : "UK", "userid" : MinKey }, 
+  "EU"
+)
+```
+
+The `MinKey` and `MaxKey` values are reserved
+special values for comparisons. `MinKey` always compares as
+lower than every other possible value, while `MaxKey`
+always compares as higher than every other possible value. The
+configured ranges capture every `userid` value for each listed
+`country` value. 
+
+Both `country : UK` and `country : DE` are assigned to the `EU` zone. 
+This associates any document with either `UK` or `DE` as the value for
+`country` to the EU data center.
+
+**Step 4: Enable the Balancer (Optional)**
+
+If the balancer was disabled in previous steps, re-enable the balancer at
+the completion of this procedure to rebalance the cluster.
+
+Use `sh.enableBalancing()`, specifying the namespace of the
+collection, to start the balancer.
+
+```javascript
+sh.enableBalancing("chat.messages")
+```
+
+Use `sh.isBalancerRunning()` to check if the balancer process 
+is currently running. 
+
+**Step 5: Review the Changes**
+
+The next time the balancer runs, it 
+splits chunks where necessary and migrates chunks across the shards respecting the 
+configured zones.
+
+Once balancing finishes:
+
+- shards in the  `NA` zone should only contain documents with
+  `country : US`, and
+- shards in the `EU` zone should only contain documents with
+  `country : UK` or `country : DE`. 
+
+A document with a value for `country` other than `US`, `UK`, or 
+`DE` can reside on any shard in the cluster.
+
+To confirm the chunk distribution, run `sh.status()`.
+
+### Updating Zones
+
+The application requires the following updates:
+
+* Documents with `country : UK` must now be associated to the new `UK`
+  data center. Any data in the `EU` data center must be migrated
+
+* The chat application now supports users in Mexico. Documents with
+  `country : MX` must be routed to the `NA` data center.
+
+Perform the following procedures to update the zone ranges.
+
+**Step 1: Disable the Balancer (Optional)**
+
+To reduce performance impacts, the balancer may be disabled on the entire 
+sharded cluster to ensure no migrations take place while configuring the 
+new zones or removing the old ones.
+
+Use `sh.stopBalancer()` to stop the balancer for the cluster.
+
+```javascript
+sh.stopBalancer()
+```
+
+Use `sh.isBalancerRunning()` to check if the balancer process 
+is currently running. Wait until any current balancing rounds have completed
+before proceeding.
+
+**Step 2: Add the new `UK` zone**
+
+Add each shard in the `UK` data center to the `UK` zone.
+
+```javascript
+sh.addShardTag("<shard name>", "UK")
+```
+
+You can review the zones assigned to any given shard by running 
+`sh.status()`.
+
+**Step 3: Remove the old zone ranges**
+
+Use the `sh.removeTagRange()` method to remove the old zone
+ranges associated with the `DE` and `UK` countries. This method
+requires:
+
+* The full namespace of the target collection.
+* The inclusive lower bound of the range.
+* The exclusive upper bound of the range.
+
+```javascript
+sh.removeTagRange(
+  "chat.messages",
+  { "country" : "DE", "userid" : MinKey },
+  { "country" : "UK", "userid" : MinKey }
+)
+
+sh.removeTagRange(
+  "chat.messages",
+  { "country" : "UK", "userid" : MinKey },
+  { "country" : "US", "userid" : MinKey }
+)
+```
+
+**Step 4: Add new zone ranges**
+
+For shard key values where `country : DE`, define a shard key
+range and use the `sh.addTagRange()` method to associate it
+to the `EU` zone. This method requires:
+
+* The full namespace of the target collection. 
+* The inclusive lower bound of the range. 
+* The exclusive upper bound of the range. 
+* The name of the zone.
+
+```javascript
+sh.addTagRange(
+  "chat.messages",
+  { "country" : "DE", "userid" : MinKey },
+  { "country" : "MX", "userid" : MinKey },
+  "EU"
+)
+```
+
+For shard key values where `country : UK`, define a shard key
+range and use the `sh.addTagRange()` method to associate it
+to the `UK` zone. This method requires:
+
+* The full namespace of the target collection. 
+* The inclusive lower bound of the range. 
+* The exclusive upper bound of the range. 
+* The name of the zone.
+
+```javascript
+sh.addTagRange( 
+  "chat.messages",
+  { "country" : "UK", "userid" : MinKey },
+  { "country" : "US", "userid" : MinKey }, 
+  "UK"
+)
+```
+
+For shard key values where `country : MX`, define a shard key
+range and use the `sh.addTagRange()` method to associate it
+to the `NA` zone. This method requires:
+
+* The full namespace of the target collection. 
+* The inclusive lower bound of the range. 
+* The exclusive upper bound of the range. 
+* The name of the zone.
+
+```javascript
+sh.addTagRange( 
+  "chat.messages",
+  { "country" : "MX", "userid" : MinKey },
+  { "country" : "UK", "userid" : MinKey }, 
+  "NA"
+)
+```
+
+MongoDB reserves `MinKey` and `MaxKey` values as special
+values for comparisons. `MinKey` always compares as lower than
+every other possible value, while `MaxKey` always compares as
+higher than every other possible value. This ensures the ranges capture the
+entire possible value space of `userid` for their `country` values.
+
+**Step 5: Enable the Balancer (Optional)**
+
+If the balancer was disabled in previous steps, re-enable the balancer at
+the completion of this procedure to rebalance the cluster.
+
+Use `sh.enableBalancing()`, specifying the namespace of the
+collection, to start the balancer
+
+```javascript
+sh.enableBalancing("chat.messages")
+```
+
+Use `sh.isBalancerRunning()` to check if the balancer process 
+is currently running. 
+
+**Step 6: Review the changes**
+
+The next time the balancer runs, it
+splits chunks where necessary and migrates chunks across the shards according to the
+configured zones.
+
+Before balancing:
+
+- shards in the `EU` zone only contain documents where
+  `country : DE` or `country : UK`, and
+- documents where `country : MX` could be stored on any shard in
+  the sharded cluster.
+
+After balancing:
+
+- shards in the `EU` zone only contain documents where
+  `country : DE`,
+- shards in the `UK` zone only contain documents where
+  `country : UK`, and
+- shards in the `NA` zone only contain documents where
+  `country : US` or `country : MX`.
+
+A document with a value for `country` other than `US`, `MX`,
+`UK`, or `DE` can reside on any shard in the cluster.
+
+To confirm the chunk distribution, run `sh.status()`.
+
+**See also:**
+
+zone-sharding
+
+sharding-balancing
+
+/tutorial/deploy-shard-cluster

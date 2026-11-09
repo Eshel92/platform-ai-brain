@@ -1,0 +1,17 @@
+{
+  "name": "mongodb-manual-6.0",
+  "team": "team1-mongodb-cassandra",
+  "about": "MongoDB Server manual 6.0, including the 5.0 \u2192 6.0 upgrade",
+  "repo": "mongodb/docs",
+  "ref": "v6.0",
+  "commit": "3baea2dd8f2386d64c3c9a6805f625b80d9bacf4",
+  "paths": [
+    "source"
+  ],
+  "files": 1373,
+  "bytes": 10690130,
+  "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+  "format": "Markdown, converted from reStructuredText (includes inlined)",
+  "notes": [],
+  "synced": "2026-11-09T08:12:03Z"
+}

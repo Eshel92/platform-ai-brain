@@ -1,0 +1,304 @@
+<!-- Converted from core/document.txt (reStructuredText). Includes are inlined. -->
+
+# Documents
+
+A document is the basic unit of data in MongoDB.
+
+MongoDB's object-oriented data model lets you structure data to mirror 
+the object models in your codebase, which eliminates the object-relational 
+mapping required by relational databases.
+
+**Note:**
+
+MongoDB stores data records as BSON documents. BSON is a binary
+representation of JSON documents, though it contains more data
+types than JSON. For the BSON spec, see [bsonspec.org](http://bsonspec.org/). See also bson-types.
+
+(Figure: /images/crud-annotated-document.svg)
+
+## Document Structure
+
+MongoDB documents are composed of field-and-value pairs and have the
+following structure:
+
+```javascript
+{
+   field1: value1,
+   field2: value2,
+   field3: value3,
+   ...
+   fieldN: valueN
+}
+```
+
+The value of a field can be any of the BSON data types, including other documents, arrays, and arrays
+of documents. For example, the following document contains values of varying types:
+
+```javascript
+var mydoc = {
+               _id: ObjectId("5099803df3f4948bd2f98391"),
+               name: { first: "Alan", last: "Turing" },
+               birth: new Date('Jun 23, 1912'),
+               death: new Date('Jun 07, 1954'),
+               contribs: [ "Turing machine", "Turing test", "Turingery" ],
+               views : Long(1250000)
+            }
+```
+
+The above fields have the following data types:
+
+- `_id` holds an objectid.
+
+- `name` holds an *embedded document* that contains the fields
+  `first` and `last`.
+
+- `birth` and `death` hold values of the *Date* type.
+
+- `contribs` holds an *array of strings*.
+
+- `views` holds a value of the *NumberLong* type.
+
+### Field Names
+
+Field names are strings.
+
+Documents have the following restrictions on field
+names:
+
+- .. include:: /includes/fact-id-field-name-rules.rst
+
+- Field names **cannot** contain the `null` character.
+
+- The server permits storage of field names that contain dots (`.`)
+  and dollar signs (`$`).
+
+- MongodB 5.0 adds improved support for the use of (`$`) and (`.`)
+  in field names. There are some restrictions. See
+  Field Name Considerations for more details.
+
+The MongoDB Query Language doesn't support documents with duplicate
+field names:
+
+- Although some BSON builders may support creating a BSON document with
+  duplicate field names, inserting these documents into MongoDB isn't
+  supported even if the insert succeeds, or appears to succeed.
+
+- For example, inserting a BSON document with duplicate field names
+  through a MongoDB driver may result in the driver silently dropping
+  the duplicate values prior to insertion, or may result in an invalid
+  document being inserted that contains duplicate fields. Querying those
+  documents leads to inconsistent results. 
+
+- Updating documents with duplicate field names isn't
+  supported, even if the update succeeds or appears to succeed.
+
+Starting in MongoDB 6.1, to see if a document has duplicate field names,
+use the `validate` command with the `full` field set to
+`true`. In any MongoDB version, use the `$objectToArray`
+aggregation operator to see if a document has duplicate field names.
+
+## Dot Notation
+
+MongoDB uses the *dot notation* to access the elements of an array and
+to access the fields of an embedded document.
+
+### Arrays
+
+To specify or access an element of an array by the zero-based index
+position, concatenate the array name with the dot (`.`) and
+zero-based index position, and enclose in quotes:
+
+```javascript
+"<array>.<index>"
+```
+
+For example, given the following field in a document:
+
+```javascript
+{
+   ...
+   contribs: [ "Turing machine", "Turing test", "Turingery" ],
+   ...
+}
+```
+
+To specify the third element in the `contribs` array, use the dot
+notation `"contribs.2"`.
+
+For examples querying arrays, see:
+
+- /tutorial/query-arrays
+
+- /tutorial/query-array-of-documents/
+
+**Note:** Positional Operators
+
+- The `$[]` all positional operator updates all elements in the specified array field during an update operation. 
+
+- The `$[<identifier>]` filtered positional operator updates all array elements that match the conditions specified in arrayFilters. 
+
+- The `$` positional operator updates the first array element that matches the query condition, without requiring you to specify its index. 
+
+- The `$` projection operator returns the first array element that matches the query condition in a read operation. 
+
+- For dot notation examples with arrays, including queries by zero-based array index position, see read-operations-arrays.
+
+### Embedded Documents
+
+To specify or access a field of an embedded document with dot notation,
+concatenate the embedded document name with the dot (`.`) and
+the field name, and enclose in quotes:
+
+```javascript
+"<embedded document>.<field>"
+```
+
+For example, given the following field in a document:
+
+```javascript
+{
+   ...
+   name: { first: "Alan", last: "Turing" },
+   contact: { phone: { type: "cell", number: "111-222-3333" } },
+   ...
+}
+```
+
+- To specify the field named `last` in the `name` field, use the
+  dot notation `"name.last"`.
+
+- To specify the `number` in the `phone` document in the
+  `contact` field, use the dot notation `"contact.phone.number"`.
+
+**Warning:**
+
+Partition fields cannot use field names that contain a dot (`.`). 
+
+For examples querying embedded documents, see:
+
+- /tutorial/query-embedded-documents
+
+- /tutorial/query-array-of-documents/
+
+## Document Limitations
+
+Documents have the following attributes:
+
+### Document Size Limit
+
+The maximum BSON document size is 16 mebibytes.
+
+The maximum document size helps ensure that a single document cannot use an
+excessive amount of RAM or, during transmission, an excessive amount of
+bandwidth. To store documents larger than the maximum size, MongoDB provides the
+GridFS API. For more information about GridFS, see `mongofiles` and
+the documentation for your `driver`.
+
+### Document Field Order
+
+Unlike JavaScript objects, the fields in a BSON document are ordered.
+
+#### Field Order in Queries
+
+For queries, the field order behavior is as follows:
+
+- When comparing documents, field ordering is significant. For
+  example, when comparing documents with fields `a` and `b` in a
+  query:
+  
+  - `{a: 1, b: 1}` is equal to `{a: 1, b: 1}`
+  
+  - `{a: 1, b: 1}` is not equal to `{b: 1, a: 1}`
+
+- For efficient query execution, the query engine may reorder fields
+  during query processing. Among other cases, reordering fields may
+  occur when processing these projection operators:
+  `$project`, `$addFields`, `$set`, and
+  `$unset`.
+  
+  - Field reordering may occur in intermediate results as well as the
+    final results returned by a query.
+  
+  - Because some operations may reorder fields, you should not rely on
+    specific field ordering in the results returned by a query that
+    uses the projection operators listed earlier.
+
+#### Field Order in Write Operations
+
+For write operations, MongoDB preserves the order of the document fields
+*except* for the following cases:
+
+- The `_id` field is always the first field in the document.
+
+- Updates that include `renaming` of field names may
+  result in the reordering of fields in the document.
+
+### The `_id` Field
+
+In MongoDB, each document stored in a standard collection requires a unique
+_id field that acts as a primary key. If an inserted
+document omits the `_id` field, the MongoDB driver automatically
+generates an objectid for the `_id` field.
+
+This also applies to documents inserted through update
+operations with upsert: true.
+
+**Note:**
+
+In time series collections,
+documents do not require a unique _id field because MongoDB does
+not create an index on the `_id` field.
+
+The `_id` field has the following behavior and constraints:
+
+- By default, MongoDB creates a unique index on the `_id` field
+  during the creation of a collection.
+
+- The `_id` field is always the first field in the documents. If the
+  server receives a document that does not have the `_id` field
+  first, then the server will move the field to the beginning.
+
+- If the `_id` contains subfields, the subfield names cannot begin
+  with a (`$`) symbol.
+
+- The `_id` field may contain values of any BSON data type, other than an array, regex, or undefined.
+
+  **Warning:** To ensure functioning replication, do not store values
+
+  that are of the BSON regular expression type in the `_id`
+  field.
+
+The following are common options for storing values for `_id`:
+
+- Use an objectid.
+
+- Use a natural unique identifier, if available. This saves space and
+  avoids an additional index.
+
+- Generate an auto-incrementing number.
+
+- Generate a UUID in your application code. For a more efficient
+  storage of the UUID values in the collection and in the `_id`
+  index, store the UUID as a value of the BSON `BinData` type.
+
+  Index keys that are of the `BinData` type are more efficiently stored
+  in the index if:
+
+  - the binary subtype value is in the range of 0-7 or 128-135, and
+
+  - the length of the byte array is: 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12,
+    14, 16, 20, 24, or 32.
+
+- Use your driver's BSON UUID facility to generate UUIDs. Be aware
+  that driver implementations may implement UUID serialization and
+  deserialization logic differently, which may not be fully compatible
+  with other drivers. See your `driver documentation` for
+  information concerning UUID interoperability.
+
+**Note:**
+
+Most MongoDB driver clients include the `_id` field and
+generate an `ObjectId` before sending the insert operation to
+MongoDB. However, if the client sends a document without an `_id`
+field, the `mongod` adds the `_id` field and generates
+the `ObjectId`.

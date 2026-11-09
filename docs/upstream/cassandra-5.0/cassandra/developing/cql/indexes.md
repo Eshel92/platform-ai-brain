@@ -1,0 +1,86 @@
+<!-- Converted from modules/cassandra/pages/developing/cql/indexes.adoc (AsciiDoc). Includes are inlined. -->
+
+# Secondary Indexes
+
+CQL supports creating secondary indexes on tables, allowing queries on
+the table to use those indexes. A secondary index is identified by a
+name defined by:
+
+```bnf
+index_name::= re('[a-zA-Z_0-9]+')
+
+```
+
+[[create-index-statement]]
+
+## CREATE INDEX
+
+The `CREATE INDEX` statement is used to create a new
+secondary index for a given (existing) column in a given table. A name
+for the index itself can be specified before the `ON` keyword, if
+desired.
+
+```bnf
+create_index_statement::= CREATE [ CUSTOM ] INDEX [ IF NOT EXISTS ] [ index_name ] 
+	ON table_name '(' index_identifier ')' 
+	[ USING index_type [ WITH OPTIONS = map_literal ] ] 
+index_identifier::= column_name 
+	| ( KEYS | VALUES | ENTRIES | FULL ) '(' column_name ')'
+index_type::= 'sai' | 'legacy_local_table' | fully_qualified_class_name
+```
+
+If data already exists for the column, it will be indexed
+asynchronously. After the index is created, new data for the column is
+indexed automatically at insertion time. Attempting to create an already
+existing index will return an error unless the `IF NOT EXISTS` option is used.
+If it is used, the statement will be a no-op if the index already exists.
+
+*Examples*:
+
+```cql
+CREATE INDEX userIndex ON NerdMovies (user);
+CREATE INDEX ON Mutants (abilityId);
+CREATE INDEX ON users (KEYS(favs));
+CREATE INDEX ON users (age) USING 'sai';
+CREATE CUSTOM INDEX ON users (email) 
+   USING 'path.to.the.IndexClass';
+CREATE CUSTOM INDEX ON users (email) 
+   USING 'path.to.the.IndexClass' 
+   WITH OPTIONS = {'storage': '/mnt/ssd/indexes/'};
+
+```
+
+### Index Types
+
+The `USING` keyword optionally specifies an index type. There are two built-in types:
+
+- legacy_local_table - (default) legacy secondary index, implemented as a hidden local table
+- sai - "storage-attched" index, implemented via optimized SSTable/Memtable-attached indexes
+
+To create a custom index, a fully qualified class name must be specified.
+
+### Indexes on Map Keys
+
+When creating an index on a `maps <maps>`, you may index either the keys
+or the values. If the column identifier is placed within the `keys()`
+function, the index will be on the map keys, allowing you to use
+`CONTAINS KEY` in `WHERE` clauses. Otherwise, the index will be on the
+map values.
+
+[[drop-index-statement]]
+
+## DROP INDEX
+
+Dropping a secondary index uses the `DROP INDEX` statement:
+
+```bnf
+drop_index_statement::= DROP INDEX [ IF EXISTS ] index_name
+
+```
+
+The `DROP INDEX` statement is used to drop an existing secondary index.
+The argument of the statement is the index name, which may optionally
+specify the keyspace of the index.
+
+If the index does not exists, the statement will return an error, unless
+`IF EXISTS` is used in which case the operation is a no-op.

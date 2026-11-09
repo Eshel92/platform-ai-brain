@@ -1,0 +1,374 @@
+<!-- Converted from reference/operator/aggregation/setField.txt (reStructuredText). Includes are inlined. -->
+
+# $setField  (expression operator)
+
+## Definition
+
+**`$setField`**
+
+**New in version:** 5.0
+
+Adds, updates, or removes a specified field in a document.
+
+You can use `$setField` to add, update, or remove fields
+with names that contain periods (`.`) or start with dollar
+signs (`$`).
+
+Do not rely on root-level dollar-prefixed field names that collide
+with reserved internal metadata field names, as those fields may be
+dropped or inaccessible in some query-processing contexts. For
+restrictions and guidance on field names that contain dollar signs
+(`$`) or periods (`.`), see
+crud-concepts-dot-dollar-considerations.
+
+**Tip:**
+
+Use `$getField` to retrieve the values of fields that
+contain dollar signs (`$`) or periods (`.`) that you add or 
+update with `$setField`.
+
+## Syntax
+
+`$setField` has the following syntax:
+
+```javascript
+{ 
+  $setField: {
+    field: <String>,
+    input: <Object>,
+    value: <Expression>
+  }
+}
+```
+
+You must provide the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `field` | String | Field in the `input` object that you want to add, update, or remove. `field` can be any valid expression that resolves to a string constant. |
+| `input` | Object | Document that contains the `field` that you want to add or update. `input` must resolve to an object, `missing`, `null`, or `undefined`. |
+| `value` | Expression | The value that you want to assign to `field`. `value` can be any valid expression. Set to `$$REMOVE` to remove `field` from the `input` document. |
+
+## Behavior
+
+- If `input` evaluates to `missing`, `undefined`, or `null`,
+  `$setField` returns `null` and does not update
+  `input`.
+
+- If `input` evaluates to anything other than an object, `missing`,
+  `undefined`, or `null`, `$setField` returns an error.
+
+- If `field` resolves to anything other than a string constant,
+  `$setField` returns an error.
+
+- If `field` doesn't exist in `input`, `$setField`
+  adds it.
+
+- `$setField` doesn't implicitly traverse objects or
+  arrays. For example, `$setField` evaluates a `field`
+  value of `"a.b.c"` as a top-level field `"a.b.c"` instead of as
+  a nested field, `{ "a": { "b": { "c": } } }`.
+
+- `$unsetField` is an alias for `$setField`
+  with an input value of `$$REMOVE`.  The following expressions are
+  equivalent: 
+
+  ```javascript
+  {
+     $setField: {
+        field: <field name>, 
+        input: “$$ROOT”,
+        value: "$$REMOVE"
+     }
+  }
+
+  {
+     $unsetField: {
+        field: <field name>, 
+        input: “$$ROOT”
+     }
+  }
+  ```
+
+ 
+
+## Examples
+
+### Add Fields that Contain Periods (`.`)
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany( [ 
+   { _id: 1, item: "sweatshirt", price: 45.99, qty: 300 },
+   { _id: 2, item: "winter coat", price: 499.99, qty: 200 },
+   { _id: 3, item: "sun dress", price: 199.99, qty: 250 },
+   { _id: 4, item: "leather boots", price: 249.99, qty: 300 },
+   { _id: 5, item: "bow tie", price: 9.99, qty: 180 }
+] )
+```
+
+The following operation uses the `$replaceWith` pipeline stage
+and the `$setField` operator to add a new field to each 
+document, `"price.usd"`. The value of `"price.usd"` equals the
+value of `"price"` in each document. Finally, the operation uses the
+`$unset` pipeline stage to remove the `"price"` field.
+
+```javascript
+db.inventory.aggregate( [ 
+   { $replaceWith: {
+        $setField: { 
+           field: "price.usd",
+           input: "$$ROOT", 
+           value: "$price" 
+   } } },
+   { $unset: "price" }
+] )
+```
+
+The operation returns the following results:
+
+```javascript
+[
+  { _id: 1, item: 'sweatshirt', qty: 300, 'price.usd': 45.99 },
+  { _id: 2, item: 'winter coat', qty: 200, 'price.usd': 499.99 },
+  { _id: 3, item: 'sun dress', qty: 250, 'price.usd': 199.99 },
+  { _id: 4, item: 'leather boots', qty: 300, 'price.usd': 249.99 },
+  { _id: 5, item: 'bow tie', qty: 180, 'price.usd': 9.99 }
+]
+```
+
+### Add Fields that Start with a Dollar Sign (`$`)
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany( [ 
+   { _id: 1, item: "sweatshirt", price: 45.99, qty: 300 },
+   { _id: 2, item: "winter coat", price: 499.99, qty: 200 },
+   { _id: 3, item: "sun dress", price: 199.99, qty: 250 },
+   { _id: 4, item: "leather boots", price: 249.99, qty: 300 },
+   { _id: 5, item: "bow tie", price: 9.99, qty: 180 }
+] )
+```
+
+The following operation uses the `$replaceWith` pipeline
+stage and the `$setField` and `$literal`
+operators to add a new field to each document, `"$price"`. The value
+of `"$price"` equals the value of `"price"` in each document.
+Finally, the operation uses the `$unset` pipeline stage to
+remove the `"price"` field.
+
+```javascript
+db.inventory.aggregate( [
+   { $replaceWith: {
+        $setField: { 
+           field: { $literal: "$price" },
+           input: "$$ROOT", 
+           value: "$price" 
+   } } },
+   { $unset: "price" }
+] )
+```
+
+The operation returns the following results:
+
+```javascript
+[
+  { _id: 1, item: 'sweatshirt', qty: 300, '$price': 45.99 },
+  { _id: 2, item: 'winter coat', qty: 200, '$price': 499.99 },
+  { _id: 3, item: 'sun dress', qty: 250, '$price': 199.99 },
+  { _id: 4, item: 'leather boots', qty: 300, '$price': 249.99 },
+  { _id: 5, item: 'bow tie', qty: 180, '$price': 9.99 }
+]
+```
+
+### Update Fields that Contain Periods (`.`)
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany( [ 
+   { _id: 1, item: 'sweatshirt', qty: 300, 'price.usd': 45.99 },
+   { _id: 2, item: 'winter coat', qty: 200, 'price.usd': 499.99 },
+   { _id: 3, item: 'sun dress', qty: 250, 'price.usd': 199.99 },
+   { _id: 4, item: 'leather boots', qty: 300, 'price.usd': 249.99 },
+   { _id: 5, item: 'bow tie', qty: 180, 'price.usd': 9.99 }
+] )
+```
+
+The following operation uses the `$match` pipeline stage to
+find a specific document and the `$replaceWith` pipeline stage
+and the `$setField` operator to update the `"price.usd"` 
+field in the matching document:
+
+```javascript
+db.inventory.aggregate( [ 
+   { $match: { _id: 1 } }, 
+   { $replaceWith: { 
+        $setField: { 
+           field: "price.usd", 
+           input: "$$ROOT", 
+           value: 49.99 
+    } } }
+] )
+```
+
+The operation returns the following results:
+
+```javascript
+[ 
+  { _id: 1, item: 'sweatshirt', qty: 300, 'price.usd': 49.99 } 
+]
+```
+
+### Update Fields that Start with a Dollar Sign (`$`)
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany([ 
+   { _id: 1, item: 'sweatshirt', qty: 300, '$price': 45.99 },
+   { _id: 2, item: 'winter coat', qty: 200, '$price': 499.99 },
+   { _id: 3, item: 'sun dress', qty: 250, '$price': 199.99 },
+   { _id: 4, item: 'leather boots', qty: 300, '$price': 249.99 },
+   { _id: 5, item: 'bow tie', qty: 180, '$price': 9.99 }
+] )
+```
+
+The following operation uses the `$match` pipeline stage to
+find a specific document and the `$replaceWith` pipeline stage
+and the `$setField` and `$literal` operators to 
+update the `"$price"` field in the matching document:
+
+```javascript
+db.inventory.aggregate( [ 
+   { $match: { _id: 1 } }, 
+   { $replaceWith: { 
+        $setField: { 
+           field: { $literal: "$price" }, 
+           input: "$$ROOT", 
+           value: 49.99 
+   } } }
+] )
+```
+
+The operation returns the following results:
+
+```javascript
+[ 
+  { _id: 1, item: 'sweatshirt', qty: 300, '$price': 49.99 } 
+]
+```
+
+### Remove Fields that Contain Periods (`.`)
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany([ 
+   { _id: 1, item: 'sweatshirt', qty: 300, 'price.usd': 45.99 },
+   { _id: 2, item: 'winter coat', qty: 200, 'price.usd': 499.99 },
+   { _id: 3, item: 'sun dress', qty: 250, 'price.usd': 199.99 },
+   { _id: 4, item: 'leather boots', qty: 300, 'price.usd': 249.99 },
+   { _id: 5, item: 'bow tie', qty: 180, 'price.usd': 9.99 }
+] )
+```
+
+The following operation uses the `$replaceWith` pipeline stage
+and the `$setField` operator and `$$REMOVE` to remove the `"price.usd"` field from each document:
+
+```javascript
+db.inventory.aggregate( [
+   { $replaceWith:  {
+        $setField: { 
+           field: "price.usd",
+           input: "$$ROOT", 
+           value: "$$REMOVE" 
+   } } }
+] )
+```
+
+The operation returns the following results:
+
+```javascript
+[
+  { _id: 1, item: 'sweatshirt', qty: 300 },
+  { _id: 2, item: 'winter coat', qty: 200 },
+  { _id: 3, item: 'sun dress', qty: 250 },
+  { _id: 4, item: 'leather boots', qty: 300 },
+  { _id: 5, item: 'bow tie', qty: 180 }
+]
+```
+
+A similar query written using the `$unsetField` alias
+returns the same results: 
+
+```javascript
+db.inventory.aggregate( [
+   { $replaceWith:  {
+        $unsetField: { 
+           field: "price.usd",
+           input: "$$ROOT" 
+   } } }
+] )
+```
+
+### Remove Fields that Start with a Dollar Sign (`$`)
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany( [ 
+   { _id: 1, item: 'sweatshirt', qty: 300, '$price': 45.99 },
+   { _id: 2, item: 'winter coat', qty: 200, '$price': 499.99 },
+   { _id: 3, item: 'sun dress', qty: 250, '$price': 199.99 },
+   { _id: 4, item: 'leather boots', qty: 300, '$price': 249.99 },
+   { _id: 5, item: 'bow tie', qty: 180, '$price': 9.99 }
+] )
+```
+
+The following operation uses the `$replaceWith` pipeline
+stage, the `$setField` and `$literal` operators,
+and `$$REMOVE` to remove the `"$price"` field 
+from each document:
+
+```javascript
+db.inventory.aggregate( [
+   { $replaceWith: {
+        $setField: { 
+           field: { $literal: "$price" },
+           input: "$$ROOT", 
+           value: "$$REMOVE" 
+   } } }
+] )
+```
+
+The operation returns the following results:
+
+```javascript
+[
+  { _id: 1, item: 'sweatshirt', qty: 300 },
+  { _id: 2, item: 'winter coat', qty: 200 },
+  { _id: 3, item: 'sun dress', qty: 250 },
+  { _id: 4, item: 'leather boots', qty: 300 },
+  { _id: 5, item: 'bow tie', qty: 180 }
+]
+```
+
+A similar query written using the `$unsetField` alias
+returns the same results: 
+
+```javascript
+db.inventory.aggregate( [
+  { $replaceWith: {
+       $unsetField: { 
+          field: { $literal: "$price" },
+          input: "$$ROOT"
+  } } }
+] )
+```
+
+**See also:**
+
+`$unsetField`

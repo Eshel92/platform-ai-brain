@@ -1,0 +1,166 @@
+<!-- Converted from reference/operator/aggregation/lastN.txt (reStructuredText). Includes are inlined. -->
+
+# $lastN (accumulator operator)
+
+## Definition
+
+**`$lastN`**
+
+Returns the result of evaluating a specified expression over the last `n`
+elements in a group. The results are meaningful only if the input data
+to the grouping stage has a defined sort order. If the group contains
+fewer than `n` elements, `$lastN` returns all elements in the group.
+
+The `$lastN` accumulator is available in these stages:
+
+- `$bucket`
+
+- `$bucketAuto`
+
+- `$group`
+
+**Note:** Disambiguation
+
+This page describes `$lastN` when used as an **accumulator**.
+Accumulators return an aggregated value like sum, maximum, or
+minimum across a group of input documents.
+
+You can also use `$lastN` in these other contexts:
+
+- `$lastN (expression)`, which returns the
+  specified number of elements from the end of an array.
+
+- `$lastN (window function)`, which is used in the
+  `$setWindowFields` stage to return the last `n` values
+  from documents in a particular window.
+
+## Syntax
+
+```none
+{
+   $lastN:
+      {
+         input: <expression>,
+         n: <expression>
+      }
+}
+```
+
+### Options
+
+| Field | Type | Description |
+|---|---|---|
+| `input` | Expression | The `input` expression is evaluated over each document in the input group, and the last `n` results are preserved. |
+| `n` | Expression | The number of elements that `$lastN` returns from the group. For an example of setting `n` dynamically based on the group key, see last-n-with-group-key. |
+
+## Behavior
+
+### Null and Missing Values
+
+- `$lastN` does not filter out null values.
+- `$lastN` converts missing values to null.
+
+### Comparison of $lastN and $bottomN
+
+You can use `$lastN` and `$bottomN` to return the last `n`
+elements from a group. However, the difference of when to use each
+depends on whether your input documents are already sorted.
+
+- If the documents coming into `$group` are already ordered,
+  you should use `$lastN`.
+- If you're sorting and selecting the bottom `n` elements then you can
+  use `$bottomN` to accomplish both tasks with one accumulator.
+
+## Examples
+
+The examples on this page use the `movies` collection in the
+sample_mflix sample dataset. To
+learn how to load the sample dataset into your MongoDB deployment, see
+load-sample-data.
+
+### Find the Last Three Movies for a Single Genre
+
+You can use the `$lastN` accumulator to find the most-recently
+released movies in a particular genre.
+
+```javascript
+```
+
+Output:
+
+```javascript
+```
+
+The preceding pipeline:
+
+- Uses `$match` to filter the results to movies where
+  `Horror` is included in the `genres` array, and where `year`
+  is an integer.
+- Sorts the results by `year` in ascending order, then by
+  `title` alphabetically as a tiebreaker.
+- Groups all resulting documents into a single group.
+- Specifies the fields that are input for `$lastN` with
+  `input : ["$title", "$year"]`.
+- Uses `$lastN` to return the last three documents (sorted by year
+  ascending, with `title` as a tiebreaker) for the `Horror` genre
+  with `n: 3`.
+
+### Find the Last Three Movies Across Multiple Genres
+
+You can use the `$lastN` accumulator to find the last `n`
+input fields in each genre.
+
+```javascript
+```
+
+Output:
+
+```javascript
+```
+
+The preceding pipeline:
+
+- Uses `$match` to filter to movies where `year` is an integer.
+- Uses `$unwind` to create a separate document for each genre
+  in the `genres` array.
+- Sorts the results by `year` in ascending order, then by `title`
+  alphabetically.
+- Uses `$group` to group the results by `genres`.
+- Uses `$lastN` to return the last three documents (by year ascending,
+  with `title` as a tiebreaker) for each genre with `n: 3`.
+- Specifies the fields that are input for `$lastN` with
+  `input : ["$title", "$year"]`.
+- Limits the output to five documents to improve readability.
+
+### Set n Based on the Group Key
+
+You can assign the value of `n` dynamically based on the group key. In
+this example, the `$cond` expression uses the `rated`
+field to change the value of `n`:
+
+```javascript
+```
+
+Output:
+
+```javascript
+```
+
+The preceding pipeline:
+
+- Filters for movies with content ratings of `G`, `PG`, `PG-13`, or `R`,
+  where `year` is an integer and `title` starts with an alphanumeric
+  character.
+- Sorts the results alphabetically by `title`.
+- Groups movies by `rated` (the content rating).
+- Uses the `$cond` expression to return `3` movies for `PG`-rated
+  movies and `1` movie for all other ratings.
+
+In the output, the `PG` rating returns 3 movies, while `G`,
+`PG-13`, and `R` ratings each return 1 movie.
+
+## Learn More
+
+- `$lastN (expression)`
+- `$lastN (window function)`
+- `$firstN`

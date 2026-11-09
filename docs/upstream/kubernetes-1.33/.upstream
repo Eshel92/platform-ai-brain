@@ -1,0 +1,15 @@
+{
+  "name": "kubernetes-1.33",
+  "team": "commons",
+  "about": "Kubernetes 1.33 docs. Pages mark when each feature arrived",
+  "repo": "kubernetes/website",
+  "ref": "release-1.33",
+  "commit": "b9ab6105d0e3b6824dc368d3dd3b101fb4774575",
+  "paths": [
+    "content/en/docs"
+  ],
+  "files": 1495,
+  "bytes": 10765080,
+  "license": "CC BY 4.0",
+  "synced": "2026-11-08T16:06:09Z"
+}

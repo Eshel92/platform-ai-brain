@@ -1,0 +1,234 @@
+{
+  "_about": "Offline upstream docs. Edit this list, then run scripts/sync_upstream_docs.py on a machine that can reach the git host. 'paths' are folders in the repo; 'root_files' are extra files from the repo root; 'include' / 'exclude' are patterns on paths inside those folders. 'license' is used when the repo has no license file; 'extra_extensions' adds file types beyond the usual text ones. 'convert' (rst | adoc) turns each page into one self-contained Markdown file; 'checkout' adds folders needed only during conversion (shared code examples).",
+  "sources": [
+    {
+      "name": "mongodb-manual-7.0",
+      "team": "team1-mongodb-cassandra",
+      "about": "MongoDB Server manual 7.0: operations, replication, sharding, security, upgrades to 7.0, release notes",
+      "repo": "mongodb/docs",
+      "ref": "main",
+      "paths": [
+        "content/manual/v7.0/source"
+      ],
+      "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+      "convert": "rst",
+      "checkout": [
+        "content/code-examples"
+      ]
+    },
+    {
+      "name": "mongodb-manual-6.0",
+      "team": "team1-mongodb-cassandra",
+      "about": "MongoDB Server manual 6.0, including the 5.0 → 6.0 upgrade",
+      "repo": "mongodb/docs",
+      "ref": "v6.0",
+      "paths": [
+        "source"
+      ],
+      "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+      "convert": "rst"
+    },
+    {
+      "name": "ops-manager-7.0",
+      "team": "team1-mongodb-cassandra",
+      "about": "Ops Manager 7.0: automation, monitoring, backup (S3 blockstore), API",
+      "repo": "mongodb/docs",
+      "ref": "main",
+      "paths": [
+        "content/ops-manager/v7.0/source"
+      ],
+      "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+      "convert": "rst",
+      "checkout": [
+        "content/code-examples"
+      ]
+    },
+    {
+      "name": "mck-1.7",
+      "team": "team1-mongodb-cassandra",
+      "about": "MongoDB Controllers for Kubernetes (MCK) 1.7: MongoDB / MongoDBUser resources, TLS, Ops Manager integration",
+      "repo": "mongodb/docs",
+      "ref": "main",
+      "paths": [
+        "content/kubernetes/v1.7/source"
+      ],
+      "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+      "convert": "rst",
+      "checkout": [
+        "content/code-examples"
+      ]
+    },
+    {
+      "name": "mongosh",
+      "team": "team1-mongodb-cassandra",
+      "about": "MongoDB Shell (mongosh), latest docs",
+      "repo": "mongodb/docs",
+      "ref": "main",
+      "paths": [
+        "content/mongodb-shell/source"
+      ],
+      "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+      "convert": "rst",
+      "checkout": [
+        "content/code-examples"
+      ]
+    },
+    {
+      "name": "mongodb-database-tools",
+      "team": "team1-mongodb-cassandra",
+      "about": "mongodump, mongorestore, mongoexport and the other Database Tools, latest docs",
+      "repo": "mongodb/docs",
+      "ref": "main",
+      "paths": [
+        "content/database-tools/source"
+      ],
+      "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+      "convert": "rst",
+      "checkout": [
+        "content/code-examples"
+      ]
+    },
+    {
+      "name": "cassandra-5.0",
+      "team": "team1-mongodb-cassandra",
+      "about": "Apache Cassandra 5.0.6 docs: architecture, cassandra.yaml, nodetool, CQL, operations",
+      "repo": "apache/cassandra",
+      "ref": "cassandra-5.0.6",
+      "paths": [
+        "doc"
+      ],
+      "convert": "adoc"
+    },
+    {
+      "name": "k8ssandra-operator-1.28",
+      "team": "team1-mongodb-cassandra",
+      "about": "K8ssandra operator 1.28.0: K8ssandraCluster, Medusa and Reaper integration, CRD reference (current only)",
+      "repo": "k8ssandra/k8ssandra-operator",
+      "ref": "v1.28.0",
+      "paths": [
+        "docs/content/en"
+      ],
+      "exclude": [
+        "reference/crd/releases/*"
+      ]
+    },
+    {
+      "name": "cass-operator-1.28",
+      "team": "team1-mongodb-cassandra",
+      "about": "cass-operator 1.28.0 (bundled with K8ssandra operator 1.28.0): CassandraDatacenter",
+      "repo": "k8ssandra/cass-operator",
+      "ref": "v1.28.0",
+      "paths": [
+        "docs"
+      ],
+      "root_files": [
+        "README.md"
+      ]
+    },
+    {
+      "name": "cassandra-medusa",
+      "team": "team1-mongodb-cassandra",
+      "about": "Medusa backup and restore for Cassandra (latest release docs)",
+      "repo": "thelastpickle/cassandra-medusa",
+      "ref": "v0.31.1",
+      "paths": [
+        "docs"
+      ],
+      "root_files": [
+        "README.md"
+      ]
+    },
+    {
+      "name": "cassandra-reaper",
+      "team": "team1-mongodb-cassandra",
+      "about": "Reaper repair scheduling for Cassandra (latest release docs)",
+      "repo": "thelastpickle/cassandra-reaper",
+      "ref": "5.1.0",
+      "paths": [
+        "src/docs/content"
+      ]
+    },
+    {
+      "name": "kubernetes-1.33",
+      "team": "commons",
+      "about": "Kubernetes 1.33 docs. Pages mark when each feature arrived",
+      "repo": "kubernetes/website",
+      "ref": "release-1.33",
+      "paths": [
+        "content/en/docs"
+      ]
+    },
+    {
+      "name": "argo-cd-3.2",
+      "team": "commons",
+      "about": "Argo CD 3.2 docs: ApplicationSets, sync policies, operations",
+      "repo": "argoproj/argo-cd",
+      "ref": "release-3.2",
+      "paths": [
+        "docs"
+      ]
+    },
+    {
+      "name": "victoriametrics",
+      "team": "commons",
+      "about": "VictoriaMetrics docs (latest): long-term storage for Prometheus metrics, MetricsQL",
+      "repo": "VictoriaMetrics/VictoriaMetrics",
+      "ref": "master",
+      "paths": [
+        "docs"
+      ]
+    },
+    {
+      "name": "prometheus-operator",
+      "team": "commons",
+      "about": "Prometheus Operator docs (latest): ServiceMonitor, PodMonitor, PrometheusRule",
+      "repo": "prometheus-operator/prometheus-operator",
+      "ref": "main",
+      "paths": [
+        "Documentation"
+      ]
+    },
+    {
+      "name": "grafana-alerting-dashboards",
+      "team": "commons",
+      "about": "Grafana docs (latest): alerting and dashboards only",
+      "repo": "grafana/grafana",
+      "ref": "main",
+      "paths": [
+        "docs/sources/alerting",
+        "docs/sources/dashboards"
+      ]
+    },
+    {
+      "name": "dell-csm-powerflex",
+      "team": "commons",
+      "about": "Dell Container Storage Modules docs (latest), PowerFlex pages only: CSI driver install, features, troubleshooting",
+      "repo": "dell/csm-docs",
+      "ref": "main",
+      "paths": [
+        "content/docs"
+      ],
+      "include": [
+        "*powerflex*",
+        "*PowerFlex*",
+        "concepts/csidriver/_index.md"
+      ],
+      "license": "Apache-2.0 (stated in the csm-docs README)"
+    },
+    {
+      "name": "vector",
+      "team": "commons",
+      "about": "Vector docs (latest): log shipping. Component options and VRL live in the .cue files under components/ and remap/",
+      "repo": "vectordotdev/vector",
+      "ref": "master",
+      "paths": [
+        "website/content/en/docs",
+        "website/cue/reference/components",
+        "website/cue/reference/remap"
+      ],
+      "extra_extensions": [
+        ".cue"
+      ]
+    }
+  ]
+}

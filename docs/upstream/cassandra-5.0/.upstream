@@ -1,0 +1,17 @@
+{
+  "name": "cassandra-5.0",
+  "team": "team1-mongodb-cassandra",
+  "about": "Apache Cassandra 5.0.6 docs: architecture, cassandra.yaml, nodetool, CQL, operations",
+  "repo": "apache/cassandra",
+  "ref": "cassandra-5.0.6",
+  "commit": "4cba279af681367de72ddfe1589b4e15870c9a8e",
+  "paths": [
+    "doc"
+  ],
+  "files": 188,
+  "bytes": 1506650,
+  "license": "Apache-2.0",
+  "format": "Markdown, converted from AsciiDoc (includes inlined)",
+  "notes": [],
+  "synced": "2026-11-09T08:12:34Z"
+}

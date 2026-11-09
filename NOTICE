@@ -1,0 +1,18 @@
+Platform AI Brain
+
+Everything outside docs/upstream/ was written for this team.
+
+docs/upstream/ contains text-only copies of third-party documentation, kept for offline use inside
+the team. The content is unchanged; the MongoDB and Cassandra docs were only converted to Markdown
+(includes inlined). Each folder keeps its own license:
+
+- Each folder's LICENSE file (copied from the source repository), when the repository has one.
+- docs/upstream/VERSIONS.md lists every folder's source repository, commit and license.
+
+The MongoDB documentation folders (mongodb-manual-*, ops-manager-*, mck-*, mongosh,
+mongodb-database-tools) come from github.com/mongodb/docs, licensed under Creative Commons
+Attribution-NonCommercial-ShareAlike 3.0 (https://creativecommons.org/licenses/by-nc-sa/3.0/),
+as stated in that repository's README.
+
+The Dell Container Storage Modules folder (dell-csm-powerflex) comes from github.com/dell/csm-docs,
+licensed under the Apache License 2.0, as stated in that repository's README.

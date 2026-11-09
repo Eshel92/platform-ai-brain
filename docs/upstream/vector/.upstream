@@ -1,0 +1,17 @@
+{
+  "name": "vector",
+  "team": "commons",
+  "about": "Vector docs (latest): log shipping. Component options and VRL live in the .cue files under components/ and remap/",
+  "repo": "vectordotdev/vector",
+  "ref": "master",
+  "commit": "962ab2f804d18c99941bfddf050e8fe4061cae97",
+  "paths": [
+    "website/content/en/docs",
+    "website/cue/reference/components",
+    "website/cue/reference/remap"
+  ],
+  "files": 672,
+  "bytes": 1752142,
+  "license": "MPL-2.0",
+  "synced": "2026-11-08T16:08:37Z"
+}

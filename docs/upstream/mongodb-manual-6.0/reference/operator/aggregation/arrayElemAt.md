@@ -1,0 +1,105 @@
+<!-- Converted from reference/operator/aggregation/arrayElemAt.txt (reStructuredText). Includes are inlined. -->
+
+# $arrayElemAt (aggregation)
+
+## Definition
+
+**`$arrayElemAt`**
+
+Returns the element at the specified array index.
+
+## Compatibility
+
+You can use `$arrayElemAt` for deployments hosted in the following
+environments:
+
+- [MongoDB Atlas](https://www.mongodb.com/docs/atlas?tck=docs_server): The fully
+  managed service for MongoDB deployments in the cloud
+- MongoDB Enterprise: The
+  subscription-based, self-managed version of MongoDB
+- MongoDB Community: The
+  source-available, free-to-use, and self-managed version of MongoDB
+
+## Syntax
+
+`$arrayElemAt` has the following syntax:
+
+```javascript
+{ $arrayElemAt: [ <array>, <idx> ] }
+```
+
+The `<array>` expression can be any valid expression that resolves to an array.
+
+The `<idx>` expression can be any valid expression that resolves to an integer.
+
+For more information on expressions, see
+aggregation-expressions.
+
+## Behavior
+
+- If the `<idx>` expression resolves to zero or a positive integer,
+  `$arrayElemAt` returns the element at the `idx`
+  position, counting from the start of the array.
+
+- If the `<idx>` expression resolves to a negative integer,
+  `$arrayElemAt` returns the element at the `idx`
+  position, counting from the end of the array.
+
+- If `idx` exceeds the array bounds, `$arrayElemAt` does
+  not return a result.
+
+- If the `<array>` expression resolves to an undefined array,
+  `$arrayElemAt` returns `null`.
+
+| Example | Results |
+|---|---|
+| `{ $arrayElemAt: [ [ 1, 2, 3 ], 0 ] }` | `1` |
+| `{ $arrayElemAt: [ [ 1, 2, 3 ], -2 ] }` | `2` |
+| `{ $arrayElemAt: [ [ 1, 2, 3 ], 15 ] }` |  |
+| `{ $arrayElemAt: [ "$undefinedField", 0 ] }` | `null` |
+
+## Example
+
+A collection named `users` contains the following documents:
+
+```javascript
+{ "_id" : 1, "name" : "dave123", favorites: [ "chocolate", "cake", "butter", "apples" ] }
+{ "_id" : 2, "name" : "li", favorites: [ "apples", "pudding", "pie" ] }
+{ "_id" : 3, "name" : "ahn", favorites: [ "pears", "pecans", "chocolate", "cherries" ] }
+{ "_id" : 4, "name" : "ty", favorites: [ "ice cream" ] }
+```
+
+The following example returns the first and last element in the
+`favorites` array:
+
+```javascript
+db.users.aggregate([
+   {
+     $project:
+      {
+         name: 1,
+         first: { $arrayElemAt: [ "$favorites", 0 ] },
+         last: { $arrayElemAt: [ "$favorites", -1 ] }
+      }
+   }
+])
+```
+
+The operation returns the following results:
+
+```javascript
+{ "_id" : 1, "name" : "dave123", "first" : "chocolate", "last" : "apples" }
+{ "_id" : 2, "name" : "li", "first" : "apples", "last" : "pie" }
+{ "_id" : 3, "name" : "ahn", "first" : "pears", "last" : "cherries" }
+{ "_id" : 4, "name" : "ty", "first" : "ice cream", "last" : "ice cream" }
+```
+
+## See Also
+
+- `$first`
+
+- `$last`
+
+- `$slice`
+
+- agg-quick-ref-operator-array

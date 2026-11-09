@@ -1,0 +1,15 @@
+{
+  "name": "cassandra-medusa",
+  "team": "team1-mongodb-cassandra",
+  "about": "Medusa backup and restore for Cassandra (latest release docs)",
+  "repo": "thelastpickle/cassandra-medusa",
+  "ref": "v0.31.1",
+  "commit": "ccd9e63015b25437aa9353ca9b5a7ba6f8c7c25b",
+  "paths": [
+    "docs"
+  ],
+  "files": 17,
+  "bytes": 86838,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:06:01Z"
+}

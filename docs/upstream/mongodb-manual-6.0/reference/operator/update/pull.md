@@ -1,0 +1,348 @@
+<!-- Converted from reference/operator/update/pull.txt (reStructuredText). Includes are inlined. -->
+
+# $pull
+
+**`$pull`**
+
+The `$pull` operator removes from an existing array all
+instances of a value or values that match a specified condition.
+
+## Compatibility
+
+You can use `$pull` for deployments hosted in the following
+environments:
+
+- [MongoDB Atlas](https://www.mongodb.com/docs/atlas?tck=docs_server): The fully
+  managed service for MongoDB deployments in the cloud
+- MongoDB Enterprise: The
+  subscription-based, self-managed version of MongoDB
+- MongoDB Community: The
+  source-available, free-to-use, and self-managed version of MongoDB
+
+## Syntax
+
+The `$pull` operator has the following form:
+
+```javascript
+{ $pull: { <field1>: <value|condition>, <field2>: <value|condition>, ... } }
+```
+
+To specify a `<field>` in an embedded document or in an array, use
+dot notation.
+
+## Behavior
+
+Starting in MongoDB 5.0, update operators process document fields with
+string-based names in lexicographic order. Fields with numeric names are
+processed in numeric order. See Update Operators Behavior for details.
+
+If you specify a `<condition>` and the array elements are embedded
+documents, `$pull` operator applies the `<condition>` as if each
+array element were a document in a collection. See
+pull-array-of-documents for an example.
+
+If the specified `<value>` to remove is an array, `$pull`
+removes only the elements in the array that match the specified
+`<value>` exactly, including order.
+
+If the specified `<value>` to remove is a document, `$pull`
+removes only the elements in the array that have the exact same fields
+and values. The ordering of the fields can differ.
+
+Starting in MongoDB 5.0, `mongod` no longer raises an
+error when you use an update operator like `$pull`
+with an empty operand expression ( `{ }` ). An empty update results
+in no changes and no oplog entry is created (meaning that the
+operation is a no-op).
+
+## Examples
+
+### Remove All Items That Equal a Specified Value
+
+Create the `stores` collection:
+
+```javascript
+db.stores.insertMany( [
+   {
+      _id: 1,
+      fruits: [ "apples", "pears", "oranges", "grapes", "bananas" ],
+      vegetables: [ "carrots", "celery", "squash", "carrots" ]
+   },
+   {
+      _id: 2,
+      fruits: [ "plums", "kiwis", "oranges", "bananas", "apples" ],
+      vegetables: [ "broccoli", "zucchini", "carrots", "onions" ]
+   }
+] )
+```
+
+The following operation removes
+
+- `"apples"` and `"oranges"` from the `fruits` array
+- `"carrots"` from the `vegetables` array
+
+```javascript
+db.stores.updateMany(
+    { },
+    { $pull: { fruits: { $in: [ "apples", "oranges" ] }, vegetables: "carrots" } }
+)
+```
+
+Confirm the result with `db.collection.find()`:
+
+```javascript
+{
+  _id: 1,
+  fruits: [ 'pears', 'grapes', 'bananas' ],
+  vegetables: [ 'celery', 'squash' ]
+},
+{
+  _id: 2,
+  fruits: [ 'plums', 'kiwis', 'bananas' ],
+  vegetables: [ 'broccoli', 'zucchini', 'onions' ]
+}
+```
+
+### Remove All Items That Match a Specified `$pull` Condition
+
+Create the `profiles` collection:
+
+```javascript
+db.profiles.insertOne( { _id: 1, votes: [ 3, 5, 6, 7, 7, 8 ] } )
+```
+
+The following operation will remove all items from the `votes` array
+that are greater than or equal to ( `$gte` ) `6`:
+
+```javascript
+db.profiles.updateOne( { _id: 1 }, { $pull: { votes: { $gte: 6 } } } )
+```
+
+After the update operation, the document only has values less than 6:
+
+```javascript
+{ _id: 1, votes: [  3,  5 ] }
+```
+
+### Remove All Items That Match a Specified `$pull` Condition With `bulkWrite()`
+
+The following `db.collection.bulkWrite()` operation:
+
+- Creates the `profilesBulkWrite` collection.
+
+- Removes all items from the `votes` array
+  that are greater than or equal to ( `$gte` ) `6`.
+
+- Removes all items from the `votes` array
+  that are less than or equal to ( `$lte` ) `3`.
+
+```javascript
+try {
+   db.profilesBulkWrite.bulkWrite( [
+      {
+         insertOne: {
+            "document": { _id: 1, votes: [ 3, 5, 6, 7, 7, 8 ] }
+         }
+      },
+      {
+         updateOne: {
+            "filter": { _id: 1 }, 
+            "update": { $pull: { votes: { $gte: 6 } } }
+         }
+      },
+      {
+         updateOne: {
+            "filter": {_id: 1}, 
+            "update": { $pull: { votes: { $lte: 3 } } }
+         }
+      }
+   ] );
+} catch (e) {
+   print(e);
+}
+```
+
+**Note:** `bulkWrite()`
+
+The `db.collection.bulkWrite()` method executes multiple 
+write operations listed in an array. In this example, the 
+`db.collection.bulkWrite()` performs multiple operations
+on the `profiles` collection. 
+
+After the `db.collection.bulkWrite()` operation, 
+you can confirm the document only has values less than 
+6 and greater than 3 using the following 
+operation: 
+
+```javascript
+db.profilesBulkWrite.find()
+```
+
+The operation returns the following:
+
+```javascript
+[ { _id: 1, votes: [ 5 ] } ]
+```
+
+### Remove Items from an Array of Documents
+
+Create the `survey` collection:
+
+```javascript
+db.survey.insertMany([
+   {
+      _id: 1,
+      results: [
+         { item: "A", score: 5 },
+         { item: "B", score: 8 }
+      ]
+   },
+   {
+      _id: 2,
+      results: [
+         { item: "C", score: 8 },
+         { item: "B", score: 4 }
+      ]
+   }
+] )
+```
+
+The following operation removes all elements from the `results` array
+that contain both a `score` field equal to `8` and an `item`
+field equal to `"B"`:
+
+```javascript
+db.survey.updateMany(
+  { },
+  { $pull: { results: { score: 8 , item: "B" } } }
+)
+```
+
+The `$pull` expression applies the condition to each element of
+the `results` array as though it were a top-level document.
+
+After the operation, the `results` array contains no documents that
+contain both a `score` field equal to `8` and an `item` field
+equal to `"B"`.
+
+```javascript
+{ _id: 1, results: [ { item: 'A', score: 5 } ] },
+{
+  _id: 2,
+  results: [ { item: 'C', score: 8 }, { item: 'B', score: 4 } ]
+}
+```
+
+The `$pull` operator treats each element as a top-level object.
+The query is applied to each element. The expression does not need to
+use `$elemMatch` to specify match conditions. 
+
+On the contrary, the following operation does not `$pull` any
+elements from the original collection:
+
+```javascript
+db.survey.updateMany(
+  { },
+  { $pull: { results: { $elemMatch: { score: 8 , item: "B" } } } }
+)
+```
+
+**Note:**
+
+Drop the `survey` collection with:
+
+Then recreate it to run this
+example.
+
+### Remove Documents from Nested Arrays
+
+Create a new `survey` collection with documents that are embedded in
+nested arrays.
+
+```javascript
+db.survey.drop()
+
+db.survey.insertMany( [
+   {
+      _id: 1,
+      results: [
+         {
+            item: "A", 
+            score: 5, 
+            answers: [ { q: 1, a: 4 }, { q: 2, a: 6 } ]
+         },
+         {
+            item: "B",
+            score: 8,
+            answers: [ { q: 1, a: 8 }, { q: 2, a: 9 } ]
+         }
+      ]
+   },
+   {
+      _id: 2,
+      results: [
+         {
+            item: "C",
+            score: 8,
+            answers: [ { q: 1, a: 8 }, { q: 2, a: 7 } ]
+         },
+         {
+            item: "B",
+            score: 4,
+            answers: [ { q: 1, a: 0 }, { q: 2, a: 8 } ]
+         }
+      ]
+   }
+] )
+```
+
+Then you can specify multiple conditions on the elements of the
+`answers` array with `$elemMatch`:
+
+```javascript
+db.survey.updateMany(
+  { },
+  {
+     $pull:
+        {
+           results:
+              {
+                 answers: { $elemMatch: { q: 2, a: { $gte: 8 } } }
+              }
+        }
+  }
+)
+```
+
+The operation updated the `results` array in each document it
+matched. `db.collection.updateMany()` removed documents from
+`results` when an element of the embedded `answers` array matched
+the selection conditions in the highlighted line. 
+
+```javascript
+{
+  _id: 1,
+  results: [
+    {
+      item: 'A',
+      score: 5,
+      answers: [ { q: 1, a: 4 }, { q: 2, a: 6 } ]
+    }
+  ]
+},
+{
+  _id: 2,
+  results: [
+    {
+      item: 'C',
+      score: 8,
+      answers: [ { q: 1, a: 8 }, { q: 2, a: 7 } ]
+    }
+  ]
+}
+```
+
+**See also:**
+
+- `db.collection.updateMany()`
+- `db.collection.findAndModify()`

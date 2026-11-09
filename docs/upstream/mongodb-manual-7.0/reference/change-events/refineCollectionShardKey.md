@@ -1,0 +1,46 @@
+<!-- Converted from reference/change-events/refineCollectionShardKey.txt (reStructuredText). Includes are inlined. -->
+
+# refineCollectionShardKey Event
+
+## Summary
+
+**`refineCollectionShardKey`**
+
+**New in version:** 6.0
+
+A `refineCollectionShardKey` event occurs when a collection's shard
+key is modified.
+
+## Description
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | Document | .. include:: /includes/change-stream/id |
+| `clusterTime` | Timestamp | .. include:: /includes/change-stream/clusterTime |
+| `collectionUUID` | UUID | .. include:: /includes/change-stream/collectionUUID |
+| `ns` | Document | .. include:: /includes/change-stream/ns |
+| `ns.coll` | String | .. include:: /includes/change-stream/ns.coll |
+| `ns.db` | String | .. include:: /includes/change-stream/ns.db |
+| `operationDescription` | Document | .. include:: /includes/change-stream/operationDescription |
+| \| `operationDescription.` \| `shardKey` | Document | .. include:: /includes/change-stream/od-shardKey |
+| \| `operationDescription.` \| `oldShardKey` | Document | .. include:: /includes/change-stream/od-oldShardKey |
+
+## Example
+
+   
+The following example shows a `refineCollectionShardKey` event:
+   
+
+```json
+{
+   "_id": { <ResumeToken> },
+   "operationType": "refineCollectionShardKey",
+   "clusterTime": Timestamp({ t: 1654894852, i: 52 }),
+   "collectionUUID": UUID("98046a1a-b649-4e5b-9c75-67594221ce19"),
+   "ns": {"db": "reshard_collection_event", "coll": "coll"},
+   "operationDescription": {
+     "shardKey": {"_id": 1, akey: 1}, 
+     "oldShardKey": {"_id": 1}
+   }
+}
+```

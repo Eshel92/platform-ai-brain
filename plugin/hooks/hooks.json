@@ -1,0 +1,28 @@
+{
+  "description": "Platform brain: pull and brief at session start, offer to save learnings after long sessions. Runs in bash (Git Bash on Windows) and uses the first working python3 / python / py.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for p in python3 python py; do if \"$p\" -c '' </dev/null >/dev/null 2>&1; then \"$p\" \"${CLAUDE_PLUGIN_ROOT}/scripts/session_start.py\"; exit 0; fi; done; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for p in python3 python py; do if \"$p\" -c '' </dev/null >/dev/null 2>&1; then \"$p\" \"${CLAUDE_PLUGIN_ROOT}/scripts/stop_nudge.py\"; exit 0; fi; done; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

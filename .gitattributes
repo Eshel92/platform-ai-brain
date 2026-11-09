@@ -1,0 +1,2 @@
+# Keep Unix line endings (LF) on every OS, Windows included: page headers and scripts expect them.
+* text=auto eol=lf

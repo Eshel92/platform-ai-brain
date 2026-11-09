@@ -1,0 +1,6 @@
+{
+  "name": "brain",
+  "version": "0.1.0",
+  "description": "Connects Claude Code to the platform brain: pulls it at session start, looks things up before work, saves learnings straight to main after the engineer approves.",
+  "author": { "name": "Platform Engineering" }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "cass-operator-1.28",
+  "team": "team1-mongodb-cassandra",
+  "about": "cass-operator 1.28.0 (bundled with K8ssandra operator 1.28.0): CassandraDatacenter",
+  "repo": "k8ssandra/cass-operator",
+  "ref": "v1.28.0",
+  "commit": "e5928d0a833766fefa5c9fb82f9de42a2df77413",
+  "paths": [
+    "docs"
+  ],
+  "files": 15,
+  "bytes": 115305,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:05:59Z"
+}

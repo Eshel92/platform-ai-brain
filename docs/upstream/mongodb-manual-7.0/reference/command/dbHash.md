@@ -1,0 +1,229 @@
+<!-- Converted from reference/command/dbHash.txt (reStructuredText). Includes are inlined. -->
+
+# dbHash (database command)
+
+## Definition
+
+**`dbHash`**
+
+Returns the hash values of the collections in a database and an
+MD5 value for these collections. `dbHash` is useful
+to compare databases across `mongod` instances, such as
+across members of replica sets.
+
+**Warning:**
+
+The `dbHash` command obtains a shared (S) lock on the
+database, which prevents writes until the command completes.
+
+## Compatibility
+
+This command is available in deployments hosted in the following environments: 
+
+- [MongoDB Atlas](https://www.mongodb.com/docs/atlas): The fully
+  managed service for MongoDB deployments in the cloud
+
+**Important:**
+
+This command is not supported in M0 and Flex clusters.
+For more information, see Unsupported Commands.
+
+- MongoDB Enterprise: The
+  subscription-based, self-managed version of MongoDB
+- MongoDB Community: The
+  source-available, free-to-use, and self-managed version of MongoDB
+
+## Syntax
+
+The command has the following syntax:
+
+```javascript
+db.runCommand(
+   { 
+     dbHash: 1, 
+     collections: [ <collection1>, ... ] 
+   } 
+)
+```
+
+## Command Fields
+
+The command takes the following fields:
+    
+
+| Field | Type | Description |
+|---|---|---|
+| `dbHash` | Any type | The command to run. Specify any value. |
+| `collections` | array | Optional. An array of collection names. Either specify the collections for which to return the hash values, or omit or specify an empty array to return the hash values for all collections in the database. |
+
+       
+      
+
+## Behavior
+
+### Non-Existent Collection
+
+If a collection in the `collections` array is non-existent,
+`dbHash` does not return a hash value for that collection.
+A database-qualified name such as `test.orders` never matches, because
+`dbHash` compares each entry against the collection names in the
+current database.
+
+If no name in the `collections` array matches a collection or if a collection
+exists but is empty, `dbHash` returns the `md5` value of an empty
+input, `d41d8cd98f00b204e9800998ecf8427e`. 
+
+**Note:**
+
+The output of `dbhash` does not distinguish between non-existent
+collections and empty collections. 
+
+Before you compare `md5`
+values across deployments, confirm that the `collections` field of
+the return document lists each collection that you expect.
+
+### Restrictions
+
+The `dbHash` command no longer support afterClusterTime. As such, `dbHash` cannot be associated
+with causally consistent sessions.
+
+## Return Document
+
+The command returns a document with the following fields:
+
+* - Field
+  - Description
+
+* - host
+
+  - The host and port of the `mongod` instance on which
+    the command is run.
+
+* - `collections`
+
+  - A document with the collections and their corresponding hash values.
+
+    ```javascript
+    {
+       <collection1>: <hash1>,
+       <collection2>: <hash2>,
+       ...
+    }
+    ```
+
+* - `capped`
+
+  - An array that lists the capped collections.
+
+* - `uuids`
+
+  - A document with the collections and their corresponding UUID values.
+
+    ```javascript
+    {
+       <collection1>: <UUID1>,
+       <collection2>: <UUID2>,
+       ...
+    }
+    ```
+
+* - `md5`
+  - The aggregate hash value for these collections.
+
+* - `timeMillis`
+  - Number of milliseconds to generate the hash.
+
+* - | `ok`
+    | `operationTime` 
+    | `$clusterTime`
+
+  - Returned with every command. See also command-response
+    for details.
+
+## Examples
+
+### Return Hash Values for All Collections in a Database
+
+The following example returns the hash value for all collections in the
+database `test`:
+
+```javascript
+use test
+db.runCommand( { dbHash: 1 } )
+```
+
+The operation returns the following document:
+
+```json
+{
+   "host" : "myHostName.local:27017",
+   "collections" : {
+      "foo" : "d27b769230edc551d869060ec3fb68bd",
+      "inventory" : "ec3d821581ea1bd3aa8196c94b946874",
+      "log" : "d41d8cd98f00b204e9800998ecf8427e",
+      "orders" : "0242c0a128c284ea9576a34db2306c12",
+      "restaurants" : "5dc9b88091c36f0d529567b5b6e3fc92",
+      "zipcodes" : "31ede812bf397509a87359c65bf2a08c"
+   },
+   "capped" : [
+      "log"
+   ],
+   "uuids" : {
+      "foo" : UUID("469592fe-3bfe-425e-975f-cedbe0c4741d"),
+      "inventory" : UUID("0830e0ad-cc24-4fc7-80d0-8e22fe45e382"),
+      "log" : UUID("4be024ff-711b-4ab8-836b-dee662e090f1"),
+      "orders" : UUID("755be489-745f-400c-ac3b-f27525ad0108"),
+      "restaurants" : UUID("520b56ec-3276-4904-b6e5-286bc9bfa648"),
+      "zipcodes" : UUID("12e97b70-c174-40af-a178-5d83a241fe20")
+   },
+   "md5" : "0cb7417ae9d9eb865000b4debdc671da",
+   "timeMillis" : 53,
+   "ok" : 1,
+   "operationTime" : Timestamp(1529208582, 4),
+   "$clusterTime" : {
+      "clusterTime" : Timestamp(1529208582, 4),
+      "signature" : {
+         "hash" : BinData(0,"X3MmevDqUgCVvN1AhnT+fiOL/Lc="),
+         "keyId" : Long("6567898567824900097")
+      }
+   }
+}
+```
+
+### Return Hash Values for Specified Collections in a Database
+
+The following example returns the hash value for the collections `inventory`
+and `orders` in the database `test`:
+
+```javascript
+use test
+db.runCommand( { dbHash: 1, collections: [ "inventory", "orders" ] } )
+```
+
+The operation returns the following document:
+
+```json
+{
+   "host" : "myHostName.local:27017",
+   "collections" : {
+      "inventory" : "ec3d821581ea1bd3aa8196c94b946874",
+      "orders" : "0242c0a128c284ea9576a34db2306c12"
+   },
+   "capped" : [ ],
+   "uuids" : {
+      "inventory" : UUID("0830e0ad-cc24-4fc7-80d0-8e22fe45e382"),
+      "orders" : UUID("755be489-745f-400c-ac3b-f27525ad0108")
+   },
+   "md5" : "cb4676f316ff2ff29c701a5edd18afe3",
+   "timeMillis" : 0,
+   "ok" : 1,
+   "operationTime" : Timestamp(1529208801, 1),
+   "$clusterTime" : {
+      "clusterTime" : Timestamp(1529208801, 1),
+      "signature" : {
+         "hash" : BinData(0,"I4z4a4Mgs+tcx0MP5xIU8DYAMB0="),
+         "keyId" : Long("6567898567824900097")
+      }
+   }
+}
+```

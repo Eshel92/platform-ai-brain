@@ -1,0 +1,113 @@
+<!-- Converted from administration/production-checklist-development.txt (reStructuredText). Includes are inlined. -->
+
+# Development Checklist
+
+The following checklist, along with the
+/administration/production-checklist-operations, provides
+recommendations to help you avoid issues in your production MongoDB
+deployment.
+
+## Data Durability
+
+- Ensure that your replica set includes at least three data-bearing voting
+  members and that your write operations use `w: majority` write
+  concern. Three data-bearing voting members are
+  required for replica-set wide data durability.
+
+- Ensure that all instances use journaling.
+
+## Schema Design
+
+Data in MongoDB has a *dynamic schema*. Collections do not enforce document structure. This
+facilitates iterative development and polymorphism. Nevertheless,
+collections often hold documents with highly homogeneous
+structures. For more information, see manual-data-modeling-intro.
+
+- Determine the set of collections that you will need and the
+  indexes required to support your queries. With the exception of
+  the `_id` index, you must create all indexes explicitly: MongoDB
+  does not automatically create any indexes other than `_id`.
+
+- Ensure that your schema design supports your deployment type: if
+  you are planning to use sharded clusters
+  for horizontal scaling, design your schema to include a strong
+  shard key. While you can change your shard key later, it is important to carefully consider
+  your shard key choice to
+  avoid scalability and perfomance issues.
+
+- Ensure that your schema design does not rely on indexed arrays that
+  grow in length without bound. Typically, best performance can
+  be achieved when such indexed arrays have fewer than 1000 elements.
+
+- Consider the document size limits when designing your schema.
+  The `BSON Document Size` limit is 16MB per document. If
+  you require larger documents, use GridFS.
+
+## Replication
+
+- Use an odd number of voting members to ensure that elections
+  proceed successfully. You can have up to 7 voting members. If you
+  have an *even* number of voting members, and constraints, such as
+  cost, prohibit adding another secondary to be a voting member, you
+  can add an arbiter to ensure an odd number of votes. For
+  additional considerations when using an arbiter for a 3-member
+  replica set (P-S-A), see /core/replica-set-arbiter.
+
+- Ensure that your secondaries remain up-to-date by using
+  monitoring tools and by
+  specifying appropriate write concern.
+
+- Do not use secondary reads to scale overall read throughput. See:
+  Can I use more replica nodes to scale for an overview of read
+  scaling. For information about secondary reads, see:
+  /core/read-preference.
+
+## Sharding
+
+- Ensure that your shard key distributes the load evenly on your shards.
+  See: /core/sharding-shard-key for more information.
+
+- Use targeted operations
+  for workloads that need to scale with the number of shards.
+
+- | Secondaries no longer return orphaned data unless using read concern 
+    `"available"` (which is the default read concern for reads 
+    against secondaries when not associated with 
+    causally consistent sessions).
+
+  | All members of the shard replica set maintain chunk metadata, allowing them 
+    to filter out orphans when not using `"available"`. As such,
+    non-targeted or broadcast
+    queries that are not using `"available"` can be
+    safely run on any member and will not return orphaned data.
+
+  | The `"available"` read concern can return
+    orphaned documents from secondary
+    members since it does not check for updated chunk metadata.
+    However, if the return of orphaned documents is immaterial to an
+    application, the `"available"` read concern provides
+    the lowest latency reads possible among the various read concerns.
+
+- Pre-split and manually balance chunks when inserting large
+  data sets into a new non-hashed sharded collection. Pre-splitting
+  and manually balancing enables the insert load to be distributed
+  among the shards, increasing performance for the initial load.
+
+## Drivers
+
+- Make use of connection pooling. Most MongoDB drivers support
+  connection pooling. Adjust the driver connection pool size to suit
+  your use case, beginning at 110-115% of the typical number of
+  concurrent database requests. For driver connection pool options,
+  such as `maxPoolSize`, see connection-pool-options.
+
+- Ensure that your applications handle transient write and read errors
+  during replica set elections.
+
+- Ensure that your applications handle failed requests and retry them if
+  applicable. Drivers **do not** automatically retry failed requests.
+
+- Use exponential backoff logic for database request retries.
+
+- Use `cursor.maxTimeMS()` for reads and wc-wtimeout for
+  writes if you need to cap execution time for database operations.

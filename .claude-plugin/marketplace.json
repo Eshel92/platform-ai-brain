@@ -1,0 +1,12 @@
+{
+  "name": "platform-ai-brain",
+  "owner": { "name": "Platform Engineering" },
+  "description": "The platform team's shared brain: knowledge pages plus the Claude Code plugin that reads and updates them.",
+  "plugins": [
+    {
+      "name": "brain",
+      "source": "./plugin",
+      "description": "Platform brain hooks and skills: lookup, learn, curate."
+    }
+  ]
+}

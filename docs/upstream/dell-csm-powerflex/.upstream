@@ -1,0 +1,15 @@
+{
+  "name": "dell-csm-powerflex",
+  "team": "commons",
+  "about": "Dell Container Storage Modules docs (latest), PowerFlex pages only: CSI driver install, features, troubleshooting",
+  "repo": "dell/csm-docs",
+  "ref": "main",
+  "commit": "47c9088682def726b7daa4970a2a760d209ab688",
+  "paths": [
+    "content/docs"
+  ],
+  "files": 69,
+  "bytes": 219845,
+  "license": "Apache-2.0 (stated in the csm-docs README)",
+  "synced": "2026-11-08T16:08:34Z"
+}

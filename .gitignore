@@ -1,0 +1,5 @@
+# Generated at every session start by scripts/brain.py index
+INDEX.md
+__pycache__/
+*.pyc
+.DS_Store

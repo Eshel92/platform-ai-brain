@@ -1,0 +1,551 @@
+<!-- Converted from tutorial/install-mongodb-enterprise-on-red-hat-tarball.txt (reStructuredText). Includes are inlined. -->
+
+# Install MongoDB Enterprise on Red Hat or CentOS using .tgz Tarball
+
+**Note:** MongoDB Atlas
+
+[MongoDB Atlas](https://www.mongodb.com/atlas/database?tck=docs_server)
+is a hosted MongoDB service option in the cloud which requires no
+installation overhead and offers a free tier to get started.
+
+## Overview
+
+Use this tutorial to manually install MongoDB 6.0 Enterprise
+Edition on Red Hat Enterprise Linux, CentOS Linux, or Oracle Linux
+[#oracle-linux]_ using a downloaded `.tgz` tarball.
+
+MongoDB Enterprise Edition
+is available on select platforms and contains support for several
+features related to security and monitoring.
+
+### MongoDB Version
+
+This tutorial installs MongoDB 6.0 Enterprise
+Edition. To install a different version of MongoDB Enterprise,
+use the version drop-down menu in the upper-left corner of this page to
+select the documentation for that version.
+
+### Installation Method
+
+While MongoDB can be installed manually via a downloaded `.tgz`
+tarball as described in this document, it is recommended to use the
+`yum` package manager on your system to install MongoDB if
+possible. Using a package manager automatically installs all needed
+dependencies, provides an example `mongod.conf` file to get you
+started, and simplifies future upgrade and maintenance tasks.
+
+→ See Install MongoDB using the yum Package Manager
+for instructions.
+
+## Considerations
+
+### MongoDB Shell, `mongosh`
+
+When you use the `.tgz` package to install the server, you need to
+follow the `mongosh installation instructions` to
+download and install `mongosh` separately.
+
+### Platform Support
+
+**Note:** EOL Notice
+
+- MongoDB 5.0 Enterprise Edition removes support for
+  RHEL (Red Hat Enterprise Linux) / CentOS / Oracle 6 on
+  x86_64
+
+- MongoDB Enterprise Edition removed support for 
+  RHEL (Red Hat Enterprise Linux) 7 / CentOS / Oracle 
+  PPC64LE 
+  between versions 4.0 and 5.0. However, these 
+  architectures are supported for 5.0.X versions.
+
+MongoDB 6.0 Enterprise Edition supports the following
+64-bit versions of Red Hat Enterprise Linux (RHEL), CentOS Linux,
+Oracle Linux [#oracle-linux]_, Rocky Linux, and AlmaLinux [#rocky-almalinux]_ 
+on x86_64 architecture:
+
+- RHEL (Red Hat Enterprise Linux) / CentOS / Oracle / Rocky /
+  AlmaLinux 9 (Starting in MongoDB 6.0.4)
+
+- RHEL (Red Hat Enterprise Linux) / CentOS / Oracle / Rocky / Alma 8
+
+- RHEL (Red Hat Enterprise Linux) / CentOS / Oracle 7
+
+MongoDB 6.0 Enterprise Edition also supports the ARM64 architecture on RHEL (Red
+Hat Enterprise Linux) / CentOS / Oracle / Rocky / AlmaLinux 8.
+
+See prod-notes-supported-platforms for more information.
+
+### Production Notes
+
+Before deploying MongoDB in a production environment, consider the
+/administration/production-notes document which offers
+performance considerations and configuration recommendations for
+production MongoDB deployments.
+
+## Install MongoDB Enterprise Edition
+
+### Prerequisites
+
+Use the following command to install the dependencies required for the
+MongoDB Enterprise `.tgz` tarball:
+
+**rhel-centos-9:**
+
+```bash
+sudo yum install cyrus-sasl cyrus-sasl-gssapi cyrus-sasl-plain krb5-libs libcurl net-snmp openldap openssl xz-libs
+```
+
+**rhel-centos-8:**
+
+```bash
+sudo yum install cyrus-sasl cyrus-sasl-gssapi cyrus-sasl-plain krb5-libs libcurl net-snmp openldap openssl xz-libs
+```
+
+**rhel-centos-7:**
+
+```bash
+sudo yum install cyrus-sasl cyrus-sasl-gssapi cyrus-sasl-plain krb5-libs libcurl net-snmp openldap openssl xz-libs
+```
+
+**rhel-centos-6:**
+
+```bash
+sudo yum install cyrus-sasl cyrus-sasl-gssapi cyrus-sasl-plain krb5-libs libcurl net-snmp openldap openssl xz-libs
+```
+
+### Procedure
+
+Follow these steps to manually install MongoDB Enterprise Edition from
+the `.tgz`.
+
+**Step 1: Download the tarball.**
+
+After you have installed the required prerequisite packages, download
+the MongoDB Enterprise `tgz` tarball from the following link:
+
+→ [MongoDB Download Center](https://www.mongodb.com/try/download/enterprise?tck=docs_server)
+
+a. In the Version dropdown, select the version of
+   MongoDB to download.
+
+#. In the Platform dropdown, select your operating system
+   version and architecture.
+
+#. In the Package dropdown, select tgz.
+
+#. Click Download.
+
+**Step 2: Extract the files from the downloaded archive.**
+
+For example, from a system shell, you can extract using the `tar` command:
+
+```bash
+tar -zxvf mongodb-linux-*-6.0.21.tgz
+```
+
+**Step 3: Ensure the binaries are in a directory listed in your `PATH` environment variable.**
+
+The MongoDB binaries are in the `bin/` directory of the tarball.
+You can either:
+
+- Copy the binaries into a directory listed in your `PATH`
+  variable, such as `/usr/local/bin` (Update
+  `/path/to/the/mongodb-directory/` with your installation
+  directory as appropriate)
+
+  ```bash
+  sudo cp /path/to/the/mongodb-directory/bin/* /usr/local/bin/
+  ```
+
+- Create symbolic links to the binaries from a directory listed in
+  your `PATH` variable, such as `/usr/local/bin` (Update
+  `/path/to/the/mongodb-directory/` with your installation
+  directory as appropriate):
+
+  ```bash
+  sudo ln -s  /path/to/the/mongodb-directory/bin/* /usr/local/bin/
+  ```
+
+**Step 4: Install the MongoDB Shell (`mongosh`).**
+
+`Install` `mongosh` then use the MongoDB Shell
+to connect to your deployment.
+
+Download the package for the version of `mongosh` you need from the
+[MongoDB Download Center](https://www.mongodb.com/try/download/enterprise?tck=docs_server) and uncompress the package.
+
+## Run MongoDB Enterprise Edition
+
+### Prerequisites
+
+#### ulimit
+
+Most Unix-like operating systems limit the system resources that a
+process may use. These limits may negatively impact MongoDB operation,
+and should be adjusted. See /reference/ulimit for the recommended
+settings for your platform. 
+
+**Note:**
+
+If the `ulimit` value for number of open files is under `64000`, MongoDB 
+generates a startup warning.
+
+#### Directory Paths
+
+##### To Use Default Directories
+
+By default, MongoDB runs using the `mongod` user account and
+uses the following default directories:
+
+- `/var/lib/mongo` (the data directory)
+
+- `/var/log/mongodb` (the log directory)
+
+Create the MongoDB data and log directories:
+
+```bash
+sudo mkdir -p /var/lib/mongo
+sudo mkdir -p /var/log/mongodb
+```
+
+By default, MongoDB runs using the `mongod` user account. Create
+a `mongod` and a `mongodb` group. Ensure that the `mongod`
+belongs to the group then set the owner and group of these directories
+to `mongod`:
+
+```bash
+sudo chown -R mongod:mongod /var/lib/mongo
+sudo chown -R mongod:mongod /var/log/mongodb
+```
+
+##### To Use Non-Default Directories
+
+To use a data directory and/or log directory other than the default
+directories:
+
+#. Create the new directory or directories.
+
+#. Edit the configuration file `/etc/mongod.conf` and modify the
+   following fields accordingly:
+
+   - `storage.dbPath` to specify a new data directory path (e.g. `/some/data/directory`)
+
+   - `systemLog.path` to specify a new log file path (e.g. `/some/log/directory/mongod.log`)
+
+#. Ensure that the user running MongoDB has access to the directory or
+   directories:
+
+   ```bash
+   sudo chown -R mongod:mongod <directory>
+   ```
+
+   If you change the user that runs the MongoDB process, you **must**
+   give the new user access to these directories.
+
+#. Configure SELinux if enforced.  See install-rhel-configure-selinux.
+
+#### Configure SELinux
+
+**Warning:**
+
+An improperly configured SELinux policy might be insecure or may
+stop your `mongod` instance from working.
+
+If SELinux is in `enforcing` mode, you must customize your SELinux
+policy for MongoDB to 
+
+- Permit Access to `cgroup`
+- Permit Access to `netstat`
+
+##### Permit Access to `cgroup`
+
+The current SELinux Policy does not allow the MongoDB process to
+access `/sys/fs/cgroup`, which is required to determine
+the available memory on your system. If you intend to run SELinux in
+`enforcing` mode, you will need to make the following adjustment
+to your SELinux policy:
+
+#. Ensure your system has the `checkpolicy` package installed:
+
+   ```bash
+   sudo yum install checkpolicy
+   ```
+
+#. Create a custom policy file `mongodb_cgroup_memory.te`:
+
+   ```bash
+   cat > mongodb_cgroup_memory.te <<EOF
+   module mongodb_cgroup_memory 1.0;
+
+   require {
+         type cgroup_t;
+         type mongod_t;
+         class dir search;
+         class file { getattr open read };
+   }
+
+   #============= mongod_t ==============
+   allow mongod_t cgroup_t:dir search;
+   allow mongod_t cgroup_t:file { getattr open read };
+   EOF
+   ```
+
+#. Once created, compile and load the custom policy module by
+   running these three commands:
+
+   ```bash
+   checkmodule -M -m -o mongodb_cgroup_memory.mod mongodb_cgroup_memory.te
+   semodule_package -o mongodb_cgroup_memory.pp -m mongodb_cgroup_memory.mod
+   sudo semodule -i mongodb_cgroup_memory.pp
+   ```
+
+The MongoDB process is now able to access the correct files with
+SELinux set to `enforcing`.
+
+##### Permit Access to `netstat` for FTDC
+
+The current SELinux Policy does not allow the MongoDB process to open
+and read `/proc/net/netstat`, which is required for
+Full Time Diagnostic Data Capture (FTDC).
+If you intend to run SELinux in
+`enforcing` mode, you will need to make the following adjustment
+to your SELinux policy:
+
+#. Ensure your system has the `checkpolicy` package installed:
+
+   ```bash
+   sudo yum install checkpolicy
+   ```
+
+#. Create a custom policy file `mongodb_proc_net.te`:
+
+   ```bash
+   cat > mongodb_proc_net.te <<EOF
+   module mongodb_proc_net 1.0;
+
+   require {
+       type cgroup_t;
+       type configfs_t;
+       type file_type;
+       type mongod_t;
+       type proc_net_t;
+       type sysctl_fs_t;
+       type var_lib_nfs_t;
+
+       class dir { search getattr };
+       class file { getattr open read };
+   }
+
+   #============= mongod_t ==============
+   allow mongod_t cgroup_t:dir { search getattr } ;
+   allow mongod_t cgroup_t:file { getattr open read };
+   allow mongod_t configfs_t:dir getattr;
+   allow mongod_t file_type:dir { getattr search };
+   allow mongod_t file_type:file getattr;
+   allow mongod_t proc_net_t:file { open read };
+   allow mongod_t sysctl_fs_t:dir search;
+   allow mongod_t var_lib_nfs_t:dir search;
+   EOF
+   ```
+
+#. Once created, compile and load the custom policy module by
+   running these three commands:
+
+   ```bash
+   checkmodule -M -m -o mongodb_proc_net.mod mongodb_proc_net.te
+   semodule_package -o mongodb_proc_net.pp -m mongodb_proc_net.mod
+   sudo semodule -i mongodb_proc_net.pp
+   ```
+
+##### Using a Custom MongoDB Directory Path
+
+#. Update the SELinux policy to allow the `mongod` service
+   to use the new directory:
+
+   ```bash
+   sudo semanage fcontext -a -t <type> </some/MongoDB/directory.*>
+   ```
+
+   Specify one of the following types as appropriate:
+
+   - `mongod_var_lib_t` for data directory
+
+   - `mongod_log_t` for log file directory
+
+   - `mongod_var_run_t` for pid file directory
+
+   **Note:**
+
+   Be sure to include the `.*` at the end of the directory.
+
+#. Update the SELinux user policy for the new directory:
+
+   ```bash
+   sudo chcon -Rv -u system_u -t <type> </some/MongoDB/directory>
+   ```
+
+   Specify one of the following types as appropriate:
+
+   - `mongod_var_lib_t` for data directory
+
+   - `mongod_log_t` for log directory
+
+   - `mongod_var_run_t` for pid file directory
+
+#. Apply the updated SELinux policies to the directory:
+
+   ```bash
+   sudo restorecon -R -v </some/MongoDB/directory>
+   ```
+
+For example:
+
+**Tip:**
+
+Be sure to include the `.*` at the end of the directory for the
+`semanage fcontext` operations.
+
+- If using a non-default MongoDB data path of `/mongodb/data`:
+
+  ```bash
+  sudo semanage fcontext -a -t mongod_var_lib_t '/mongodb/data.*'
+  sudo chcon -Rv -u system_u -t mongod_var_lib_t '/mongodb/data'
+  sudo restorecon -R -v '/mongodb/data'
+  ```
+
+- If using a non-default MongoDB log directory of `/mongodb/log`
+  (e.g. if the log file path is `/mongodb/log/mongod.log`):
+
+  ```bash
+  sudo semanage fcontext -a -t mongod_log_t '/mongodb/log.*'
+  sudo chcon -Rv -u system_u -t mongod_log_t '/mongodb/log'
+  sudo restorecon -R -v '/mongodb/log' 
+  ```
+
+##### Using a Custom MongoDB Port
+
+```bash
+sudo semanage port -a -t mongod_port_t -p tcp <portnumber>
+```
+
+**Important:**
+
+In addition to the above, if SELinux is in `enforcing` mode you
+will also need to further customize your SELinux policy for each of
+these situations:
+
+- You are using a **custom directory path** instead of using the
+  default path for any combination of:
+
+  - `dbPath`
+  - `systemLog.path`
+  - `pidFilePath`
+
+- You are using a **custom port** instead of using the default
+  MongoDB port.
+- If you have made other modifications to your MongoDB installation. 
+
+### Procedure
+
+Follow these steps to run MongoDB Enterprise Edition on your system.
+These instructions assume that you are using the default settings.
+
+**Step 1: Create the data and log directories.**
+
+Create a directory where the MongoDB instance stores its data. For
+example:
+
+```bash
+sudo mkdir -p /var/lib/mongo
+```
+
+Create a directory where the MongoDB instance stores its log. For example:
+
+```bash
+sudo mkdir -p /var/log/mongodb
+```
+
+The user that starts the MongoDB process must have read and write
+permission to these directories. For example, if you intend to run
+MongoDB as yourself:
+
+```bash
+sudo chown `whoami` /var/lib/mongo     # Or substitute another user
+sudo chown `whoami` /var/log/mongodb   # Or substitute another user
+```
+
+**Step 2: Run MongoDB.**
+
+To run MongoDB, run the `mongod` process at the system prompt.
+
+```bash
+mongod --dbpath /var/lib/mongo --logpath /var/log/mongodb/mongod.log --fork
+```
+
+For details on the command-line options `--dbpath` and `--logpath`, see
+mongod-options.
+
+**Step 3: Verify that MongoDB has started successfully.**
+
+Verify that MongoDB has started successfully by
+checking the process output for the following line in the
+log file `/var/log/mongodb/mongod.log`:
+
+```none
+[initandlisten] waiting for connections on port 27017
+```
+
+You may see non-critical warnings in the process
+output. As long as you see the log line shown above, you can safely
+ignore these warnings during your initial evaluation of MongoDB.
+
+**Step 4: Begin using MongoDB.**
+
+Start a `mongosh` session on the same host machine as the 
+`mongod`. You can run `mongosh`
+without any command-line options to connect to a
+`mongod` that is running on your localhost with default
+port 27017.
+
+```shell
+mongosh
+```
+
+For more information on connecting using `mongosh`,
+such as to connect to a `mongod` instance running
+on a different host and/or port, see the
+`mongosh documentation`.
+
+To help you start using MongoDB, MongoDB provides Getting
+Started Guides in various driver editions. For the
+driver documentation, see `Start Developing with MongoDB`.
+
+## Additional Information
+
+### Localhost Binding by Default
+
+By default, MongoDB launches with `bindIp` set to
+`127.0.0.1`, which binds to the localhost network interface. This
+means that the `mongod` can only accept connections from
+clients that are running on the same machine. Remote clients will not be
+able to connect to the `mongod`, and the `mongod` will
+not be able to initialize a replica set unless this value is set
+to a valid network interface which is accessible from the remote clients.
+
+This value can be configured either:
+
+- in the MongoDB configuration file with `bindIp`, or
+- via the command-line argument `--bind_ip`
+
+**Warning:**
+
+Before binding to a non-localhost (e.g. publicly accessible) 
+IP address, ensure you have secured your cluster from unauthorized
+access. For a complete list of security recommendations, see 
+/administration/security-checklist. At minimum, consider 
+enabling authentication and 
+hardening network infrastructure.
+
+For more information on configuring `bindIp`, see
+/core/security-mongodb-configuration.

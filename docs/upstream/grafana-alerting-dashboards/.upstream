@@ -1,0 +1,16 @@
+{
+  "name": "grafana-alerting-dashboards",
+  "team": "commons",
+  "about": "Grafana docs (latest): alerting and dashboards only",
+  "repo": "grafana/grafana",
+  "ref": "main",
+  "commit": "84cd7c5c0521d205d95a4987d6e545996d729975",
+  "paths": [
+    "docs/sources/alerting",
+    "docs/sources/dashboards"
+  ],
+  "files": 96,
+  "bytes": 899047,
+  "license": "AGPL-3.0",
+  "synced": "2026-11-08T16:06:32Z"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "argo-cd-3.2",
+  "team": "commons",
+  "about": "Argo CD 3.2 docs: ApplicationSets, sync policies, operations",
+  "repo": "argoproj/argo-cd",
+  "ref": "release-3.2",
+  "commit": "5b7b039c974790b72e5aed6d82ced7844ae8cc57",
+  "paths": [
+    "docs"
+  ],
+  "files": 436,
+  "bytes": 2784077,
+  "license": "Apache-2.0",
+  "synced": "2026-11-08T16:06:16Z"
+}

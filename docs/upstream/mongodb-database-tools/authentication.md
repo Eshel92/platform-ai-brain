@@ -1,0 +1,80 @@
+<!-- Converted from authentication.txt (reStructuredText). Includes are inlined. -->
+
+# Database Tools Authentication
+
+Starting in 100.11.0, database tools support
+Atlas Workload Identity Federation. Use
+Workload Identity Federation to authenticate connections to MongoDB
+on Microsoft Azure and Google Cloud Platform.
+
+## Examples
+
+The examples in this section use Workload Identity Federation.
+
+In the connection string, set `authMechanism` to
+`MONGODB-OIDC` and set `authMechanismProperties` for
+your environment:
+
+- For Microsoft Azure, set `authMechanismProperties` to
+  `ENVIRONMENT:azure,TOKEN_RESOURCE:<audience>`. Omit
+  `TOKEN_RESOURCE` when using Microsoft Azure Kubernetes
+  Service (AKS).
+- For Google Cloud Platform, set `authMechanismProperties` to
+  `ENVIRONMENT:gcp,TOKEN_RESOURCE:<audience>`.
+
+Replace `<audience>` with the application or service that the access
+token is intended for. For more details, see Identity Provider
+Fields.
+
+### Connect to MongoDB using Microsoft Azure Instance Metadata Service
+
+The following `mongodump` example connects to MongoDB using
+Microsoft Azure Instance Metadata Service (IMDS):
+
+```shell
+mongodump --uri "mongodb://mongodb.example.com:20017/?authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:azure,TOKEN_RESOURCE:https://www.example.com" \
+   --username admin
+```
+
+ 
+
+### Connect to MongoDB using Microsoft Azure Kubernetes Service
+
+To connect to MongoDB using Microsoft Azure Kubernetes Service,
+define these environment variables:
+
+| Environment Variable | Description |
+|---|---|
+| `AZURE_TENANT_ID` | Azure tenant identifier. |
+| `AZURE_APP_CLIENT_ID` | Azure application client identifier. |
+| `AZURE_CLIENT_ID` | Azure client identifier of the managed identity to authenticate with. |
+| `AZURE_FEDERATED_TOKEN_FILE` | Azure federated token file path. |
+
+For details about Azure and the variables, see the Microsoft Azure
+documentation.
+
+The following `mongodump` example defines the environment variables
+and connects to MongoDB:
+
+```shell
+AZURE_TENANT_ID=08206ab8-16a0-406d-85e4-2f15f5620fac \
+AZURE_APP_CLIENT_ID=b6c835da-e536-425b-9405-64bc471e245b \
+AZURE_CLIENT_ID=f176d4eb-7dcd-4f66-bccf-aaa316ee61fd \
+AZURE_FEDERATED_TOKEN_FILE=/var/run/secrets/azure/tokens/azure-identity-token \
+mongodump --uri "mongodb://mongodb.example.com:20017/?authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:azure" \
+   --username "admin"
+```
+
+`TOKEN_RESOURCE` is not required for this example.
+
+### Connect to MongoDB on Google Cloud Platform
+
+The following `mongodump` example connects to MongoDB on
+Google Cloud Platform:
+
+```shell
+mongodump --uri "mongodb://mongodb.example.com:20017/?authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:gcp,TOKEN_RESOURCE:https://www.example.com" \
+   --username "admin"
+```
+
+No environment variables are required for Google Cloud Platform.

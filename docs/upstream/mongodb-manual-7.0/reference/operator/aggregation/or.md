@@ -1,0 +1,88 @@
+<!-- Converted from reference/operator/aggregation/or.txt (reStructuredText). Includes are inlined. -->
+
+# $or (expression operator)
+
+## Definition
+
+**`$or`**
+
+Evaluates one or more expressions and returns `true` if *any* of
+the expressions are `true`. Otherwise, `$or` returns
+`false`.
+
+`$or` has the following syntax:
+
+```javascript
+{ $or: [ <expression1>, <expression2>, ... ] }
+```
+
+For more information on expressions, see
+aggregation-expressions.
+
+## Behavior
+
+In addition to the `false` boolean value, `$or` evaluates
+as `false` the following: `null`, `0`, and `undefined`
+values. The `$or` evaluates all other values as `true`,
+including non-zero numeric values and arrays.
+
+| Example | Result |
+|---|---|
+| `{ $or: [ true, false ] }` | `true` |
+| `{ $or: [ [ false ], false ] }` | `true` |
+| `{ $or: [ null, 0, undefined ] }` | `false` |
+| `{ $or: [ ] }` | `false` |
+
+## Error Handling
+
+To allow the query engine to optimize queries, `$or` handles
+errors as follows:
+
+- If any expression supplied to `$or` would cause an error when
+  evaluated alone, the `$or` containing the expression may cause an
+  error but an error is not guaranteed.
+
+- An expression supplied after the first expression supplied to `$or`
+  may cause an error even if the first expression evaluates to
+  `true`.
+
+## Example
+
+Consider an `inventory` collection with the following documents:
+
+```javascript
+db.inventory.insertMany( [
+   { _id: 1, item: "abc1", description: "product 1", qty: 300 },
+   { _id: 2, item: "abc2", description: "product 2", qty: 200 },
+   { _id: 3, item: "xyz1", description: "product 3", qty: 250 },
+   { _id: 4, item: "VWZ1", description: "product 4", qty: 300 },
+   { _id: 5, item: "VWZ2", description: "product 5", qty: 180 }
+] )
+```
+
+The following operation uses the `$or` operator to
+determine if `qty` is greater than 250 *or* less than `200`:
+
+```javascript
+db.inventory.aggregate(
+   [
+     {
+       $project:
+          {
+            item: 1,
+            result: { $or: [ { $gt: [ "$qty", 250 ] }, { $lt: [ "$qty", 200 ] } ] }
+          }
+     }
+   ]
+)
+```
+
+The operation returns the following results:
+
+```javascript
+{ _id: 1, item: "abc1", result: true }
+{ _id: 2, item: "abc2", result: false }
+{ _id: 3, item: "xyz1", result: false }
+{ _id: 4, item: "VWZ1", result: true }
+{ _id: 5, item: "VWZ2", result: true }
+```

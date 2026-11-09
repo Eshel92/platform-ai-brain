@@ -1,0 +1,88 @@
+<!-- Converted from core/sharding-troubleshooting-shard-keys.txt (reStructuredText). Includes are inlined. -->
+
+# Troubleshoot Shard Keys
+
+The ideal shard key allows MongoDB to distribute documents evenly
+throughout the cluster while facilitating common query patterns. A
+suboptimal shard key can lead to the following problems:
+
+- Jumbo chunks
+- Uneven load distribution
+- Decreased query performance over time
+
+In the following you can find out more about common problems with shard
+keys and how to resolve them.
+
+## Jumbo Chunks
+
+If you are seeing jumbo chunks, either the
+cardinality of your shard key is
+insufficient or the frequency of the shard
+key values is unevenly distributed.
+
+To increase the cardinality of your shard key or change the distribution
+of your shard key values, you can:
+
+- refine your shard key by adding a suffix
+  field or fields to the existing key to increase cardinality
+- reshard your collection using a
+  different shard key with higher cardinality
+
+To learn whether you should reshard your collection 
+or refine your shard key, see change-a-shard-key.
+
+To only change the distribution of your shard key values, you can also
+consider using /core/hashed-sharding to distribute your data more
+evenly.
+
+For advice on choosing a shard key see
+sharding-shard-key-selection.
+
+## Uneven Load Distribution
+
+If your cluster is experiencing uneven load distribution, check if your
+shard key increases monotonically. A shard
+key that is a monotonically increasing field, leads to an uneven read
+and write distribution.
+
+Consider an `orders` collection that is sharded on an `order_id`
+field. The `order_id` is an integer which increases by one with each
+order.
+
+- New documents are generally written to the same shard and chunk. The
+  shard and chunk that receive the writes are called *hot* shard and
+  *hot* chunk. The *hot* shard changes over time. When chunks are split,
+  the hot chunk moves to a different shard to optimize data
+  distribution.
+
+- If users are more likely to interact with recent orders, which are all
+  on the same shard, the shard that contains recent orders will receive
+  most of the traffic.
+
+If you have a monotonically increasing shard key, consider
+resharding your collection. For advice on
+choosing a shard key see sharding-shard-key-selection.
+
+If your data model requires sharding on a key that changes
+monotonically, consider using /core/hashed-sharding.
+
+## Decreased Query Performance Over Time
+
+If you are noticing decreased query performance over time, it is
+possible that your cluster is performing scatter-gather queries.
+
+To evaluate if your cluster is performing scatter-gather queries, check
+if your most common queries include the shard key.
+
+If you include the shard key in your queries, check if your shard key is
+hashed. With /core/hashed-sharding, documents are not stored in
+ascending or descending order of the shard key field value. Performing
+range based queries on the shard key value on data that is not stored in
+ascending or descending order results in less performant scatter-gather
+queries. If range based queries on your shard key are a common access
+pattern, consider resharding your collection.
+
+If you do not include the shard key in your most common queries, it is
+possible that you could increase performance by resharding your
+collection. For advice on choosing a shard key
+see sharding-shard-key-selection.

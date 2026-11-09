@@ -1,0 +1,237 @@
+<!-- Converted from reference/database-references.txt (reStructuredText). Includes are inlined. -->
+
+# Database References: Manual References and DBRefs
+
+For most MongoDB use cases, the denormalized data model stores related
+data in a single document. In some cases, you need
+to store related information in separate documents, typically in
+different collections or databases.
+
+**Important:**
+
+You can use the `$lookup` pipeline stage to perform
+a left outer join to an unsharded collection in the same database.
+
+You can also use the `$graphLookup` pipeline stage to join an 
+unsharded collection to perform recursive search.
+
+This page outlines alternative procedures that predate the
+`$lookup` and `$graphLookup` pipeline stages.
+
+MongoDB applications use one of two methods to relate documents:
+
+- Manual references save the `_id` field
+  of one document in another document as a reference. Your application
+  runs a second query to return the related data. Manual references work
+  for most use cases and should generally be preferred over DBRefs.
+
+- DBRefs are references from one document to
+  another using the value of the first document's `_id` field,
+  collection name, and, optionally, its database name, and any other
+  fields. Unless your application explicitly needs to use DBRefs, use
+  manual references instead.
+
+## Manual References
+
+### Background
+
+A manual reference includes the `_id` field of one
+document in another document. The application can then
+run a second query to resolve the referenced fields as needed.
+
+### Create a Manual Reference in the MongoDB Atlas UI
+
+To create a manual reference in the MongoDB Atlas UI, follow these steps:
+
+**Step 1: In the MongoDB Atlas UI, go to the Clusters page for your project.**
+
+a. If it's not already displayed, select the organization that
+   contains your desired project from the `office` Organizations menu in the
+   navigation bar.
+
+#. If it's not already displayed, select your project
+   from the Projects menu in the navigation bar.
+
+#. In the sidebar, click Clusters under 
+   the Database heading.
+
+   The [Clusters](https://cloud.mongodb.com/go?l=https%3A%2F%2Fcloud.mongodb.com%2Fv2%2F%3Cproject%3E%23%2Fclusters) page displays.
+
+**Step 2: Navigate to the collection.**
+
+a. For the cluster where you want to add a database
+   reference, click Browse Collections.
+#. In the left navigation pane, select the database.
+#. In the left navigation pane, select the collection. This
+   example references a `places` collection.
+
+**Step 3: Add a document.**
+
+a. Click Insert Document.
+#. Click the JSON view icon ({{}}).
+#. Paste the following data into the document:
+
+   ```
+   {
+     "_id": {
+       "$oid": "651aea5870299b120736f442"
+     },
+     "name": "Broadway Center",
+     "url": "bc.example.net"
+   }
+   ```
+
+#. Click Insert.
+
+**Step 4: Add a document in the `people` collection that references the entry in `places`.**
+
+a. In the left navigation pane, select a different
+   collection. This example references a `people` collection.
+#. Click Insert Document.
+#. Click the JSON view icon ({{}}).
+#. Paste the following data into the document:
+
+   ```
+   {
+     "_id": {
+       "$oid": "651aebeb70299b120736f443"
+     },
+     "name": "Erin",
+     "places_id": {
+       "$oid": "651aea5870299b120736f442"
+     },
+     "url": "bc.example.net/Erin"
+   }
+   ```
+
+#. Click Insert.
+
+   When a query returns the document from the `people`
+   collection you can, if needed, filter the query results from
+   the `places` collection for the document referenced by the
+   `places_id` field.
+
+   To learn more about running queries in MongoDB Atlas,
+   see View, Filter, and Sort Documents in
+   the MongoDB Atlas documentation.
+
+### Create a Manual Reference in the Terminal
+
+Consider the following operation to insert two documents, using the
+`_id` field of the first document as a reference in the second
+document:
+
+```javascript
+original_id = ObjectId()
+
+db.places.insertOne({
+    "_id": original_id,
+    "name": "Broadway Center",
+    "url": "bc.example.net"
+})
+
+db.people.insertOne({
+    "name": "Erin",
+    "places_id": original_id,
+    "url":  "bc.example.net/Erin"
+})
+```
+
+Then, when a query returns the document from the `people` collection
+you can, if needed, make a second query for the document referenced by
+the `places_id` field in the `places` collection.
+
+### Use
+
+For almost every case where you want to store a relationship between
+two documents, use manual references. They are straightforward to create and your
+application can resolve them as needed.
+
+## DBRefs
+
+### Background
+
+DBRefs are a convention for representing a document, rather
+than a specific reference type. They include the name of the
+collection, and in some cases the database name, in addition to the
+value from the `_id` field. 
+
+Optionally, DBRefs can include any number of other fields. Extra
+field names must follow the rules for field names imposed by the server version.
+
+To resolve DBRefs, your application must perform additional queries to
+return the referenced documents. Some `MongoDB drivers`
+provide helper methods that resolve DBRefs into documents, but
+resolution is not automatic.
+
+### Format
+
+DBRefs have the following fields:
+
+**`$ref`**
+
+The `$ref` field holds the name of the collection where the
+referenced document resides.
+
+**`$id`**
+
+The `$id` field contains the value of the `_id` field in the
+referenced document.
+
+**`$db`**
+
+*Optional.*
+
+Contains the name of the database where the referenced document
+resides.
+
+### Example
+
+DBRef documents resemble the following document:
+
+```javascript
+{ "$ref" : <value>, "$id" : <value>, "$db" : <value> }
+```
+
+Consider a document from a collection that stored a DBRef in a
+`creator` field:
+
+```javascript
+{
+  "_id" : ObjectId("5126bbf64aed4daf9e2ab771"),
+  // .. application fields
+  "creator" : {
+    "$ref" : "creators",
+    "$id" : ObjectId("5126bc054aed4daf9e2ab772"),
+    "$db" : "users",
+    "extraField" : "anything"
+  }
+}
+```
+
+The DBRef in this example points to a document in the `creators`
+collection of the `users` database that has
+`ObjectId("5126bc054aed4daf9e2ab772")` in its `_id` field. It also contains
+an optional field.
+
+**Note:**
+
+The order of fields in the DBRef matters, and you must use the above
+sequence when using a DBRef.
+
+### Driver Support for DBRefs
+
+| Driver | DBRef Support | Notes |
+|---|---|---|
+| C | Not Supported | You can traverse references manually. |
+| C++ | Not Supported | You can traverse references manually. |
+| C# | Supported | See the `.NET/C# driver page` for more information. |
+| Go | Not Supported | You can traverse references manually. |
+| Haskell | Not Supported | You can traverse references manually. |
+| Java | Supported | See the `Java driver page` for more information. |
+| Node.js | Supported | See the `Node.js driver page` for more information. |
+| Perl | Supported | See the `Perl driver page` for more information. |
+| PHP | Not Supported | You can traverse references manually. |
+| Python | Supported | See the `PyMongo driver page` for more information. |
+| Ruby | Supported | See the `Ruby driver page` for more information. |
+| Scala | Not Supported | You can traverse references manually. |

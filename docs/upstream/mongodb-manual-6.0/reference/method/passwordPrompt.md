@@ -1,0 +1,80 @@
+<!-- Converted from reference/method/passwordPrompt.txt (reStructuredText). Includes are inlined. -->
+
+# passwordPrompt()
+
+## Definition
+
+**`passwordPrompt()`**
+
+Prompts for the password in `mongosh`. The
+entered password is not displayed in the shell. Use
+`passwordPrompt()` in conjunction with methods that accept
+password as a parameter instead of specifying the password in
+cleartext to those methods.
+
+## Examples
+
+### Use `passwordPrompt()` with `db.createUser()`
+
+The `db.createUser()` requires a password to be specified.
+
+You can use `passwordPrompt()` as the value for the `pwd` instead of 
+specifying the password.
+
+```javascript
+db.createUser( { 
+   user:"user123",
+   pwd: passwordPrompt(),   // Instead of specifying the password in cleartext
+   roles:[ "readWrite" ]
+} )
+```
+
+Enter the password when prompted.
+
+### Use `passwordPrompt()` with `db.auth()`
+
+When you run the db-auth-syntax-username-password command you can 
+replace the password with the `passwordPrompt()` method.
+
+If you omit the password from the db-auth-syntax-username-password 
+command, the user is prompted to enter a password.
+
+The following example prompts the user to enter a password
+which is not displayed in the shell:
+
+```javascript
+db.auth("user123")
+```
+
+### Use `passwordPrompt()` with `db.changeUserPassword()`
+
+The `db.changeUserPassword()` requires a password to be
+specified.
+
+You can use `passwordPrompt()` instead of specifying the password.
+
+```javascript
+db.changeUserPassword("user123", passwordPrompt())
+```
+
+Enter the password when prompted.
+
+### Use `passwordPrompt()` with `db.updateUser()`
+
+When changing the password with `db.updateUser()`, the method
+requires a password to be specified.
+
+You can use `passwordPrompt()` as the value for the `pwd` instead of 
+specifying the password.
+
+```javascript
+db.updateUser(
+   "user123",
+   {
+     pwd: passwordPrompt(),
+     mechanisms: [ "SCRAM-SHA-256" ]
+   }
+)
+```
+
+Enter the password when prompted.

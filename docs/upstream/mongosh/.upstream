@@ -1,0 +1,17 @@
+{
+  "name": "mongosh",
+  "team": "team1-mongodb-cassandra",
+  "about": "MongoDB Shell (mongosh), latest docs",
+  "repo": "mongodb/docs",
+  "ref": "main",
+  "commit": "bb28b24eedd8ac907aa736452e8657f48193f774",
+  "paths": [
+    "content/mongodb-shell/source"
+  ],
+  "files": 62,
+  "bytes": 436482,
+  "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
+  "format": "Markdown, converted from reStructuredText (includes inlined)",
+  "notes": [],
+  "synced": "2026-11-09T08:12:24Z"
+}

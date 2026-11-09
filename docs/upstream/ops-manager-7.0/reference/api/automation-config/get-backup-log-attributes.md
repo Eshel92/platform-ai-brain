@@ -1,0 +1,182 @@
+<!-- Converted from reference/api/automation-config/get-backup-log-attributes.txt (reStructuredText). Includes are inlined. -->
+
+# Get Backup Configuration Settings
+
+## Required Roles
+
+This resource requires the `Project Automation Admin` role.
+
+## Resource
+
+Base URL: `https://{OPSMANAGER-HOST}:{PORT}/api/public/v1.0`
+
+```http
+GET /groups/{PROJECT-ID}/automationConfig/backupAgentConfig
+```
+
+## Request
+
+### Path Parameters
+
+| Name | Type | Necessity | Description |
+|---|---|---|---|
+| PROJECT-ID | string | Required | Unique 24-hexadecimal digit string that identifies the `project` that owns the configuration. |
+
+### Query Parameters
+
+The following query parameters are optional:
+
+* - Name
+  - Type
+  - Necessity
+  - Description
+  - Default
+
+* - pretty
+  - boolean
+  - Optional
+  - Flag indicating whether the response body should be in a
+    prettyprint format.
+  - `false`
+
+* - envelope
+  - boolean
+  - Optional
+  - Flag that indicates whether or not to wrap the response in an
+    envelope.
+
+    Some API (Application Programming Interface) clients cannot access the HTTP (Hypertext Transfer Protocol) response headers or
+    status code. To remediate this, set **envelope=true** in the
+    query.
+
+    For endpoints that return one result, the response body
+    includes:
+
+    | Name | Description |
+    |---|---|
+    | status | HTTP (Hypertext Transfer Protocol) response code |
+    | envelope | Expected response body |
+
+  - `false`
+
+### Body Parameters
+
+This endpoint doesn't use HTTP request body parameters.
+
+## Response
+
+* - Parameter
+  - Type
+  - Necessity
+  - Description
+
+* - configOverrides
+  - object
+  - Optional
+  - List of MongoDB Agent settings that you need to change because
+    your backup settings differ from those of the
+    MongoDB Agent. Configure this
+    option when upgrading from legacy agents to the MongoDB Agent.
+
+    | Setting | Data Type |
+    |---|---|
+    | `mmsGroupId` | string |
+    | `mmsApiKey` | string |
+    | `mothership` | string |
+    | `mothershipResponseHeaderTimeout` | integer |
+    | `https` | boolean |
+    | `httpProxy` | string |
+    | `krb5Principal` | string |
+    | `krb5Keytab` | string |
+    | `krb5ConfigLocation` | string |
+    | `gsapiServiceName` | string |
+    | `sslClientCertificate` | string |
+    | `sslClientCertificatePassword` | string |
+    | `sslTrustedServerCertificates` | string |
+    | `sslRequireValidServerCertificates` | boolean |
+    | `sslTrustedMMSBackupServerCertificate` | string |
+
+* - logPath
+  - string
+  - Optional
+  - Absolute file path to which this MongoDB Agent writes its logs.
+    If this is not specified, the log writes to standard error
+    (`stderr`) on UNIX- and Linux-based systems and to the Event
+    Log on Windows systems.
+
+* - logRotate
+  - object
+  - Optional
+  - Thresholds after which this MongoDB Agent rotates the backup log.
+
+* - | logRotate
+    | .sizeThresholdMB
+  - integer
+  - Optional
+  - Maximum size, in MB, of a log file before this MongoDB Agent
+    rotates the logs.
+
+* - | logRotate
+    | .timeDurationHrs
+  - integer
+  - Optional
+  - Number of hours after which this MongoDB Agent rotates the log
+    file.
+
+* - username
+  - string
+  - Optional
+  - MongoDB user in the application database that manages the
+    backup logs.
+
+    If you use the API (Application Programming Interface) to enable authentication for the
+    MongoDB Agent, set this parameter to **mms-automation** when
+    executing this endpoint.
+
+## Example Request
+
+```sh
+curl --user "{publicApiKey}:{privateApiKey}" --digest \
+     --header "Accept: application/json" \
+     --include \
+     --request GET "https://<OpsManagerHost>:<Port>/api/public/v1.0/groups/{PROJECT-ID}/automationConfig/backupAgentConfig?pretty=true" \
+     --output currentBackupConfig.json
+```
+
+## Example Response
+
+### Response Header
+
+```http
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json;charset=ISO-8859-1
+Date: {dateInUnixFormat}
+WWW-Authenticate: Digest realm="MMS Public API", domain="", nonce="{nonce}", algorithm=MD5, op="auth", stale=false
+Content-Length: {requestLengthInBytes}
+Connection: keep-alive
+```
+
+```http
+HTTP/1.1 200 OK
+Vary: Accept-Encoding
+Content-Type: application/json
+Strict-Transport-Security: max-age=300
+Date: {dateInUnixFormat}
+Connection: keep-alive
+Content-Length: {requestLengthInBytes}
+X-MongoDB-Service-Version: gitHash={gitHash}; versionString={ApplicationVersion}
+```
+
+### Response Body
+
+```json
+{
+  "logPath": "/var/log/mongodb-mms-automation/backup-agent.log",
+  "logPathWindows": "%SystemDrive%\\MMSAutomation\\log\\mongodb-mms-automation\\backup-agent.log",
+  "logRotate": {
+    "sizeThresholdMB": 1000.0,
+    "timeThresholdHrs": 24
+  },
+  "username": "mms-automation"
+}
+```
