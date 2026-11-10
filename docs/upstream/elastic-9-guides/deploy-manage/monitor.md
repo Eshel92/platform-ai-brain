@@ -1,0 +1,152 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/elasticsearch/reference/current/monitor-elasticsearch-cluster.html
+  - https://www.elastic.co/guide/en/cloud/current/ec-monitoring.html
+applies_to:
+  serverless:
+  stack:
+products:
+  - id: elasticsearch
+  - id: cloud-hosted
+---
+
+# Monitoring
+
+Keeping on top of the health of your cluster or deployment, as well as your orchestrator, is an important part of maintenance. It also helps you to identify and troubleshoot issues. When you move to [production](/deploy-manage/production-guidance.md), detecting and resolving issues when they arise is a key component of keeping your deployment highly available.
+
+Depending on your deployment type, you can use a variety of solutions for monitoring your Elastic components.
+
+## Monitoring your cluster or deployment
+
+You have several options for monitoring your cluster or deployment.
+
+Use [](/deploy-manage/monitor/autoops.md) to simplify cluster management through performance recommendations, resource utilization visibility, and real-time issue detection with resolution paths. 
+
+Alternatively, you can use [Stack Monitoring](/deploy-manage/monitor/stack-monitoring.md) to monitor logs and metrics across the {{stack}}.
+
+To help you decide between these two options, refer to [](/deploy-manage/monitor/autoops-vs-stack-monitoring.md).
+
+For ECE and {{ech}} deployments, there are also a number of out of the box monitoring tools available.
+
+The following sections provide more details.
+
+### AutoOps (recommended)
+
+```{applies_to}
+serverless:
+stack:
+```
+
+AutoOps diagnoses issues in {{es}} by analyzing hundreds of metrics, providing root-cause analysis and accurate resolution paths. With AutoOps, customers can prevent and resolve issues, cut down administration time, and optimize resource utilization.
+
+:::{include} /deploy-manage/monitor/_snippets/autoops-availability.md
+:::
+
+:::{include} /deploy-manage/monitor/_snippets/cc-autoops-all-licenses.md
+:::
+
+
+### Stack monitoring
+
+```{applies_to}
+stack:
+```
+
+:::{include} /deploy-manage/monitor/_snippets/stack-monitoring-def.md
+:::
+
+In {{ece}} and {{ech}}, Elastic manages the installation and configuration of the monitoring agent for you, simplifying the stack monitoring setup process. To enable it, refer to [](/deploy-manage/monitor/stack-monitoring/ece-ech-stack-monitoring.md).
+
+For self-managed, refer to enablement options under [](/deploy-manage/monitor/stack-monitoring/elasticsearch-monitoring-self-managed.md).
+
+In {{eck}}, the operator manages the installation once enabled. For more information, refer to [](/deploy-manage/monitor/stack-monitoring/eck-stack-monitoring.md).
+
+:::{include} /deploy-manage/monitor/_snippets/stack-monitoring-prod.md
+:::
+
+### Cluster health and performance metrics
+
+```{applies_to}
+deployment:
+  ece:
+  ess:
+```
+
+{{ece}} and {{ech}} provide out of the box tools for monitoring the health of your deployments and resolving health issues when they arise:
+
+* [Cluster health information](/deploy-manage/monitor/cloud-health-perf.md#ec-es-cluster-health), including [health warnings](/deploy-manage/monitor/cloud-health-perf.md#ec-es-health-warnings)
+* A [JVM memory pressure indicator](/deploy-manage/monitor/ec-memory-pressure.md)
+
+{{ech}} only:
+* [Cluster performance information](/deploy-manage/monitor/access-performance-metrics-on-elastic-cloud.md)
+* [Preconfigured logs and metrics](/deploy-manage/monitor/cloud-health-perf.md#ec-es-health-preconfigured)
+
+{{ece}} only:
+* [Platform monitoring](/deploy-manage/monitor/orchestrators/ece-platform-monitoring.md), including logs, metrics, and proxy logs
+
+:::{tip}
+Out of the box logs and metrics tools, including ECH preconfigured logs and metrics and ECE platform monitoring logs and metrics, are useful for providing information in a non-production environment. In a production environment, it’s important set up either AutoOps or stack monitoring to retain the logs and metrics that can be used to troubleshoot any health issues in your deployments. In the event of that you need to [contact our support team](/troubleshoot/index.md#contact-us), they can use the retained data to help diagnose any problems that you may encounter.
+:::
+
+To learn more about the health and performance tools in {{ecloud}}, refer to [](/deploy-manage/monitor/cloud-health-perf.md).
+
+## Query activity
+```{applies_to}
+stack: preview 9.4
+serverless: preview
+```
+
+The [Query activity](/deploy-manage/monitor/query-activity.md) page in {{kib}} gives you a real-time view of all search queries currently running in your {{es}} cluster. Use it to identify long-running queries, inspect their details, trace them back to their source, and cancel them when needed.
+
+## {{kib}} task manager monitoring
+
+```{applies_to}
+stack: preview
+```
+The {{kib}} [task manager](/deploy-manage/distributed-architecture/kibana-tasks-management.md) has an internal monitoring mechanism to keep track of a variety of metrics, which can be consumed with either the health monitoring API or the {{kib}} server log. [Learn how to configure thresholds and consume related to {{kib}} task manager](/deploy-manage/monitor/kibana-task-manager-health-monitoring.md).
+
+## Monitoring your orchestrator
+```{applies_to}
+deployment:
+  ece:
+  eck:
+```
+
+In addition to monitoring your cluster or deployment health and performance, you need to monitor your orchestrator. Monitoring is especially important for orchestrators hosted on infrastructure that you control.
+
+Learn how to enable monitoring of your orchestrator:
+
+* [ECK operator metrics](/deploy-manage/monitor/orchestrators/eck-metrics-configuration.md): Open and secure a metrics endpoint that can be used to monitor the operator’s performance and health. This endpoint can be scraped by third-party Kubernetes monitoring tools.
+* [ECE platform monitoring](/deploy-manage/monitor/orchestrators/ece-platform-monitoring.md): Learn about how ECE collects monitoring data for your installation in the `logging-and-metrics` deployment, and how to access monitoring data.
+
+:::{admonition} Monitoring {{ecloud}}
+Elastic monitors [{{ecloud}}](/deploy-manage/deploy/elastic-cloud.md) service metrics and performance as part of [our shared responsibility](https://www.elastic.co/cloud/shared-responsibility). We provide service availability information on our [service status page](/deploy-manage/cloud-organization/service-status.md).
+:::
+
+## Activity logging
+```{applies_to}
+stack: ga
+serverless: ga
+```
+
+Activity logging records actions taken by users and systems, such as authentication events, search queries, and configuration changes. Use these logs for security auditing, compliance, and debugging.
+
+| Feature | Description | Availability |
+|---|---|---|
+| [](./monitor/logging-configuration/query-logs.md) | Log every search, {{esql}}, SQL, or EQL query for analysis and debugging. | {applies_to}`stack: preview 9.4` |
+| [](./monitor/logging-configuration/slow-logs.md) | Identify slow queries and indexing operations. | {applies_to}`stack: ga` |
+| [](./monitor/stack-audit-logging.md) | Enable and configure audit logging for {{es}} and {{kib}} deployments. | {applies_to}`stack: ga` |
+| [](./monitor/cloud-audit-trail.md) | Audit organization-level actions such as sign-in activity, deployment management, user and role changes, and API key usage. | {applies_to}`ech: ga` {{fedramp-mod}} only |
+| [{{kib}} user activity](kibana://reference/user-activity.md) | Track user actions in {{kib}}, such as dashboard views, creation, and updates. | {applies_to}`stack: preview 9.5` |
+| [](./monitor/log-delivery.md) | Ship selected log types from one {{serverless-short}} project to another. The first available log type is the audit trail, covering configuration changes, data access, and UI access. | {applies_to}`serverless: ga` |
+
+For more information about these features, and when to use each one, refer to [](./monitor/activity-logging.md).
+
+## Operational logging
+```{applies_to}
+stack: ga
+```
+
+{{es}} and {{kib}} are able to produce diagnostic logs as they run. You can enable {{es}} and {{kib}} logging features to gain insight into {{stack}} operations and diagnose issues. 
+
+To configure these logs, including log levels, output format, and deprecation warning logging, refer to [](/deploy-manage/monitor/logging-configuration.md).

@@ -1,0 +1,5 @@
+<!-- Converted from management/field-formatters/color-formatter.asciidoc (AsciiDoc). Includes are inlined. -->
+
+The *Color* field formatter enables you to specify colors with ranges of values for a number field.
+
+When you select the *Color* formatter, click *Add Color*, then specify the *Range*, *Text color*, and *Background color*.

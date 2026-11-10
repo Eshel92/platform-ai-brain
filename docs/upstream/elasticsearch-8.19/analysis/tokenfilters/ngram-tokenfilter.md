@@ -1,0 +1,217 @@
+<!-- Converted from analysis/tokenfilters/ngram-tokenfilter.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### N-gram token filter
+
+Forms [n-grams](https://en.wikipedia.org/wiki/N-gram) of specified lengths from
+a token.
+
+For example, you can use the `ngram` token filter to change `fox` to
+`[ f, fo, o, ox, x ]`.
+
+This filter uses Lucene's
+{lucene-analysis-docs}/ngram/NGramTokenFilter.html[NGramTokenFilter].
+
+**Note:**
+The `ngram` filter is similar to the
+`edge_ngram` token filter. However, the
+`edge_ngram` only outputs n-grams that start at the beginning of a token.
+
+#### Example
+
+The following analyze API request uses the `ngram`
+filter to convert `Quick fox` to 1-character and 2-character n-grams:
+
+```console
+GET _analyze
+{
+  "tokenizer": "standard",
+  "filter": [ "ngram" ],
+  "text": "Quick fox"
+}
+```
+
+The filter produces the following tokens:
+
+```text
+[ Q, Qu, u, ui, i, ic, c, ck, k, f, fo, o, ox, x ]
+```
+
+```console-result
+{
+  "tokens" : [
+    {
+      "token" : "Q",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "Qu",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "u",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "ui",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "i",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "ic",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "c",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "ck",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "k",
+      "start_offset" : 0,
+      "end_offset" : 5,
+      "type" : "<ALPHANUM>",
+      "position" : 0
+    },
+    {
+      "token" : "f",
+      "start_offset" : 6,
+      "end_offset" : 9,
+      "type" : "<ALPHANUM>",
+      "position" : 1
+    },
+    {
+      "token" : "fo",
+      "start_offset" : 6,
+      "end_offset" : 9,
+      "type" : "<ALPHANUM>",
+      "position" : 1
+    },
+    {
+      "token" : "o",
+      "start_offset" : 6,
+      "end_offset" : 9,
+      "type" : "<ALPHANUM>",
+      "position" : 1
+    },
+    {
+      "token" : "ox",
+      "start_offset" : 6,
+      "end_offset" : 9,
+      "type" : "<ALPHANUM>",
+      "position" : 1
+    },
+    {
+      "token" : "x",
+      "start_offset" : 6,
+      "end_offset" : 9,
+      "type" : "<ALPHANUM>",
+      "position" : 1
+    }
+  ]
+}
+```
+
+#### Add to an analyzer
+
+The following create index API request uses the `ngram`
+filter to configure a new custom analyzer.
+
+```console
+PUT ngram_example
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "standard_ngram": {
+          "tokenizer": "standard",
+          "filter": [ "ngram" ]
+        }
+      }
+    }
+  }
+}
+```
+
+#### Configurable parameters
+
+`max_gram`::
+(Optional, integer)
+Maximum length of characters in a gram. Defaults to `2`.
+
+`min_gram`::
+(Optional, integer)
+Minimum length of characters in a gram. Defaults to `1`.
+
+`preserve_original`::
+(Optional, Boolean)
+Emits original token when set to `true`. Defaults to `false`.
+
+You can use the `index.max_ngram_diff` index-level
+setting to control the maximum allowed difference between the `max_gram` and
+`min_gram` values.
+
+#### Customize
+
+To customize the `ngram` filter, duplicate it to create the basis for a new
+custom token filter. You can modify the filter using its configurable
+parameters.
+
+For example, the following request creates a custom `ngram` filter that forms
+n-grams between 3-5 characters. The request also increases the
+`index.max_ngram_diff` setting to `2`.
+
+```console
+PUT ngram_custom_example
+{
+  "settings": {
+    "index": {
+      "max_ngram_diff": 2
+    },
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "tokenizer": "whitespace",
+          "filter": [ "3_5_grams" ]
+        }
+      },
+      "filter": {
+        "3_5_grams": {
+          "type": "ngram",
+          "min_gram": 3,
+          "max_gram": 5
+        }
+      }
+    }
+  }
+}
+```

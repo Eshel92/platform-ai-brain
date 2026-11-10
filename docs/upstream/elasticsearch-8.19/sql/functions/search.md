@@ -1,0 +1,139 @@
+<!-- Converted from sql/functions/search.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Full-Text Search Functions
+
+Search functions should be used when performing full-text search, namely
+when the `MATCH` or `QUERY` predicates are being used.
+Outside a, so-called, search context, these functions will return default values
+such as `0` or `NULL`.
+
+{es-sql} optimizes all queries executed against Elasticsearch depending on the scoring needs.
+Using `track_scores` on the search request or `_doc` sorting that
+disables scores calculation, {es-sql} instructs Elasticsearch not to compute scores when these are not needed.
+For example, every time a `SCORE()` function is encountered in the SQL query, the scores are computed.
+
+#### `MATCH`
+
+**Synopsis:**
+```sql
+MATCH(
+    field_exp,   <1>
+    constant_exp <2>
+    [, options]) <3>
+```
+
+*Input*:
+
+<1> field(s) to match
+<2> matching text
+<3> additional parameters; optional
+
+*Description*: A full-text search option, in the form of a predicate, available in {es-sql} that gives the user control over powerful match
+and multi_match Elasticsearch queries.
+
+The first parameter is the field or fields to match against. In case it receives one value only, {es-sql} will use a `match` query to perform the search:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[simpleMatch]
+```
+
+However, it can also receive a list of fields and their corresponding optional `boost` value. In this case, {es-sql} will use a
+`multi_match` query to match the documents:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[multiFieldsMatch]
+```
+
+**Note:** The `multi_match` query in Elasticsearch has the option of per-field boosting that gives preferential weight
+(in terms of scoring) to fields being searched in, using the `^` character. In the example above, the `name` field has a greater weight in
+the final score than the `author` field when searching for `frank dune` text in both of them.
+
+Both options above can be used in combination with the optional third parameter of the `MATCH()` predicate, where one can specify
+additional configuration parameters (separated by semicolon `;`) for either `match` or `multi_match` queries. For example:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[optionalParamsForMatch]
+```
+
+**Note:** The allowed optional parameters for a single-field `MATCH()` variant (for the `match` Elasticsearch query) are: `analyzer`, `auto_generate_synonyms_phrase_query`,
+`lenient`, `fuzziness`, `fuzzy_transpositions`, `fuzzy_rewrite`, `minimum_should_match`, `operator`,
+`max_expansions`, `prefix_length`.
+
+**Note:** The allowed optional parameters for a multi-field `MATCH()` variant (for the `multi_match` Elasticsearch query) are: `analyzer`, `auto_generate_synonyms_phrase_query`,
+`lenient`, `fuzziness`, `fuzzy_transpositions`, `fuzzy_rewrite`, `minimum_should_match`, `operator`,
+`max_expansions`, `prefix_length`, `slop`, `tie_breaker`, `type`.
+
+#### `QUERY`
+
+**Synopsis:**
+```sql
+QUERY(
+    constant_exp <1>
+    [, options]) <2>
+```
+
+*Input*:
+
+<1> query text
+<2> additional parameters; optional
+
+*Description*: Just like `MATCH`, `QUERY` is a full-text search predicate that gives the user control over the query_string query in Elasticsearch.
+
+The first parameter is basically the input that will be passed as is to the `query_string` query, which means that anything that `query_string`
+accepts in its `query` field can be used here as well:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[simpleQueryQuery]
+```
+
+A more advanced example, showing more of the features that `query_string` supports, of course possible with {es-sql}:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[advancedQueryQuery]
+```
+
+The query above uses the `_exists_` query to select documents that have values in the `author` field, a range query for `page_count` and
+regex and fuzziness queries for the `name` field.
+
+If one needs to customize various configuration options that `query_string` exposes, this can be done using the second _optional_ parameter.
+Multiple settings can be specified separated by a semicolon `;`:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[optionalParameterQuery]
+```
+
+**Note:** The allowed optional parameters for `QUERY()` are: `allow_leading_wildcard`, `analyze_wildcard`, `analyzer`,
+`auto_generate_synonyms_phrase_query`, `default_field`, `default_operator`, `enable_position_increments`,
+`escape`, `fuzziness`, `fuzzy_max_expansions`, `fuzzy_prefix_length`, `fuzzy_rewrite`, `fuzzy_transpositions`,
+`lenient`, `max_determinized_states`, `minimum_should_match`, `phrase_slop`, `rewrite`, `quote_analyzer`,
+`quote_field_suffix`, `tie_breaker`, `time_zone`, `type`.
+
+#### `SCORE`
+
+**Synopsis:**
+```sql
+SCORE()
+```
+
+*Input*: _none_
+
+*Output*: `double` numeric value
+
+*Description*: Returns the {defguide}/relevance-intro.html[relevance] of a given input to the executed query. 
+The higher score, the more relevant the data.
+
+**Note:** When doing multiple text queries in the `WHERE` clause then, their scores will be
+combined using the same rules as Elasticsearch's
+bool query. 
+
+Typically `SCORE` is used for ordering the results of a query based on their relevance:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[orderByScore]
+```
+
+However, it is perfectly fine to return the score without sorting by it:
+
+```sql
+include-tagged::{sql-specs}/docs/docs.csv-spec[scoreWithMatch]
+```

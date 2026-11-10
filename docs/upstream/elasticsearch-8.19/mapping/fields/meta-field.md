@@ -1,0 +1,41 @@
+<!-- Converted from mapping/fields/meta-field.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### `_meta` field
+
+A mapping type can have custom meta data associated with it. These are not
+used at all by Elasticsearch, but can be used to store application-specific
+metadata, such as the class that a document belongs to:
+
+```console
+PUT my-index-000001
+{
+  "mappings": {
+    "_meta": { <1>
+      "class": "MyApp::User",
+      "version": {
+        "min": "1.0",
+        "max": "1.3"
+      }
+    }
+  }
+}
+```
+
+<1> This `_meta` info can be retrieved with the
+    GET mapping API.
+
+The `_meta` field can be updated on an existing type using the
+update mapping API:
+
+```console
+PUT my-index-000001/_mapping
+{
+  "_meta": {
+    "class": "MyApp2::User3",
+    "version": {
+      "min": "1.3",
+      "max": "1.5"
+    }
+  }
+}
+```

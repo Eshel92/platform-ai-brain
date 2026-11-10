@@ -1,0 +1,20 @@
+<!-- Converted from user/dashboard/dashboard-best-practices.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Dashboard best practices
+
+### Optimize dashboard loading time
+
+To improve the dashboard loading time, enable *Defer loading panels below the fold* *Lab*, which loads dashboard panels as they become visible on the dashboard.
+
+. In the toolbar, click *Labs*.
+To enable *Labs*, contact your administrator, or configure the Advanced Settings. 
+
+. To specify how you want to enable the lab, use the following actions:
+
+* *Kibana* &mdash; Enables the lab in Kibana.
+
+* *Browser* &mdash; Enables the lab for your browser, and persists after you close the browser.
+
+* *Session* &mdash; Enables the lab for this browser session, then resets after you close the browser.
+
+. Click *Close*.

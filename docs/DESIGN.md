@@ -64,8 +64,8 @@ Reasons and trade-offs: `commons/decisions/brain-saves-push-straight-to-main.md`
 | Layout | `knowledge/<area>/`, `runbooks/<area>/`, `incidents/`, `inbox/` | `<team>/knowledge/`, `runbooks/`, `decisions/`, plus `inbox/` |
 | Saves | Branch + merge request | Straight to `main` after the engineer's yes |
 | Index | `INDEX.md` committed; CI checks it's current | Generated on each laptop, not committed |
-| Search | `team-knowledge` MCP server over the brain, upstream docs and code | grep + `INDEX.md` (search server is phase 2) |
-| Offline vendor docs | `docs/upstream/`, ~109 MB, kept in upstream format (Markdown, rst, AsciiDoc) | `docs/upstream/`, ~74 MB, all Markdown: MongoDB and Cassandra converted with includes inlined |
+| Search | `team-knowledge` MCP server (keyword ranking) over the brain, upstream docs and code | `brain.py search` (keyword ranking, no server) + `brain.py show` (outline / one section) |
+| Offline vendor docs | `docs/upstream/`, ~109 MB, kept in upstream format (Markdown, rst, AsciiDoc) | `docs/upstream/`, ~98 MB, almost all Markdown: MongoDB, Cassandra, Elastic 8.19 and Redis converted with includes inlined; Elastic 9.x guides kept as published (license) |
 | Scripts | bash + jq, some GNU-only commands | Python standard library; Linux and macOS |
 | Plugin install | No `marketplace.json` in the repo | `marketplace.json` included and tested |
 | Other MCP servers | Grafana, Kubernetes, Red Hat offline docs | None yet |
@@ -74,8 +74,8 @@ Reasons and trade-offs: `commons/decisions/brain-saves-push-straight-to-main.md`
 
 Tested on macOS with Claude Code 2.1.311, git 2.52 and Python 3.11:
 
-- `tests/test_flow.sh`, 38 checks: saving, pulling, two people saving at once, a real conflict, a blocked
-  secret, unrelated local edits kept, a page moved out of the inbox, offline then retry, the nudge.
+- `tests/test_flow.sh`, 42 checks: saving, pulling, two people saving at once, a real conflict, a blocked
+  secret, unrelated local edits kept, a page moved out of the inbox, offline then retry, the nudge, search and section reading.
 - `claude plugin validate`, then install and enable. A real session received the briefing and listed
   the skills.
 

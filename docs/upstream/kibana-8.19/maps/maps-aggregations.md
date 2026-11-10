@@ -1,0 +1,221 @@
+<!-- Converted from maps/maps-aggregations.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Plot big data without plotting too much data
+
+Use [aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations.html) to plot large data sets without overwhelming your network or your browser.
+When using aggregations, the documents stay in Elasticsearch and only the calculated values for each group are returned to your computer.
+
+Aggregations group your documents into buckets and calculate metrics for each bucket.
+Use metric aggregations for data driven styling. For example, use the count aggregation to shade world countries by web log traffic.
+
+You can add the following metric aggregations:
+
+* *Average.* The mean of the values.
+
+* *Count.* The number of documents.
+
+* *Max.* The highest value.
+
+* *Min.* The lowest value.
+
+* *Percentile.* The value at which a certain percentage of observed values occur. For example, the 95th percentile is the value which is greater than 95% of the observed values.
+
+* *Sum.* The total value.
+
+* *Top term.* The most common value.
+
+* *Unique count.* The number of distinct values.
+
+Use aggregated layers with document layers to show aggregated views when the map shows larger
+amounts of the globe and individual documents when the map shows smaller regions.
+
+In the following example, the Grid aggregation layer is only visible when the map is at zoom levels 0 through 5. The Documents layer is only visible when the map is at zoom levels 4 through 24.
+See the Getting started tutorial for more details on configuring the layers.
+
+(Figure: maps/images/grid_to_docs.gif)
+
+### Clusters
+
+Clusters use [Geotile grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geotilegrid-aggregation.html) or [Geohex grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geohexgrid-aggregation.html) to group your documents into grids. You can calculate metrics for each gridded cell.
+
+Symbolize cluster metrics as:
+
+*Clusters*:: Uses [Geotile grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geotilegrid-aggregation.html) to group your documents into grids. Creates a vector layer with a cluster symbol for each gridded cell.
+The cluster location is the weighted centroid for all documents in the gridded cell.
+
+*Grids*:: Uses [Geotile grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geotilegrid-aggregation.html) to group your documents into grids. Creates a vector layer with a bounding box polygon for each gridded cell.
+
+*Heat map*:: Uses [Geotile grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geotilegrid-aggregation.html) to group your documents into grids. Creates a heat map layer that clusters the weighted centroids for each gridded cell.
+
+*Hexbins*:: Uses [Geohex grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geohexgrid-aggregation.html) to group your documents into H3 hexagon grids. Creates a vector layer with a hexagon polygon for each gridded cell.
+
+To enable a clusters layer:
+
+. Click *Add layer*, then select the *Clusters* or *Heat map* layer.
+
+To enable a blended layer that dynamically shows clusters or documents:
+
+. Click *Add layer*, then select the *Documents* layer.
+. Configure *Data view* and the *Geospatial field*.
+. In *Scaling*, select *Show clusters when results exceed 10000*.
+
+### Display the most relevant documents per entity
+
+Use *Top hits per entity* to display the most relevant documents per entity, for example, the most recent GPS tracks per flight route.
+To get this data, Elasticsearch first groups your data using a [terms aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-terms-aggregation.html),
+then accumulates the most relevant documents based on sort order for each entry using a [top hits metric aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-metrics-top-hits-aggregation.html).
+
+To enable top hits:
+
+. Click *Add layer*, then select the *Top hits per entity* layer.
+. Configure *Data view* and *Geospatial field*.
+. Set *Entity* to the field that identifies entities in your documents.
+This field will be used in the terms aggregation to group your documents into entity buckets.
+. Set *Documents per entity* to configure the maximum number of documents accumulated per entity.
+This setting is limited to the `index.max_inner_result_window` index setting, which defaults to 100.
+
+(Figure: maps/images/top_hits.png)
+
+### Point to point
+
+A point-to-point connection plots aggregated data paths between the source and the destination.
+Thicker, darker lines symbolize more connections between a source and destination, and thinner, lighter lines symbolize less connections.
+
+Point to point uses an Elasticsearch [terms aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-terms-aggregation.html) to group your documents by destination.
+Then, a nested [GeoTile grid aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-geotilegrid-aggregation.html) groups sources for each destination into grids.
+A line connects each source grid centroid to each destination.
+
+Point-to-point layers are used in several common use cases:
+
+* Source-destination maps for network traffic
+* Origin-destination maps for flight data
+* Origin-destination flows for import/export/migration
+* Origin-destination for pick-up/drop-off data
+
+(Figure: maps/images/point_to_point.png)
+
+### Term join
+
+Use term joins to augment vector features with properties for data driven styling and richer tooltip content.
+
+Term joins are available for the following vector layers:
+
+* Configured GeoJSON
+* Documents
+* EMS Boundaries
+
+#### Example term join
+
+The choropleth layer example uses a term join to shade world countries by web log traffic.
+Darker shades symbolize countries with more web log traffic, and lighter shades symbolize countries with less traffic.
+
+(Figure: maps/images/gs_add_cloropeth_layer.png)
+
+##### How a term join works
+
+A term join uses a shared key to combine vector features, the left source, with the results of an Elasticsearch terms aggregation, the right source.
+
+The cloropeth example uses the shared key, [ISO 3166-1 alpha-2 code](https://wikipedia.org/wiki/ISO_3166-1_alpha-2), to join world countries and web log traffic.
+ISO 3166-1 alpha-2 code is an international standard that identifies countries by a two-letter country code.
+For example, *Sweden* has an ISO 3166-1 alpha-2 code of *SE*.
+
+(Figure: maps/images/terms_join_shared_key_config.png)
+
+##### Left source
+
+The left source for the term join is the [Elastic Maps Service (EMS)](https://www.elastic.co/elastic-maps-service) World Countries. Vector features for this source are provided by EMS. You can also use your own vector features.
+
+In the following example, *iso2* property defines the shared key for the left source.
+```
+{
+  geometry: {
+    coordinates: [...],
+    type: "Polygon"
+  },
+  properties: {
+    name: "Sweden",
+    iso2: "SE"
+  },
+  type: "Feature"
+}
+```
+
+##### Right source
+
+The right source uses the Kibana sample data set "Sample web logs".
+In this data set, the *geo.src* field contains the ISO 3166-1 alpha-2 code of the country of origin.
+
+A [terms aggregation](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/search-aggregations-bucket-terms-aggregation.html) groups the sample web log documents by *geo.src* and calculates metrics for each term.
+
+The METRICS configuration defines two metric aggregations:
+
+* The count of all documents in the terms bucket.
+* The average of the field "bytes" for all documents in the terms bucket.
+
+(Figure: maps/images/terms_join_metric_config.png)
+
+The right source does not provide individual documents, but instead provides the metrics from a terms aggregation.
+The metrics are calculated from the following sample web logs documents.
+```
+{
+  bytes: 1837,
+  geo: {
+    src: "SE"
+  },
+  timestamp: "Feb 28, 2019 @ 07:23:08.754"
+},
+{
+  bytes: 971,
+  geo: {
+    src: "SE"
+  },
+  timestamp: "Feb 27, 2019 @ 08:10:45.205"
+},
+{
+  bytes: 4277,
+  geo: {
+    src: "SE"
+  },
+  timestamp: "Feb 21, 2019 @ 05:24:33.945"
+},
+{
+  bytes: 5624,
+  geo: {
+    src: "SE"
+  },
+  timestamp: "Feb 21, 2019 @ 04:57:05.921"
+}
+```
+
+The terms aggregation creates a bucket for each unique *geo.src* value. Metrics are calucated for all documents in a bucket.
+
+The following shows an example terms aggregation response. Note the *key* property, which defines the shared key for the right source.
+```
+{
+  aggregations: {
+    join: {
+      buckets: [
+        {
+          doc_count: 4,
+          key: "SE",
+          avg_of_bytes: {
+            value: 3177.25
+          }
+        },
+        ...
+      ]
+    }
+  }
+}
+```
+
+#### Augment the left source with metrics from the right source
+
+The join adds metrics for each terms aggregation bucket to the world country feature with the corresponding ISO 3166-1 alpha-2 code. Features that do not have a corresponding terms aggregation bucket are not visible on the map.
+
+The world country features now have two additional properties:
+
+* Count of web log traffic originating from the world country
+* Average bytes of web log traffic originating from the world country
+
+The cloropeth example uses the count of web log traffic to symbolize countries by web log traffic.

@@ -1,0 +1,92 @@
+<!-- Converted from analysis/tokenizers/simplepattern-tokenizer.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Simple pattern tokenizer
+
+The `simple_pattern` tokenizer uses a regular expression to capture matching
+text as terms. The set of regular expression features it supports is more
+limited than the `pattern` tokenizer, but the
+tokenization is generally faster.
+
+This tokenizer does not support splitting the input on a pattern match, unlike
+the `pattern` tokenizer. To split on pattern
+matches using the same restricted regular expression subset, see the
+`simple_pattern_split` tokenizer.
+
+This tokenizer uses {lucene-core-javadoc}/org/apache/lucene/util/automaton/RegExp.html[Lucene regular expressions].
+For an explanation of the supported features and syntax, see Regular Expression Syntax.
+
+The default pattern is the empty string, which produces no terms. This
+tokenizer should always be configured with a non-default pattern.
+
+### Configuration
+
+The `simple_pattern` tokenizer accepts the following parameters:
+
+`pattern`::
+    {lucene-core-javadoc}/org/apache/lucene/util/automaton/RegExp.html[Lucene regular expression], defaults to the empty string.
+
+### Example configuration
+
+This example configures the `simple_pattern` tokenizer to produce terms that are
+three-digit numbers
+
+```console
+PUT my-index-000001
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "my_tokenizer"
+        }
+      },
+      "tokenizer": {
+        "my_tokenizer": {
+          "type": "simple_pattern",
+          "pattern": "[0123456789]{3}"
+        }
+      }
+    }
+  }
+}
+
+POST my-index-000001/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "fd-786-335-514-x"
+}
+```
+
+```console-result
+{
+  "tokens" : [
+    {
+      "token" : "786",
+      "start_offset" : 3,
+      "end_offset" : 6,
+      "type" : "word",
+      "position" : 0
+    },
+    {
+      "token" : "335",
+      "start_offset" : 7,
+      "end_offset" : 10,
+      "type" : "word",
+      "position" : 1
+    },
+    {
+      "token" : "514",
+      "start_offset" : 11,
+      "end_offset" : 14,
+      "type" : "word",
+      "position" : 2
+    }
+  ]
+}
+```
+
+The above example produces these terms:
+
+```text
+[ 786, 335, 514 ]
+```

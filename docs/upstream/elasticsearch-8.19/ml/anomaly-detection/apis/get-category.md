@@ -1,0 +1,158 @@
+<!-- Converted from ml/anomaly-detection/apis/get-category.asciidoc (AsciiDoc). Includes are inlined. -->
+
+# Get categories API
+
+**New API reference**
+For the most up-to-date API details, refer to [Machine learning  anomaly detection APIs](https://www.elastic.co/docs/api/doc/elasticsearch/group/endpoint-ml-anomaly).
+
+Retrieves anomaly detection job results for one or more categories.
+
+## Request
+
+`GET _ml/anomaly_detectors/<job_id>/results/categories` +
+
+`GET _ml/anomaly_detectors/<job_id>/results/categories/<category_id>`
+
+## Prerequisites
+
+Requires the `monitor_ml` cluster privilege. This privilege is included in the 
+`machine_learning_user` built-in role.
+
+## Description
+
+When `categorization_field_name` is specified in the job configuration, it is
+possible to view the definitions of the resulting categories. A category
+definition describes the common terms matched and contains examples of matched
+values.
+
+The anomaly results from a categorization analysis are available as bucket,
+influencer, and record results. For example, the results might indicate that
+at 16:45 there was an unusual count of log message category 11. You can then
+examine the description and examples of that category. For more information, see
+{ml-docs}/ml-configuring-categories.html[Categorizing log messages].
+
+## Path parameters
+
+`<job_id>`::
+(Required, string)
+Identifier for the anomaly detection job.
+`<category_id>`::
+(Optional, long) Identifier for the category, which is unique in the job. If you
+specify neither the category ID nor the `partition_field_value`, the API returns
+information about all categories. If you specify only the
+`partition_field_value`, it returns information about all categories for the
+specified partition.
+
+## Query parameters
+
+`from`::
+(Optional, integer) Skips the specified number of categories. Defaults to `0`.
+
+`partition_field_value`::
+(Optional, string) Only return categories for the specified partition.
+
+`size`::
+(Optional, integer) Specifies the maximum number of categories to obtain. 
+Defaults to `100`.
+
+## Request body
+
+You can also specify the `partition_field_value` query parameter in the
+request body.
+
+`page`::
+**Properties of `page`**
+
+`from`:::
+(Optional, integer) Skips the specified number of categories. Defaults to `0`.
+
+`size`:::
+(Optional, integer) Specifies the maximum number of categories to obtain. 
+Defaults to `100`.
+
+## Response body
+
+The API returns an array of category objects, which have the following properties:
+
+`category_id`::
+(unsigned integer) A unique identifier for the category. `category_id` is unique
+at the job level, even when per-partition categorization is enabled.
+
+`examples`::
+(array) A list of examples of actual values that matched the category.
+
+`grok_pattern`::
+experimental[] (string) A Grok pattern that could be used in Logstash or an ingest 
+pipeline to extract fields from messages that match the category. This field is
+experimental and may be changed or removed in a future release. The Grok
+patterns that are found are not optimal, but are often a good starting point for
+manual tweaking.
+
+`job_id`::
+(string)
+Identifier for the anomaly detection job.
+`max_matching_length`::
+(unsigned integer) The maximum length of the fields that matched the category.
+The value is increased by 10% to enable matching for similar fields that have
+not been analyzed.
+
+`partition_field_name`::
+(string) If per-partition categorization is enabled, this property identifies
+the field used to segment the categorization. It is not present when
+per-partition categorization is disabled.
+
+`partition_field_value`::
+(string) If per-partition categorization is enabled, this property identifies
+the value of the `partition_field_name` for the category. It is not present when
+per-partition categorization is disabled.
+
+`regex`::
+(string) A regular expression that is used to search for values that match the
+category.
+
+`terms`::
+(string) A space separated list of the common tokens that are matched in values
+of the category.
+
+`num_matches`::
+(long) The number of messages that have been matched by this category. This is
+only guaranteed to have the latest accurate count after a job `_flush` or `_close`
+
+`preferred_to_categories`::
+(list) A list of `category_id` entries that this current category encompasses.
+Any new message that is processed by the categorizer will match against this
+category and not any of the categories in this list. This is only guaranteed
+to have the latest accurate list of categories after a job `_flush` or `_close`
+
+## Examples
+
+```console
+GET _ml/anomaly_detectors/esxi_log/results/categories
+{
+  "page":{
+    "size": 1
+  }
+}
+```
+
+```js
+{
+  "count": 11,
+  "categories": [
+    {
+      "job_id" : "esxi_log",
+      "category_id" : 1,
+      "terms" : "Vpxa verbose vpxavpxaInvtVm opID VpxaInvtVmChangeListener Guest DiskInfo Changed",
+      "regex" : ".*?Vpxa.+?verbose.+?vpxavpxaInvtVm.+?opID.+?VpxaInvtVmChangeListener.+?Guest.+?DiskInfo.+?Changed.*",
+      "max_matching_length": 154,
+      "examples" : [
+        "Oct 19 17:04:44 esxi1.acme.com Vpxa: [3CB3FB90 verbose 'vpxavpxaInvtVm' opID=WFU-33d82c31] [VpxaInvtVmChangeListener] Guest DiskInfo Changed",
+        "Oct 19 17:04:45 esxi2.acme.com Vpxa: [3CA66B90 verbose 'vpxavpxaInvtVm' opID=WFU-33927856] [VpxaInvtVmChangeListener] Guest DiskInfo Changed",
+        "Oct 19 17:04:51 esxi1.acme.com Vpxa: [FFDBAB90 verbose 'vpxavpxaInvtVm' opID=WFU-25e0d447] [VpxaInvtVmChangeListener] Guest DiskInfo Changed",
+        "Oct 19 17:04:58 esxi2.acme.com Vpxa: [FFDDBB90 verbose 'vpxavpxaInvtVm' opID=WFU-bbff0134] [VpxaInvtVmChangeListener] Guest DiskInfo Changed"
+      ],
+      "grok_pattern" : ".*?%{SYSLOGTIMESTAMP:timestamp}.+?Vpxa.+?%{BASE16NUM:field}.+?verbose.+?vpxavpxaInvtVm.+?opID.+?VpxaInvtVmChangeListener.+?Guest.+?DiskInfo.+?Changed.*"
+    }
+  ]
+}
+```

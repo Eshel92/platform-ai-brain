@@ -7,6 +7,8 @@ bash scripts/run.sh brain.py validate                        # check every page
 bash scripts/run.sh brain.py index                           # rebuild INDEX.md (also done at session start)
 bash scripts/run.sh brain.py rules --team team1-mongodb-cassandra
 bash scripts/run.sh brain.py stale --days 180                # pages nobody re-checked lately
+bash scripts/run.sh brain.py search <words> [--folder F]      # ranked search (brain pages, or a docs/upstream folder)
+bash scripts/run.sh brain.py show <file> ["<section>"]        # outline of a page, or one section
 bash scripts/run.sh brain_save.py -m "brain(<team>): ..." <files>
 bash scripts/run.sh brain_save.py --push                     # push commits that are waiting
 bash tests/test_flow.sh                                  # after changing scripts/ or plugin/scripts/

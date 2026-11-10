@@ -1,0 +1,17 @@
+{
+  "name": "elasticsearch-8.19",
+  "team": "team2-elastic",
+  "about": "Elasticsearch 8.19 reference (covers late 8.x): settings, mappings, search, aggregations, ILM, snapshots, security, REST APIs, release notes",
+  "repo": "elastic/elasticsearch",
+  "ref": "8.19",
+  "commit": "63b183d1ac27af4611166b42b5588d42a8e7ac57",
+  "paths": [
+    "docs/reference"
+  ],
+  "files": 1799,
+  "bytes": 10906987,
+  "license": "Apache-2.0",
+  "format": "Markdown, converted from AsciiDoc (snippets inlined)",
+  "notes": [],
+  "synced": "2026-11-10T09:20:23Z"
+}

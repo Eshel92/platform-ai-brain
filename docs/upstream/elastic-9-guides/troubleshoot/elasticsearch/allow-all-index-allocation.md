@@ -1,0 +1,58 @@
+---
+navigation_title: Index allocation
+mapped_pages:
+  - https://www.elastic.co/guide/en/elasticsearch/reference/current/allow-all-index-allocation.html
+applies_to:
+  stack:
+products:
+  - id: elasticsearch
+---
+
+% Need to retitle to be about the problem, not the solution
+% New subsection about unassigned shards?
+
+# Allow Elasticsearch to allocate the index [allow-all-index-allocation]
+
+The allocation of data can be controlled using the [enable allocation configuration](elasticsearch://reference/elasticsearch/index-settings/index-modules.md#index-routing-allocation-enable-setting). In certain circumstances users might want to temporarily disable or restrict the allocation of data.
+
+Forgetting to re-allow all data allocation can lead to unassigned shards.
+
+In order to get the shards assigned we’ll need to change the value of the [configuration](elasticsearch://reference/elasticsearch/index-settings/index-modules.md#index-routing-allocation-enable-setting) that restricts the assignment of the shards to `all`.
+
+To allow all data to be allocated, follow these steps.
+
+You can run the following steps using either [API console](/explore-analyze/query-filter/tools/console.md) or direct [Elasticsearch API](elasticsearch://reference/elasticsearch/rest-apis/index.md) calls.
+
+1. Inspect the `index.routing.allocation.enable` [index setting]({{es-apis}}operation/operation-indices-get-settings) for the index with unassigned shards:
+
+    ```console
+    GET /my-index-000001/_settings/index.routing.allocation.enable?flat_settings
+    ```
+
+    The response will look like this:
+
+    ```console-result
+    {
+      "my-index-000001": {
+        "settings": {
+          "index.routing.allocation.enable": "none" <1>
+        }
+      }
+    }
+    ```
+
+    1. Represents the current configured value that controls if the index is allowed to be partially or totally allocated.
+
+2. [Change]({{es-apis}}operation/operation-indices-put-settings) the [configuration](elasticsearch://reference/elasticsearch/index-settings/index-modules.md#index-routing-allocation-enable-setting) value to allow the index to be fully allocated:
+
+    ```console
+    PUT /my-index-000001/_settings
+    {
+      "index" : {
+        "routing.allocation.enable" : "all" <1>
+      }
+    }
+    ```
+
+    1. The new value for the `allocation.enable` configuration for the `my-index-000001` index is changed to allow all the shards to be allocated.
+

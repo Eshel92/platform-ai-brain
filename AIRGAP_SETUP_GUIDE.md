@@ -15,8 +15,8 @@
 ## 1. Bring it in
 
 On the Mac: zip `~/Documents/platform-ai-brain`, transfer it the approved way, unzip it inside.
-The zip is about 18 MB, mostly the offline vendor docs in `docs/upstream/`. A clone is about 90 MB
-(74 MB of files plus about 14 MB of git history).
+The zip is about 31 MB, mostly the offline vendor docs in `docs/upstream/`. A clone is about 130 MB
+(about 98 MB of files plus the git history).
 
 The vendor docs can't be refreshed inside the air gap: refresh them on a connected machine and
 bring them in (`docs/upstream/README.md`).
@@ -86,7 +86,7 @@ rm -f ~/.claude/commands/brain.md ~/.claude/commands/learn.md
 
 ```bash
 claude plugin list                         # brain@platform-ai-brain  ✔ enabled
-bash ~/platform-ai-brain/tests/test_flow.sh   # once per OS: 38 checks, runs in a temp folder (Git Bash on Windows)
+bash ~/platform-ai-brain/tests/test_flow.sh   # once per OS: 42 checks, runs in a temp folder (Git Bash on Windows)
 bash ~/platform-ai-brain/scripts/run.sh ../plugin/scripts/session_start.py   # prints the session briefing
 ```
 

@@ -1,0 +1,36 @@
+<!-- Converted from maps/vector-tooltips.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Vector tooltips
+
+Vector tooltips display attributes for the features at your mouse location.
+These tooltips give users an in-depth insight into what's going on in the map.
+
+If more than one feature exists at a location, the tooltip displays the
+attributes for the top feature, and notes the number of features at that location.
+The following image has a tooltip with three features at the current location: a green circle from the *Total Sales Revenue* layer, a blue New York State polygon from *United States* layer, and a red United States Country polygon from the *World Countries* layer.
+The tooltip displays attributes for the top feature, the green circle, from the *Total Sales Revenue* layer.
+
+(Figure: maps/images/multifeature_tooltip.png)
+
+#### Format tooltips
+
+You can format the attributes in a tooltip by adding field formatters to your
+data view. You can use field formatters to round numbers, provide units,
+and even display images in your tooltip.
+
+#### Lock a tooltip at the current location
+
+You can lock a tooltip in place by clicking a location on the map.
+With locked tooltips you can:
+
+* Page through features.
+* Create a phrase filter from a feature attribute value.
+* Create a spatial filter from a feature's geometry.
+
+This image shows a locked tooltip with features from three layers.
+The tooltip displays attributes
+for the second feature, the blue New York State polygon.  The tooltip includes
+controls for paging through the features and a dropdown menu for filtering
+the features by layer.
+
+(Figure: maps/images/locked_tooltip.png)

@@ -1,0 +1,80 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/cloud/current/ec-autoops.html
+applies_to:
+  serverless:
+  stack: ga
+products:
+  - id: cloud-hosted
+  - id: cloud-kubernetes
+  - id: cloud-enterprise
+  - id: cloud-serverless
+---
+
+# AutoOps [ec-autoops]
+
+AutoOps diagnoses issues in {{es}} by analyzing hundreds of metrics, providing root-cause analysis and accurate resolution paths. With AutoOps, customers can prevent and resolve issues, cut down administration time, and optimize resource utilization.
+
+:::{image} /deploy-manage/images/cloud-autoops-overview-page.png
+:screenshot:
+:alt: Screenshot showing the Overview page in AutoOps
+:::
+
+## Key features in AutoOps [ec_autoops_key_features]
+
+* Real-time root-cause analysis for hundreds of issues.
+* Accurate resolution paths and customized recommendations.
+* Information about what occurred and detailed views into nodes, index, shards, and templates.
+* Wide range of insights, including:
+
+    * Cluster status, node failures, and shard sizes.
+    * High CPU, memory, disk usage, and other resource-related metrics.
+    * Misconfigurations and possible optimizations.
+    * Insights on data structure, shards, templates, and mapping optimizations.
+    * Unbalanced loads between nodes.
+    * Indexing latency, rejections, search latency, high index/search queues, and slow queries.
+    * Resource utilization.
+* Multi-deployment dashboard to quickly spot issues across all clusters.
+* Possibility to customize event triggers and connect to different notification services such as PagerDuty, Slack, MS Teams, and webhooks.
+* Coming soon: Long-term reports for sustained evaluation.
+
+For a full list of what AutoOps can detect and help you resolve, refer to [AutoOps insights](autoops-insights://elasticsearch/index.md).
+
+## Regions where AutoOps is available
+
+Depending on your deployment type, AutoOps has been rolled out across various [regions](/deploy-manage/monitor/autoops/ec-autoops-regions.md). More regions are coming soon.
+
+## Deployment types where AutoOps is available
+
+:::{include} /deploy-manage/monitor/_snippets/autoops-availability.md
+:::
+
+Currently, you can make [specific configuration choices](/deploy-manage/monitor/autoops/ec-autoops-faq.md#autoops-air-gapped) to securely use AutoOps in air-gapped environments, but a locally deployable version is planned for a future release.
+
+## How AutoOps is licensed
+
+AutoOps is available for free across all subscription levels in {{ech}} deployments and {{serverless-short}} projects.
+
+New: AutoOps is now also available for free across all [self-managed license types](https://www.elastic.co/subscriptions) in ECE, ECK, and self-managed clusters. 
+
+Using AutoOps does not consume ECUs.
+
+## How long AutoOps retains data [ec_autoops_retention_period]
+
+AutoOps currently has a 10 day retention period.
+
+## What AutoOps monitors [ec_autoops_scope]
+
+AutoOps currently only monitors {{es}}, not the entire {{stack}}. AutoOps is compatible with [supported {{es}} versions](https://www.elastic.co/support/eol)(7.17.x and above). We plan to expand AutoOps monitoring to the entire stack in the future.
+
+## Section overview
+
+In this section, you'll find the following information:
+
+* How to [access AutoOps in your {{ech}} deployments](/deploy-manage/monitor/autoops/ec-autoops-how-to-access.md).
+* How to [use AutoOps in your {{serverless-full}} projects](/deploy-manage/monitor/autoops/autoops-for-serverless.md).
+* How to [connect your ECE, ECK, or self-managed clusters](/deploy-manage/monitor/autoops/cc-autoops-as-cloud-connected.md) to AutoOps.
+* [Regions](/deploy-manage/monitor/autoops/ec-autoops-regions.md) where AutoOps is available.
+* Which [views](/deploy-manage/monitor/autoops/views.md) AutoOps offers to gain insight into your deployment.
+* What AutoOps [events](/deploy-manage/monitor/autoops/ec-autoops-events.md) are and how you can configure [event settings](/deploy-manage/monitor/autoops/ec-autoops-event-settings.md) and [notifications](/deploy-manage/monitor/autoops/ec-autoops-notifications-settings.md).
+* [Frequently asked questions](/deploy-manage/monitor/autoops/ec-autoops-faq.md) about AutoOps.

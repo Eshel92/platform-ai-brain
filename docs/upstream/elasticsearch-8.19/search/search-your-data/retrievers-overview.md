@@ -1,0 +1,208 @@
+<!-- Converted from search/search-your-data/retrievers-overview.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Retrievers
+
+A retriever is an abstraction that was added to the Search API in *8.14.0* and was made generally available in *8.16.0*.
+This abstraction enables the configuration of multi-stage retrieval pipelines within a single `_search` call.
+This simplifies your search application logic, because you no longer need to configure complex searches via multiple Elasticsearch calls or implement additional client-side logic to combine results from different queries.
+
+This document provides a general overview of the retriever abstraction.
+For implementation details, including notable restrictions, check out the
+reference documentation in the `_search` API docs.
+
+### Retriever types
+
+Retrievers come in various types, each tailored for different search operations.
+The following retrievers are currently available:
+
+* *Standard Retriever*.
+Returns top documents from a traditional [query](https://www.elastic.co/guide/en/elasticsearch/reference/master/query-dsl.html).
+Mimics a traditional query but in the context of a retriever framework.
+This ensures backward compatibility as existing `_search` requests remain supported.
+That way you can transition to the new abstraction at your own pace without mixing syntaxes.
+* *kNN Retriever*.
+Returns top documents from a knn search, in the context of a retriever framework.
+* *Linear Retriever*.
+Combines the top results from multiple sub-retrievers using a weighted sum of their scores. Allows to specify different
+weights for each retriever, as well as independently normalize the scores from each result set.
+
+#### Linear Retriever Parameters
+
+`retrievers`
+:   (Required, array of objects)
+    A list of the sub-retrievers' configuration, that we will take into account and whose result sets we will merge through a weighted sum. Each configuration can have a different weight and normalization depending on the specified retriever.
+
+Each entry specifies the following parameters:
+
+`retriever`
+:   (Required, a `retriever` object)
+    Specifies the retriever for which we will compute the top documents for. The retriever will produce `rank_window_size` results, which will later be merged based on the specified `weight` and `normalizer`.
+
+`weight`
+:   (Optional, float)
+    The weight that each score of this retriever’s top docs will be multiplied with. Must be greater or equal to 0. Defaults to 1.0.
+
+`normalizer`
+:   (Optional, String)
+    Specifies how we will normalize the retriever’s scores, before applying the specified `weight`. Available values are: `minmax`, `l2_norm`, and `none`. Defaults to `none`.
+
+    * `none`
+    * `minmax` : A `MinMaxScoreNormalizer` that normalizes scores based on the following formula
+
+        ```
+        score = (score - min) / (max - min)
+        ```
+
+    * `l2_norm` : An `L2ScoreNormalizer` that normalizes scores using the L2 norm of the score values.
+
+See also the hybrid search example for how to independently configure and apply normalizers to retrievers.
+
+* *RRF Retriever*.
+Combines and ranks multiple first-stage retrievers using the reciprocal rank fusion (RRF) algorithm.
+Allows you to combine multiple result sets with different relevance indicators into a single result set.
+An RRF retriever is a *compound retriever*, where its `filter` element is propagated to its sub retrievers.
+* *Rule Retriever*.
+Applies query rules to the query before returning results.
+* *Text Similarity Re-ranker Retriever*.
+Used for semantic reranking.
+Requires first creating a `rerank` task using the Elasticsearch Inference API.
+* *Pinned Retriever*.
+Returns top documents by always placing specific documents at the top of the results, with the remaining hits provided by a secondary retriever.
+
+### What makes retrievers useful?
+
+Here's an overview of what makes retrievers useful and how they differ from regular queries.
+
+. *Simplified user experience*.
+Retrievers simplify the user experience by allowing entire retrieval pipelines to be configured in a single API call.
+This maintains backward compatibility with traditional query elements by automatically translating them to the appropriate retriever.
+. *Structured retrieval*.
+Retrievers provide a more structured way to define search operations.
+They allow searches to be described using a "retriever tree", a hierarchical structure that clarifies the sequence and logic of operations, making complex searches more understandable and manageable.
+. *Composability and flexibility*.
+Retrievers enable flexible composability, allowing you to build pipelines and seamlessly integrate different retrieval strategies into these pipelines.
+Retrievers make it easy to test out different retrieval strategy combinations.
+. *Compound operations*.
+A retriever can have sub retrievers.
+This allows complex nested searches where the results of one retriever feed into another, supporting sophisticated querying strategies that might involve multiple stages or criteria.
+. *Retrieval as a first-class concept*.
+Unlike traditional queries, where the query is a part of a larger search API call, retrievers are designed as standalone entities that can be combined or used in isolation.
+This enables a more modular and flexible approach to constructing searches.
+. *Enhanced control over document scoring and ranking*.
+Retrievers allow for more explicit control over how documents are scored and filtered.
+For instance, you can specify minimum score thresholds, apply complex filters without affecting scoring, and use parameters like `terminate_after` for performance optimizations.
+. *Integration with existing Elasticsearch functionalities*.
+Even though retrievers can be used instead of existing `_search` API syntax (like the
+`query` and `knn`), they are designed to integrate seamlessly with things like pagination (`search_after`) and sorting.
+They also maintain compatibility with aggregation operations by treating the combination of all leaf retrievers as
+`should` clauses in a boolean query.
+. *Cleaner separation of concerns*.
+When using compound retrievers, only the query element is allowed, which enforces a cleaner separation of concerns and prevents the complexity that might arise from overly nested or interdependent configurations.
+
+### Example
+
+The following example demonstrates how using retrievers simplify the composability of queries for RRF ranking.
+
+```js
+GET example-index/_search
+{
+  "retriever": {
+    "rrf": {
+      "retrievers": [
+        {
+          "standard": {
+            "query": {
+              "sparse_vector": {
+                "field": "vector.tokens",
+                "inference_id": "my-elser-endpoint",
+                "query": "What blue shoes are on sale?"
+              }
+            }
+          }
+        },
+        {
+          "standard": {
+            "query": {
+              "match": {
+                "text": "blue shoes sale"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+This example demonstrates how you can combine different retrieval strategies into a single `retriever` pipeline.
+
+Compare to `RRF` with `sub_searches` approach (which is deprecated as of 8.16.0):
+
+.*Expand* for example
+==============
+
+```js
+GET example-index/_search
+{
+  "sub_searches":[
+    {
+      "query":{
+        "match":{
+          "text":"blue shoes sale"
+        }
+      }
+    },
+    {
+      "query":{
+        "sparse_vector": {
+            "field": "vector.tokens",
+            "inference_id": "my-elser-endoint",
+            "query": "What blue shoes are on sale?"
+          }
+        }
+      }
+  ],
+  "rank":{
+    "rrf":{
+      "rank_window_size":50,
+      "rank_constant":20
+    }
+  }
+}
+```
+==============
+
+For more examples on how to use retrievers, please refer to retriever examples.
+
+### Glossary
+
+Here are some important terms:
+
+* *Retrieval Pipeline*.
+Defines the entire retrieval and ranking logic to produce top hits.
+* *Retriever Tree*.
+A hierarchical structure that defines how retrievers interact.
+* *First-stage Retriever*.
+Returns an initial set of candidate documents.
+* *Compound Retriever*.
+Builds on one or more retrievers, enhancing document retrieval and ranking logic.
+* *Combiners*.
+Compound retrievers that merge top hits from multiple sub-retrievers.
+* *Rerankers*.
+Special compound retrievers that reorder hits and may adjust the number of hits, with distinctions between first-stage and second-stage rerankers.
+
+### Retrievers in action
+
+The Search Playground builds Elasticsearch queries using the retriever abstraction.
+It automatically detects the fields and types in your index and builds a retriever tree based on your selections.
+
+You can use the Playground to experiment with different retriever configurations and see how they affect search results.
+
+Refer to the [Playground documentation](https://www.elastic.co/guide/en/kibana/8.19/playground.html) for more information.
+
+### API reference
+
+For implementation details, including notable restrictions, check out the reference documentation in the Search API docs.
+
+(See `search/search-your-data/retrievers-examples.md`)

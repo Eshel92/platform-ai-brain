@@ -1,0 +1,82 @@
+<!-- Converted from ml/anomaly-detection/ml-configuring-populations.asciidoc (AsciiDoc). Includes are inlined. -->
+
+# Performing population analysis
+
+Entities or events in your data can be considered anomalous when:
+
+* Their behavior changes over time, relative to their own previous behavior, or
+* Their behavior is different than other entities in a specified population.
+
+The latter method of detecting anomalies is known as _population analysis_. The
+machine learning analytics build a profile of what a "typical" user, machine, or other 
+entity does over a specified time period and then identify when one is behaving
+abnormally compared to the population.
+
+This type of analysis is most useful when the behavior of the population as a
+whole is mostly homogeneous and you want to identify unusual behavior. In 
+general, population analysis is not useful when members of the population 
+inherently have vastly different behavior. You can, however, segment your data 
+into groups that behave similarly and run these as separate jobs. For example, 
+you can use a query filter in the datafeed to segment your data or you can use 
+the `partition_field_name` to split the analysis for the different groups.
+
+Population analysis scales well and has a lower resource footprint than
+individual analysis of each series. For example, you can analyze populations
+of hundreds of thousands or millions of entities.
+
+To specify the population, use the `over_field_name` property. For example:
+
+```console
+PUT _ml/anomaly_detectors/population
+{
+  "description" : "Population analysis",
+  "analysis_config" : {
+    "bucket_span":"15m",
+    "influencers": [
+      "clientip"
+    ],
+    "detectors": [
+      {
+        "function": "mean",
+        "field_name": "bytes",
+        "over_field_name": "clientip" <1>
+      }
+    ]
+  },
+  "data_description" : {
+    "time_field":"timestamp",
+    "time_format": "epoch_ms"
+  }
+}
+```
+
+<1> This `over_field_name` property indicates that the metrics for each client 
+  (as identified by their IP address) are analyzed relative to other clients
+  in each bucket.
+
+If your data is stored in Elasticsearch, you can use the population job wizard in Kibana
+to create an anomaly detection job with these same properties. For example, if you add
+the sample web logs in Kibana, you can use the following job settings in the
+population job wizard:
+
+(Figure: images/ml-population-job.png)
+
+After you open the job and start the datafeed or supply data to the job, you can
+view the results in Kibana. For example, you can view the results in the
+**Anomaly Explorer**:
+
+(Figure: images/ml-population-results.png)
+
+As in this case, the results are often quite sparse. There might be just a few
+data points for the selected time period. Population analysis is particularly
+useful when you have many entities and the data for specific entitles is 
+sporadic or sparse.
+
+If you click on a section in the timeline or swim lanes, you can see more
+details about the anomalies:
+
+(Figure: images/ml-population-anomaly.png)
+
+In this example, the client IP address `30.156.16.164` received a low volume of
+bytes on the date and time shown. This event is anomalous because the mean is
+three times lower than the expected behavior of the population.

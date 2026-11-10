@@ -1,0 +1,185 @@
+<!-- Converted from discover/search.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Search your data
+
+You can search your data in any app that has a query bar, or by clicking on
+elements in a visualization.  A search matches indices in the current
+data view and in the current time frame.
+
+### Search with KQL
+
+By default, you search using
+Kibana's standard query language (KQL), which
+features autocomplete and a simple, easy-to-use syntax. If you prefer to use
+Kibana's legacy query
+language, based on the
+Lucene [query syntax](https://lucene.apache.org/core/2_9_4/queryparsersyntax.html),
+you can switch to it from the KQL popup in the query bar. When you enable the
+legacy query language, you can use the full
+JSON-based [Elasticsearch Query DSL](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/query-dsl.html).
+
+### Refresh search results
+
+As more documents are added to the indices you're searching, the search results get stale.
+Using the time filter, you can
+configure a refresh interval to periodically resubmit your searches to
+retrieve the latest results.
+
+(Figure: images/autorefresh-interval.png)
+
+You can also manually refresh the search results by
+clicking the *Refresh* button.
+
+(Include not available offline: kuery.asciidoc)
+
+### Lucene query syntax
+
+Lucene query syntax is available to Kibana users who opt out of the kuery-query.
+Full documentation for this syntax is available as part of Elasticsearch
+[query string syntax](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/query-dsl-query-string-query.html#query-string-syntax).
+
+The main reason to use the Lucene query syntax in Kibana is for advanced
+Lucene features, such as regular expressions or fuzzy term matching. However,
+Lucene syntax is not able to search nested objects or scripted fields.
+
+To perform a free text search, simply enter a text string. For example, if
+you're searching web server logs, you could enter `safari` to search all
+fields:
+
+```yaml
+safari
+```
+
+To search for a value in a specific field, prefix the value with the name
+of the field:
+
+```yaml
+status:200
+```
+
+To search for a range of values, use the bracketed range syntax,
+`[START_VALUE TO END_VALUE]`. For example, to find entries that have 4xx
+status codes, you could enter `status:[400 TO 499]`.
+
+```yaml
+status:[400 TO 499]
+```
+
+For an open range, use a wildcard:
+
+```yaml
+status:[400 TO *]
+```
+
+To specify more complex search criteria, use the boolean operators
+`AND`, `OR`, and `NOT`. For example, to find entries that have 4xx status
+codes and have an extension of `php` or `html`:
+
+```yaml
+status:[400 TO 499] AND (extension:php OR extension:html)
+```
+
+### Save a Discover session
+
+A saved Discover session persists your current view of Discover for later retrieval and reuse. You can reload a saved session into Discover, add it to a dashboard, and use it as the basis for a visualization.
+
+A Discover session includes the query text, filters, and optionally, the time filter. A Discover session also includes the selected columns in the document table, the sort order, and the current {data-source}.
+
+#### Read-only access
+
+When you have insufficient privileges to save Discover sessions, the following indicator in Kibana will be
+displayed and the *Save* button won't be visible. For more information on granting access to
+Kibana see xpack-security-authorization.
+
+(Figure: discover/images/read-only-badge.png)
+
+#### Save a Discover session
+
+To save the current session:
+
+. Click *Save* in the toolbar.
+. Enter a name for the session and click *Save*.
+
+To import, export, and delete saved Discover sessions, go to the *Saved Objects* management page using the navigation menu or the global search field.
+
+#### Open a saved Discover session
+
+To load a saved session into Discover:
+
+. Click *Open* in the toolbar.
+. Select the session you want to open.
+
+If the saved Discover session is associated with a different {data-source} than is currently
+selected, opening the saved Discover session changes the selected {data-source}. The query language
+used for the saved Discover session will also be automatically selected.
+
+### Save a query
+
+A saved query is a portable collection of query text and filters that you can reuse in Discover and Dashboard. Save a query when you want to:
+
+* Retrieve results from the same query at a later time without having to reenter the query text, add the filters or set the time filter
+* View the results of the same query in multiple apps
+* Share your query
+
+Saved queries don't include information specific to Discover, such as the currently selected columns in the document table, the sort order, and the {data-source}. If you want to save your current view of Discover for later retrieval and reuse, create a Discover session instead.
+
+#### Read-only access
+
+If you have insufficient privileges to save queries, the *Save current query* button isn't visible in the saved query management popover. For more information, see Granting access to Kibana
+
+#### Save a query
+
+To save the current query text, filters, and time filter:
+
+. Click *#* in the search bar, next to the query text input.
+. Click *Save current query* in the popover.
+(Figure: discover/images/saved-query-management-component-all-privileges.png)
+. Enter a name, a description, and then select the filter options that you want to include. By default, filters are automatically included, but the time filter is not.
+(Figure: discover/images/saved-query-save-form-default-filters.png)
+. Click *Save*.
+
+#### Load a query
+
+To load a saved query into Discover or Dashboard:
+
+. Click *#* in the search bar, next to the query text input.
+. Select the query you want to load. You might need to scroll down to find the query you are looking for.
+
+#### Save changes to a query
+
+If you load a query and then make changes to the query text, the filters, or the time filter, you can save the changes as a new query or update the existing query.
+
+To save the changes as a new query:
+
+. Click *#* in the search bar, next to the query text input.
+. Click *Save as new* in the popover.
+. Enter a name and a description, and then select the filter options that you want to include.
+. Click *Save*.
+(Figure: discover/images/saved-query-management-component-save-as-new-query.png)
+
+To save the changes to the current query:
+
+. Click *#* in the search bar.
+. Click *Save changes* in the popover.
+. Enter a description, and then select the filter options that you want to include.
+. Click *Save*.
+
+#### Clear a query
+
+To clear a query that is currently loaded in an application:
+
+. Click *#* in the search bar.
+. Click *Clear* in the popover.
+
+#### Delete a query
+
+To completely delete a query:
+
+. Click *#* in the search bar, next to the query text input.
+. Hover over the query you want to delete.
+. Click the trash can icon.
+(Figure: discover/images/saved-query-management-component-delete-query-button.png)
+
+You can import, export, and delete saved queries from Saved Objects in Management.
+
+(See `discover/search-sessions.md`)

@@ -1,0 +1,27 @@
+<!-- Converted from ingest/processors/fail.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Fail processor
+
+Raises an exception. This is useful for when
+you expect a pipeline to fail and want to relay a specific message
+to the requester.
+
+**Fail Options**
+|======
+| Name       | Required  | Default  | Description
+| `message`  | yes       | -        | The error message thrown by the processor. Supports template snippets.
+| `description`     | no      | -        | Description of the processor. Useful for describing the purpose of the processor or its configuration.
+| `if`             | no       | -        | Conditionally execute the processor. See conditionally-run-processor.
+| `ignore_failure` | no       | `false`  | Ignore failures for the processor. See handling-pipeline-failures.
+| `on_failure`     | no       | -        | Handle failures for the processor. See handling-pipeline-failures.
+| `tag`            | no       | -        | Identifier for the processor. Useful for debugging and metrics.
+|======
+
+```js
+{
+  "fail": {
+    "if" : "ctx.tags.contains('production') != true",
+    "message": "The production tag is not present, found tags: {{{tags}}}"
+  }
+}
+```

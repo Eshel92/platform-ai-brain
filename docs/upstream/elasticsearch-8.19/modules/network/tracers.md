@@ -1,0 +1,107 @@
+<!-- Converted from modules/network/tracers.asciidoc (AsciiDoc). Includes are inlined. -->
+
+#### Request tracing
+
+You can trace individual requests made on the HTTP and transport layers.
+
+**Warning:** Tracing can generate extremely high log volumes that can destabilize
+your cluster. Do not enable request tracing on busy or important clusters.
+
+##### REST request tracer
+
+The HTTP layer has a dedicated tracer that logs incoming requests and the
+corresponding outgoing responses. Activate the tracer by setting the level of
+the `org.elasticsearch.http.HttpTracer` logger to `TRACE`:
+
+```console
+PUT _cluster/settings
+{
+   "persistent" : {
+      "logger.org.elasticsearch.http.HttpTracer" : "TRACE"
+   }
+}
+```
+
+You can also control which URIs will be traced, using a set of include and
+exclude wildcard patterns. By default every request will be traced.
+
+```console
+PUT _cluster/settings
+{
+   "persistent" : {
+      "http.tracer.include" : "*",
+      "http.tracer.exclude" : ""
+   }
+}
+```
+
+By default, the tracer logs a summary of each request and response which
+matches these filters. To record the body of each request and response too, set
+the system property `es.insecure_network_trace_enabled` to `true`, and then set
+the levels of both the `org.elasticsearch.http.HttpTracer` and
+`org.elasticsearch.http.HttpBodyTracer` loggers to `TRACE`:
+
+```console
+PUT _cluster/settings
+{
+   "persistent" : {
+      "logger.org.elasticsearch.http.HttpTracer" : "TRACE",
+      "logger.org.elasticsearch.http.HttpBodyTracer" : "TRACE"
+   }
+}
+```
+
+Each message body is compressed, encoded, and split into chunks to avoid
+truncation:
+
+```text
+[TRACE][o.e.h.HttpBodyTracer     ] [master] [276] response body [part 1]: H4sIAAAAAAAA/9...
+[TRACE][o.e.h.HttpBodyTracer     ] [master] [276] response body [part 2]: 2oJ93QyYLWWhcD...
+[TRACE][o.e.h.HttpBodyTracer     ] [master] [276] response body (gzip compressed, base64-encoded, and split into 2 parts on preceding log lines)
+```
+
+Each chunk is annotated with an internal request ID (`[276]` in this example)
+which you should use to correlate the chunks with the corresponding summary
+lines. To reconstruct the output, base64-decode the data and decompress it
+using `gzip`. For instance, on Unix-like systems:
+
+```sh
+cat httptrace.log | sed -e 's/.*://' | base64 --decode | gzip --decompress
+```
+
+**Warning:** HTTP request and response bodies may contain sensitive information
+such as credentials and keys, so HTTP body tracing is disabled by default. You
+must explicitly enable it on each node by setting the system property
+`es.insecure_network_trace_enabled` to `true`. This feature is primarily
+intended for test systems which do not contain any sensitive information. If
+you set this property on a system which contains sensitive information, you
+must protect your logs from unauthorized access.
+
+##### Transport tracer
+
+The transport layer has a dedicated tracer that logs incoming and outgoing
+requests and responses. Activate the tracer by setting the level of the
+`org.elasticsearch.transport.TransportService.tracer` logger to `TRACE`:
+
+```console
+PUT _cluster/settings
+{
+   "persistent" : {
+      "logger.org.elasticsearch.transport.TransportService.tracer" : "TRACE"
+   }
+}
+```
+
+You can also control which actions will be traced, using a set of include and
+exclude wildcard patterns. By default every request will be traced except for
+fault detection pings:
+
+```console
+PUT _cluster/settings
+{
+   "persistent" : {
+      "transport.tracer.include" : "*",
+      "transport.tracer.exclude" : "internal:coordination/fault_detection/*"
+   }
+}
+```

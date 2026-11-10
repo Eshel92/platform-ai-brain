@@ -1,0 +1,45 @@
+<!-- Converted from management/cases/setup-cases.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Configure access to cases
+
+To access cases in *{stack-manage-app}*, you must have the appropriate Kibana
+privileges:
+
+|=== 
+
+| Action | Kibana privileges
+| Give full access to manage cases and settings
+a|
+* `All` for the *Cases* feature under *Management*.
+* `All` for the *{connectors-feature}* feature under *Management*.
+
+**Note:**
+The *{connectors-feature}* feature privilege is required to create, add,
+delete, and modify case connectors and to send updates to external systems.
+
+By default, **All** for the *Cases* feature allows you to have full control over cases, including deleting them, editing case settings, and more. You can customize the sub-feature privileges to limit feature access.
+
+| Give assignee access to cases
+a| `All` for the *Cases* feature under *Management*.
+
+**Note:**
+Before a user can be assigned to a case, they must log into Kibana at
+least once, which creates a user profile.
+
+This privilege is also required to add case actions to rules.
+
+| Give view-only access to cases
+a| `Read` for the *Cases* feature under *Management*.
+
+**Note:** You can customize sub-feature privileges for deleting cases and comments, editing case settings, adding case comments and attachments, and re-opening cases.
+
+| Revoke all access to cases | `None` for the *Cases* feature under *Management*.
+
+|=== 
+
+For more details, refer to kibana-privileges.
+
+**Note:** If you are using an on-premises Kibana deployment and you want the email
+notifications and the external incident management systems to contain
+links back to Kibana, you must configure the 
+`server.publicBaseUrl` setting.

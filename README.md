@@ -37,7 +37,7 @@ secret patterns and rebases onto the latest main before pushing.
 | `scripts/` | `brain.py` (checks, index) and `brain_save.py` (push to main) |
 | `plugin/` | The Claude Code plugin (hooks + skills) |
 | `docs/` | Design, page header reference, maintainer guide |
-| `docs/upstream/` | Offline vendor docs (MongoDB, Ops Manager, MCK, Cassandra, K8ssandra, Kubernetes, Argo CD, monitoring), as Markdown |
+| `docs/upstream/` | Offline vendor docs (MongoDB, Ops Manager, MCK, Cassandra, K8ssandra, Elasticsearch, Kibana, Redis Enterprise, Kubernetes, Argo CD, monitoring), as Markdown |
 | `tests/` | `test_flow.sh`: end-to-end test of saving and syncing |
 | `.gitlab-ci.yml` | Optional CI check, inactive until configured |
 

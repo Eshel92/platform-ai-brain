@@ -1,5 +1,5 @@
 {
-  "_about": "Offline upstream docs. Edit this list, then run scripts/sync_upstream_docs.py on a machine that can reach the git host. 'paths' are folders in the repo; 'root_files' are extra files from the repo root; 'include' / 'exclude' are patterns on paths inside those folders. 'license' is used when the repo has no license file; 'extra_extensions' adds file types beyond the usual text ones. 'convert' (rst | adoc) turns each page into one self-contained Markdown file; 'checkout' adds folders needed only during conversion (shared code examples).",
+  "_about": "Offline upstream docs. Edit this list, then run scripts/sync_upstream_docs.py on a machine that can reach the git host. 'paths' are folders in the repo; 'root_files' are extra files from the repo root; 'include' / 'exclude' are patterns on paths inside those folders. 'license' is used when the repo has no license file; 'extra_extensions' adds file types beyond the usual text ones. 'convert' (rst | adoc) turns each page into one self-contained Markdown file; 'checkout' adds folders needed only during conversion (shared code examples). 'attrs' fills in placeholders the converter doesn't know.",
   "sources": [
     {
       "name": "mongodb-manual-7.0",
@@ -228,6 +228,119 @@
       ],
       "extra_extensions": [
         ".cue"
+      ]
+    },
+    {
+      "name": "elasticsearch-8.19",
+      "team": "team2-elastic",
+      "about": "Elasticsearch 8.19 reference (covers late 8.x): settings, mappings, search, aggregations, ILM, snapshots, security, REST APIs, release notes",
+      "repo": "elastic/elasticsearch",
+      "ref": "8.19",
+      "paths": [
+        "docs/reference"
+      ],
+      "convert": "asciidoc",
+      "exclude": [
+        "connector/*",
+        "esql/*"
+      ],
+      "attrs": {
+        "ref": "https://www.elastic.co/guide/en/elasticsearch/reference/8.19",
+        "kibana-ref": "https://www.elastic.co/guide/en/kibana/8.19"
+      }
+    },
+    {
+      "name": "kibana-8.19",
+      "team": "team2-elastic",
+      "about": "Kibana 8.19 guide: setup, settings, management, Discover, dashboards, alerting",
+      "repo": "elastic/kibana",
+      "ref": "8.19",
+      "paths": [
+        "docs"
+      ],
+      "convert": "asciidoc",
+      "exclude": [
+        "developer/*"
+      ],
+      "attrs": {
+        "ref": "https://www.elastic.co/guide/en/elasticsearch/reference/8.19",
+        "kibana-ref": "https://www.elastic.co/guide/en/kibana/8.19"
+      }
+    },
+    {
+      "name": "elastic-9-guides",
+      "team": "team2-elastic",
+      "about": "Elastic 9.x guides, kept exactly as published (license: no derivatives): deploy and manage (self-managed, ECK), upgrades, snapshots, security, monitoring, troubleshooting, data management, Kibana alerting / dashboards / Discover. {{es}} = Elasticsearch, {{kib}} = Kibana",
+      "repo": "elastic/docs-content",
+      "ref": "main",
+      "paths": [
+        "deploy-manage",
+        "troubleshoot",
+        "manage-data",
+        "explore-analyze"
+      ],
+      "exclude": [
+        "deploy/cloud-enterprise/*",
+        "deploy/elastic-cloud/*",
+        "cloud-organization/*",
+        "ai-features/*",
+        "machine-learning/*",
+        "workflows/*",
+        "elastic-inference/*",
+        "cases/*"
+      ],
+      "include": [
+        "*.md"
+      ]
+    },
+    {
+      "name": "elasticsearch-9.5",
+      "team": "team2-elastic",
+      "about": "Elasticsearch 9.5 reference and release notes: configuration, mappings, index settings, REST APIs, Query DSL, Painless",
+      "repo": "elastic/elasticsearch",
+      "ref": "9.5",
+      "paths": [
+        "docs/reference",
+        "docs/release-notes"
+      ],
+      "convert": "md",
+      "exclude": [
+        "query-languages/esql/*",
+        "query-languages/promql/*",
+        "changelog-bundles/*"
+      ],
+      "attrs": {
+        "version.stack": "9.x",
+        "version.stack.base": "9.0",
+        "version.eck": "3.x",
+        "version.ece": "4.x",
+        "product.elasticsearch": "Elasticsearch",
+        "product.kibana": "Kibana",
+        "product.apm": "APM",
+        "product.painless": "Painless",
+        "product.observability": "Elastic Observability",
+        "slash": "/"
+      }
+    },
+    {
+      "name": "redis-enterprise-software",
+      "team": "team3-redis",
+      "about": "Redis Enterprise Software: current docs (8.x), the 7.22 docs (latest 7.x) and release notes from 7.2 on",
+      "repo": "redis/docs",
+      "ref": "main",
+      "paths": [
+        "content/operate/rs"
+      ],
+      "convert": "md",
+      "checkout": [
+        "content/embeds"
+      ],
+      "exclude": [
+        "7.4/*",
+        "7.8/*",
+        "8.0/*",
+        "release-notes/rs-6-*",
+        "release-notes/legacy-release-notes/*"
       ]
     }
   ]

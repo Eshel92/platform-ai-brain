@@ -1,0 +1,109 @@
+<!-- Converted from watcher/trigger/schedule/daily.asciidoc (AsciiDoc). Includes are inlined. -->
+
+#### Watcher Daily schedule
+
+A `schedule` that triggers at a particular time
+every day. To use the `daily` schedule, you specify the time of day (or times)
+when you want the scheduler to start the watch execution with the `at` attribute.
+
+Times are specified in the form `HH:mm` on a 24-hour clock. You can also use the
+reserved values `midnight` and `noon` for `00:00` and `12:00`, and
+specify times using objects.
+
+**Note:** If you don't specify the `at` attribute for a `daily` schedule, it defaults
+      to firing once daily at midnight, `00:00`.
+
+##### Configuring a daily schedule
+
+To configure a once a day schedule, you specify a single time with the `at`
+attribute. For example, the following `daily` schedule triggers once every
+day at 5:00 PM:
+
+```js
+{
+  "trigger" : {
+    "schedule" : {
+      "daily" : { "at" : "17:00" }
+    }
+  }
+}
+```
+
+##### Configuring a multiple times daily schedule
+
+To configure a `daily` schedule that triggers at multiple times during the day,
+you specify an array of times. For example, the following `daily` schedule
+triggers at `00:00`, `12:00`, and `17:00` every day.
+
+```js
+{
+  "trigger" : {
+    "schedule" : {
+      "daily" : { "at" : [ "midnight", "noon", "17:00" ] }
+    }
+  }
+}
+```
+
+##### Specifying times using objects
+
+In addition to using the `HH:mm` string syntax to specify times, you can specify
+a time as an object that has `hour` and `minute` attributes.
+
+For example, the following `daily` schedule triggers once every day at 5:00 PM:
+
+```js
+{
+  "trigger" : {
+    "schedule" : {
+      "daily" : {
+        "at" : {
+          "hour" : 17,
+          "minute" : 0
+        }
+      }
+    }
+  }
+}
+```
+
+To specify multiple times using the object notation, you specify multiple hours
+or minutes as an array. For example, following `daily` schedule triggers at
+`00:00`, `00:30`, `12:00`, `12:30`, `17:00` and `17:30` every day:
+
+```js
+{
+  "trigger" : {
+    "schedule" : {
+      "daily" : {
+        "at" : {
+          "hour" : [ 0, 12, 17 ],
+          "minute" : [0, 30]
+        }
+      }
+    }
+  }
+}
+```
+
+##### Specifying a time zone for a daily schedule
+
+By default, daily schedules are evaluated in the UTC time zone. To use a different time zone,
+you can specify the `timezone` parameter in the schedule. For example, the following
+`daily` schedule triggers at 6:00 AM and 6:00 PM in the `Pacific/Galapagos` time zone:
+
+```js
+{
+  "trigger" : {
+    "schedule" : {
+      "timezone" : "Pacific/Galapagos",
+      "daily" : {
+        "at" : {
+          "hour" : [ 6, 18 ],
+          "minute" : 0
+        }
+      }
+    }
+  }
+}
+```

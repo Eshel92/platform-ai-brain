@@ -1,0 +1,32 @@
+<!-- Converted from api/index-patterns/runtime-fields/delete.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Delete runtime field API
+
+deprecated::[8.0.0,Use the [data views API](https://www.elastic.co/docs/api/doc/kibana/group/endpoint-data-views)instead.]
+
+experimental[] Delete a runtime field from an index pattern.
+
+#### Request
+
+`DELETE <kibana host>:<port>/api/index_patterns/index_pattern/<index_pattern_id>/runtime_field/<name>`
+
+`DELETE <kibana host>:<port>/s/<space_id>/api/index_patterns/index_pattern/<index_pattern_id>/runtime_field/<name>`
+
+#### Path parameters
+
+`space_id`::
+(Optional, string) An identifier for the space. If `space_id` is not provided in the URL, the default space is used.
+
+`index_pattern_id`::
+(Required, string) The ID of the index pattern your want to delete a runtime field from.
+
+`name`::
+(Required, string) The name of the runtime field you want to delete.
+
+#### Example
+
+Delete a runtime field from an index pattern:
+
+```sh
+$ curl -X DELETE api/index_patterns/index_pattern/<my-pattern>/runtime_field/<runtime-field-name>
+```

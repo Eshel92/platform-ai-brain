@@ -1,0 +1,18 @@
+<!-- Converted from modules/shard-recovery-desc.asciidoc (AsciiDoc). Includes are inlined. -->
+
+Shard recovery is the process of initializing a shard copy, such as restoring a
+primary shard from a snapshot or creating a replica shard from a primary shard.
+When a shard recovery completes, the recovered shard is available for search
+and indexing.
+
+Recovery automatically occurs during the following processes:
+
+* When creating an index for the first time.
+* When a node rejoins the cluster and starts up any missing primary shard copies using the data that it holds in its data path.
+* Creation of new replica shard copies from the primary.
+* Relocation of a shard copy to a different node in the same cluster.
+* A snapshot restore operation.
+* A clone, shrink, or
+split operation.
+
+You can determine the cause of a shard recovery using the recovery or  cat recovery APIs.

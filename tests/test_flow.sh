@@ -175,6 +175,18 @@ check "back online: --push succeeds" contains "$(cat "$T/out")" "[brain-saved]"
 
 check "missing brain folder: briefing says so" contains "$(brief "$T/nowhere")" "not found at"
 
+mkdir -p "$A/docs/upstream/fake-vendor"
+printf '# Upgrade a replica set\n\n## Before you start\n\nCheck the FCV first.\n\n## Steps\n\nRun setFeatureCompatibilityVersion last.\n' >"$A/docs/upstream/fake-vendor/upgrade.md"
+printf '# Backups\n\nTake a snapshot of the replica set every day.\n' >"$A/docs/upstream/fake-vendor/backup.md"
+out="$("$PY" -B "$A/scripts/brain.py" search test one 2>&1)"
+check "search: finds a brain page" contains "$out" "commons/knowledge/test-one.md"
+out="$("$PY" -B "$A/scripts/brain.py" search replica set upgrade --folder fake-vendor 2>&1)"
+check "search: best vendor page ranks first" contains "$(echo "$out" | grep -m1 '^ 1\.')" "upgrade.md"
+out="$("$PY" -B "$A/scripts/brain.py" show docs/upstream/fake-vendor/upgrade.md 2>&1)"
+check "show: outline lists the headings" contains "$out" "Steps"
+out="$("$PY" -B "$A/scripts/brain.py" show docs/upstream/fake-vendor/upgrade.md Steps 2>&1)"
+check "show: prints only the asked section" test "$(echo "$out" | grep -c 'setFeatureCompatibilityVersion') $(echo "$out" | grep -c 'Check the FCV')" = "1 0"
+
 mkdir -p "$T/tx"
 "$PY" - "$T/tx" <<'EOF'
 import json, sys, pathlib

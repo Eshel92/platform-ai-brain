@@ -1,0 +1,91 @@
+<!-- Converted from api/dashboard/import-dashboard.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Import dashboard API
+
+deprecated::[7.15.0,Use the [saved objects API](https://www.elastic.co/docs/api/doc/kibana/group/endpoint-saved-objects) instead.]
+
+Import dashboards and corresponding saved objects.
+
+#### Request
+
+`POST <kibana host>:<port>/api/kibana/dashboards/import`
+
+`POST <kibana host>:<port>/s/<space-id>/api/kibana/dashboards/import`
+
+#### Query parameters
+
+`force`::
+  (Optional, boolean) Overwrite any existing objects on ID conflict.
+
+`exclude`::
+  (Optional, array) Saved object types that you want to exclude from the import.
+
+#### Request body
+
+Use the complete response body from the Export dashboard API as the request body. Do not manually construct a payload to the endpoint or change the contents of the export. The exported data should be treated as opaque: changing the export can result in unexpected errors or data loss. Note: The max payload size is determined by the `savedObjects.maxImportPayloadBytes` configuration key.
+
+#### Response body
+
+`objects`::
+  (array) A top level property that includes the saved objects.
+
+#### Response code
+
+`200`::
+  Indicates a successful call, even if there are errors importing individual saved objects. If there are errors, the error information is returned in the response body on an object-by-object basis.
+
+#### Example
+
+```sh
+$ curl -X POST api/kibana/dashboards/import?exclude=index-pattern
+{
+  "objects": [
+    {
+      "id": "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c",
+      "type": "visualization",
+      "updated_at": "2018-09-07T18:40:33.247Z",
+      "version": 1,
+      "attributes": {
+        "title": "Count Example",
+        "visState": "{\"title\":\"Count Example\",\"type\":\"metric\",\"params\":{\"addTooltip\":true,\"addLegend\":false,\"type\":\"metric\",\"metric\":{\"percentageMode\":false,\"useRanges\":false,\"colorSchema\":\"Green to Red\",\"metricColorMode\":\"None\",\"colorsRange\":[{\"from\":0,\"to\":10000}],\"labels\":{\"show\":true},\"invertColors\":false,\"style\":{\"bgFill\":\"#000\",\"bgColor\":false,\"labelColor\":false,\"subText\":\"\",\"fontSize\":60}}},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{}}]}",
+        "uiStateJSON": "{}",
+        "description": "",
+        "version": 1,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"index\":\"90943e30-9a47-11e8-b64d-95841ca0b247\",\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
+        }
+      }
+    },
+    {
+      "id": "90943e30-9a47-11e8-b64d-95841ca0b247",
+      "type": "index-pattern",
+      "updated_at": "2018-09-07T18:39:47.683Z",
+      "version": 1,
+      "attributes": {
+        "title": "kibana_sample_data_logs",
+        "timeFieldName": "timestamp",
+        "fields": "<truncated for example>",
+        "fieldFormatMap": "{\"hour_of_day\":{}}"
+      }
+    },
+    {
+      "id": "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c",
+      "type": "dashboard",
+      "updated_at": "2018-09-07T18:41:05.887Z",
+      "version": 1,
+      "attributes": {
+        "title": "Example Dashboard",
+        "hits": 0,
+        "description": "",
+        "panelsJSON": "[{\"gridData\":{\"w\":24,\"h\":15,\"x\":0,\"y\":0,\"i\":\"1\"},\"version\":\"7.0.0-alpha1\",\"panelIndex\":\"1\",\"type\":\"visualization\",\"id\":\"80b956f0-b2cd-11e8-ad8e-85441f0c2e5c\",\"embeddableConfig\":{}}]",
+        "optionsJSON": "{\"useMargins\":true,\"hidePanelTitles\":false}",
+        "version": 1,
+        "timeRestore": false,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
+        }
+      }
+    }
+  ]
+}
+```

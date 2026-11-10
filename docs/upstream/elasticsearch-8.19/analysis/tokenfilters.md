@@ -1,0 +1,60 @@
+<!-- Converted from analysis/tokenfilters.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Token filter reference
+
+Token filters accept a stream of tokens from a
+tokenizer and can modify tokens
+(eg lowercasing), delete tokens (eg remove stopwords)
+or add tokens (eg synonyms).
+
+Elasticsearch has a number of built-in token filters you can use
+to build custom analyzers.
+
+(See `analysis/tokenfilters/apostrophe-tokenfilter.md`)
+(See `analysis/tokenfilters/asciifolding-tokenfilter.md`)
+(See `analysis/tokenfilters/cjk-bigram-tokenfilter.md`)
+(See `analysis/tokenfilters/cjk-width-tokenfilter.md`)
+(See `analysis/tokenfilters/classic-tokenfilter.md`)
+(See `analysis/tokenfilters/common-grams-tokenfilter.md`)
+(See `analysis/tokenfilters/condition-tokenfilter.md`)
+(See `analysis/tokenfilters/decimal-digit-tokenfilter.md`)
+(See `analysis/tokenfilters/delimited-payload-tokenfilter.md`)
+(See `analysis/tokenfilters/dictionary-decompounder-tokenfilter.md`)
+(See `analysis/tokenfilters/edgengram-tokenfilter.md`)
+(See `analysis/tokenfilters/elision-tokenfilter.md`)
+(See `analysis/tokenfilters/fingerprint-tokenfilter.md`)
+(See `analysis/tokenfilters/flatten-graph-tokenfilter.md`)
+(See `analysis/tokenfilters/hunspell-tokenfilter.md`)
+(See `analysis/tokenfilters/hyphenation-decompounder-tokenfilter.md`)
+(See `analysis/tokenfilters/keep-types-tokenfilter.md`)
+(See `analysis/tokenfilters/keep-words-tokenfilter.md`)
+(See `analysis/tokenfilters/keyword-marker-tokenfilter.md`)
+(See `analysis/tokenfilters/keyword-repeat-tokenfilter.md`)
+(See `analysis/tokenfilters/kstem-tokenfilter.md`)
+(See `analysis/tokenfilters/length-tokenfilter.md`)
+(See `analysis/tokenfilters/limit-token-count-tokenfilter.md`)
+(See `analysis/tokenfilters/lowercase-tokenfilter.md`)
+(See `analysis/tokenfilters/minhash-tokenfilter.md`)
+(See `analysis/tokenfilters/multiplexer-tokenfilter.md`)
+(See `analysis/tokenfilters/ngram-tokenfilter.md`)
+(See `analysis/tokenfilters/normalization-tokenfilter.md`)
+(See `analysis/tokenfilters/pattern-capture-tokenfilter.md`)
+(See `analysis/tokenfilters/pattern_replace-tokenfilter.md`)
+(See `analysis/tokenfilters/phonetic-tokenfilter.md`)
+(See `analysis/tokenfilters/porterstem-tokenfilter.md`)
+(See `analysis/tokenfilters/predicate-tokenfilter.md`)
+(See `analysis/tokenfilters/remove-duplicates-tokenfilter.md`)
+(See `analysis/tokenfilters/reverse-tokenfilter.md`)
+(See `analysis/tokenfilters/shingle-tokenfilter.md`)
+(See `analysis/tokenfilters/snowball-tokenfilter.md`)
+(See `analysis/tokenfilters/stemmer-tokenfilter.md`)
+(See `analysis/tokenfilters/stemmer-override-tokenfilter.md`)
+(See `analysis/tokenfilters/stop-tokenfilter.md`)
+(See `analysis/tokenfilters/synonym-tokenfilter.md`)
+(See `analysis/tokenfilters/synonym-graph-tokenfilter.md`)
+(See `analysis/tokenfilters/trim-tokenfilter.md`)
+(See `analysis/tokenfilters/truncate-tokenfilter.md`)
+(See `analysis/tokenfilters/unique-tokenfilter.md`)
+(See `analysis/tokenfilters/uppercase-tokenfilter.md`)
+(See `analysis/tokenfilters/word-delimiter-tokenfilter.md`)
+(See `analysis/tokenfilters/word-delimiter-graph-tokenfilter.md`)

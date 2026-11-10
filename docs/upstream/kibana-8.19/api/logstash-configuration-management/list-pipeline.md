@@ -1,0 +1,35 @@
+<!-- Converted from api/logstash-configuration-management/list-pipeline.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### List Logstash pipeline API
+
+experimental[] List all centrally-managed Logstash pipelines.
+
+**Important:** Limit the number of pipelines to 10k or fewer. As the number of pipelines nears and surpasses 10k, you may see performance issues on Kibana.
+
+#### Request
+
+`GET <kibana host>:<port>/api/logstash/pipelines`
+
+#### Example
+
+The API returns the following:
+
+```sh
+{
+  "pipelines": [
+    {
+      "id": "hello-world",
+      "description": "Just a simple pipeline",
+      "last_modified": "2018-04-14T12:23:29.772Z",
+      "username": "elastic" <1>
+    },
+    {
+      "id": "sleepy-pipeline",
+      "description": "",
+      "last_modified": "2018-03-24T03:41:30.554Z"
+    }
+  ]
+}
+```
+
+<1> The `username` property appears when security is enabled, and depends on when the pipeline was created or last updated.

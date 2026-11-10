@@ -1,0 +1,164 @@
+<!-- Converted from ccr/apis/follow/get-follow-info.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Get follower info API
+
+**New API reference**
+For the most up-to-date API details, refer to [Cross-cluster replication APIs](https://www.elastic.co/docs/api/doc/elasticsearch/group/endpoint-ccr).
+
+Retrieves information about all cross-cluster replication follower indices.
+
+#### Request
+
+```console
+PUT /follower_index/_ccr/follow?wait_for_active_shards=1
+{
+  "remote_cluster" : "remote_cluster",
+  "leader_index" : "leader_index"
+}
+```
+
+```console
+GET /<index>/_ccr/info
+```
+
+#### Prerequisites
+
+* If the Elasticsearch security features are enabled, you must have `monitor` cluster
+privileges. For more information, see security-privileges.
+
+#### Description
+
+This API lists the parameters and the status for each follower index.
+For example, the results include follower index names, leader index names,
+replication options and whether the follower indices are active or paused.
+
+#### Path parameters
+
+`<index>`::
+  (Required, string) A comma-delimited list of follower index patterns.
+
+#### Query parameters
+
+`master_timeout`::
+(Optional, time units)
+Period to wait for the master node. If the master node is not available before
+the timeout expires, the request fails and returns an error. Defaults to `30s`.
+Can also be set to `-1` to indicate that the request should never timeout.
+
+#### Response body
+
+`follower_indices`::
+(array) An array of follower index statistics.
+**Properties of objects in `follower_indices`**
+`follower_index`::
+(string) The name of the follower index.
+
+`leader_index`::
+(string) The name of the index in the leader cluster that is followed.
+
+`parameters`::
+(object) An object that encapsulates cross-cluster replication parameters. If the follower index's `status` is `paused`,
+this object is omitted.
+**Properties of `parameters`**
+=====
+`max_outstanding_read_requests`::
+(long) The maximum number of outstanding read requests from the remote cluster.
+
+`max_outstanding_write_requests`::
+(integer) The maximum number of outstanding write requests on the follower.
+
+`max_read_request_operation_count`::
+(integer) The maximum number of operations to pull per read from the remote
+cluster.
+
+`max_read_request_size`::
+(byte value) The maximum size in bytes of per read of a batch of
+operations pulled from the remote cluster.
+
+`max_retry_delay`::
+(time value) The maximum time to wait before retrying an
+operation that failed exceptionally. An exponential backoff strategy is employed
+when retrying.
+
+`max_write_buffer_count`::
+(integer) The maximum number of operations that can be queued for writing. When
+this limit is reached, reads from the remote cluster are deferred until the
+number of queued operations goes below the limit.
+
+`max_write_buffer_size`::
+(byte value) The maximum total bytes of operations that can be
+queued for writing. When this limit is reached, reads from the remote cluster
+are deferred until the total bytes of queued operations goes below the limit.
+
+`max_write_request_operation_count`::
+(integer) The maximum number of operations per bulk write request executed on
+the follower.
+
+`max_write_request_size`::
+(byte value) The maximum total bytes of operations per bulk write
+request executed on the follower.
+
+`read_poll_timeout`::
+(time value) The maximum time to wait for new operations on the
+remote cluster when the follower index is synchronized with the leader index.
+When the timeout has elapsed, the poll for operations returns to the follower so
+that it can update some statistics, then the follower immediately attempts
+to read from the leader again.
+=====
+
+`remote_cluster`::
+(string) The remote cluster that contains the
+leader index.
+
+`status`::
+(string) Whether index following is `active` or `paused`.
+
+#### Examples
+
+This example retrieves follower info:
+
+```console
+GET /follower_index/_ccr/info
+```
+
+If the follower index is `active`, the API returns the following results:
+
+```console-result
+{
+  "follower_indices": [
+    {
+      "follower_index": "follower_index",
+      "remote_cluster": "remote_cluster",
+      "leader_index": "leader_index",
+      "status": "active",
+      "parameters": {
+        "max_read_request_operation_count": 5120,
+        "max_read_request_size": "32mb",
+        "max_outstanding_read_requests": 12,
+        "max_write_request_operation_count": 5120,
+        "max_write_request_size": "9223372036854775807b",
+        "max_outstanding_write_requests": 9,
+        "max_write_buffer_count": 2147483647,
+        "max_write_buffer_size": "512mb",
+        "max_retry_delay": "500ms",
+        "read_poll_timeout": "1m"
+      }
+    }
+  ]
+}
+```
+
+If the follower index is `paused`, the API returns the following results:
+
+```console-result
+{
+  "follower_indices": [
+    {
+      "follower_index": "follower_index",
+      "remote_cluster": "remote_cluster",
+      "leader_index": "leader_index",
+      "status": "paused"
+    }
+  ]
+}
+```

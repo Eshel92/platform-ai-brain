@@ -1,0 +1,53 @@
+<!-- Converted from user/reporting/watch-example.asciidoc (AsciiDoc). Includes are inlined. -->
+
+To configure a watch to email reports, use the `reporting` attachment type in an `email` action. For more information, refer to [Configuring email accounts](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/actions-email.html#configuring-email).
+
+For example, the following watch generates a PDF report and emails the report every hour:
+
+```js
+PUT _watcher/watch/error_report
+{
+  "trigger" : {
+    "schedule": {
+      "interval": "1h"
+    }
+  },
+  "actions" : {
+    "email_admin" : { <1>
+      "email": {
+        "to": "'Recipient Name <recipient@example.com>'",
+        "subject": "Error Monitoring Report",
+        "attachments" : {
+          "error_report.pdf" : {
+            "reporting" : {
+              "url": "<KIBANA_HOST>:5601/api/reporting/generate/printablePdfV2?jobParams=...", <2>
+              "retries":40, <3>
+              "interval":"15s", <4>
+              "auth":{ <5>
+                "basic":{
+                  "username":"elastic",
+                  "password":"changeme"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+<1> Configure at least one email account to enable Watcher to send email. For more information, refer to [Configuring email accounts](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/actions-email.html#configuring-email).
+<2> An example POST URL. You can copy and paste the URL for any report.
+<3> Optional, default is `40`.
+<4> Optional, default is `15s`.
+<5> User credentials for a user with permission to access Kibana and the {report-features}. For more information, refer to secure-reporting.
+
+**Note:**
+*Reporting* is integrated with Watcher only as an email attachment type.
+
+The report generation URL might contain date-math expressions that cause the watch to fail with a `parse_exception`. To avoid a failed watch, remove curly braces `{`  `}` from date-math expressions and URL-encode characters.
+For example, `...(range:(%27@timestamp%27:(gte:now-15m%2Fd,lte:now%2Fd))))...`
+
+For more information about configuring watches, refer to [How Watcher works](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/how-watcher-works.html).

@@ -1,0 +1,20 @@
+{
+  "name": "elastic-9-guides",
+  "team": "team2-elastic",
+  "about": "Elastic 9.x guides, kept exactly as published (license: no derivatives): deploy and manage (self-managed, ECK), upgrades, snapshots, security, monitoring, troubleshooting, data management, Kibana alerting / dashboards / Discover. {{es}} = Elasticsearch, {{kib}} = Kibana",
+  "repo": "elastic/docs-content",
+  "ref": "main",
+  "commit": "ebefcadc7050a21868a974e8c78812c20578fd1f",
+  "paths": [
+    "deploy-manage",
+    "troubleshoot",
+    "manage-data",
+    "explore-analyze"
+  ],
+  "files": 1519,
+  "bytes": 9665205,
+  "license": "CC BY-NC-ND 4.0",
+  "format": "as upstream",
+  "notes": [],
+  "synced": "2026-11-10T09:28:15Z"
+}

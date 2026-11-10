@@ -1,0 +1,103 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/kibana/current/action-types.html
+  - https://www.elastic.co/guide/en/serverless/current/action-connectors.html
+applies_to:
+  stack:
+  serverless:
+products:
+  - id: kibana
+  - id: cloud-serverless
+---
+
+# Connectors [connector-management]
+
+{{connectors-ui}} integrate with services like generative AI model providers and trigger actions in third-party systems.
+
+Connectors serve as a central place to store connection information for both Elastic and third-party systems. They enable the linking of actions to rules, which execute as background tasks on the {{kib}} server when rule conditions are met. This allows rules to route actions to various destinations such as log files, ticketing systems, and messaging tools. Different {{kib}} apps may have their own rule types, but they typically share connectors. The **{{connectors-ui}}** provides a central location to view and manage all connectors in the current space. 
+
+You can find the **{{connectors-ui}}** management page in the navigation menu or use the [global search field](/explore-analyze/find-and-organize/find-apps-and-objects.md).
+
+:::{note}
+{{connectors-ui}} are not the same as [application connections](/deploy-manage/app-connections.md) or [search connectors](elasticsearch://reference/search-connectors/index.md). Application connections manage OAuth client registration and external access to {{serverless-short}} projects. Search connectors sync data from third-party sources into {{es}}.
+:::
+
+## Required permissions [_required_permissions_2]
+
+Access to connectors is granted based on your privileges to alerting-enabled features. For more information, go to [Security](../explore-analyze/alerting/alerts/alerting-setup.md#alerting-security).
+
+## Connector networking configuration [_connector_networking_configuration]
+
+```yaml {applies_to}
+stack:
+```
+
+If you're using {{stack}}, use the [action configuration settings](kibana://reference/configuration-reference/alerting-settings.md) to customize connector networking configurations, such as proxies, certificates, or TLS settings. You can set configurations that apply to all your connectors or use `xpack.actions.customHostSettings` to set per-host configurations.
+
+## Connector list [connectors-list]
+
+In **{{connectors-ui}}**, you can find a list of the connectors in the current space. You can use the search bar to find specific connectors by name and type. The **Type** dropdown also enables you to filter to a subset of connector types.
+
+:::{image} /deploy-manage/images/kibana-connector-filter-by-type.png
+:alt: Filtering the connector list by types of connectors
+:screenshot:
+:::
+
+{applies_to}`serverless: ga` {applies_to}`stack: ga 9.6+` If a connector you created earlier doesn't appear in the list, its type might be deprecated. {{kib}} hides deprecated connector types by default. To show them, open **Display options** and set **Deprecated** to **Show**.
+
+You can delete individual connectors using the trash icon. Alternatively, select multiple connectors and delete them in bulk using the **Delete** button.
+
+:::{image} /deploy-manage/images/kibana-connector-delete.png
+:alt: Deleting connectors individually or in bulk
+:screenshot:
+:::
+
+::::{note}
+You can delete a connector even if there are still actions referencing it. When this happens the action will fail to run and errors appear in the {{kib}} logs.
+
+::::
+
+## Creating a new connector [creating-new-connector]
+
+Select **Create connector** to open the connector selection flyout, where you choose a connector type and configure its properties. For a full list of available connectors, refer to [Available connectors](kibana://reference/connectors-kibana.md).
+
+{applies_to}`stack: ga 9.5` {applies_to}`serverless: ga` Use the **Filter by feature** control to narrow the list to connector types that support specific {{kib}} features, such as **Alerting**, **Cases**, or **Uptime**. Leave the filter empty to show all available connector types. The HTTP connector type is available in the create flyout alongside other connector types.
+
+{applies_to}`stack: preview 9.6+` {applies_to}`serverless: preview` Newer connector types, such as Gmail, Jira Cloud, and GitHub, include an **Actions** setting when they define more than one action. To limit which actions the connector can run, select **Custom**. The limit applies to every caller, including agents, workflows, and API calls. Refer to [Limit a connector's actions](/explore-analyze/ai-features/agent-builder/connectors.md#limit-a-connectors-actions).
+
+::::{note}
+Some connector types are paid commercial features, while others are free. For a comparison of the Elastic subscription levels, go to [the subscription page](https://www.elastic.co/subscriptions).
+::::
+
+:::{image} /deploy-manage/images/kibana-connector-select-type.png
+:alt: Connector select type
+:screenshot:
+:width: 75%
+:::
+
+After you create a connector, it is available for use any time you set up an action in the current space.
+
+::::{tip}
+For out-of-the-box and standardized connectors, refer to [preconfigured connectors](kibana://reference/connectors-kibana/pre-configured-connectors.md).
+
+You can also manage connectors as resources with the [Elasticstack provider](https://registry.terraform.io/providers/elastic/elasticstack/latest) for Terraform. For more details, refer to the [elasticstack_kibana_action_connector](https://registry.terraform.io/providers/elastic/elasticstack/latest/docs/resources/kibana_action_connector) resource.
+
+Preconfigured connectors and the Terraform resource are not available in {{serverless-full}} projects.
+::::
+
+## Importing and exporting connectors [importing-and-exporting-connectors]
+
+To import and export connectors, use the [Saved Objects Management UI](/explore-analyze/find-and-organize/saved-objects.md).
+
+If a connector is missing sensitive information after the import, a **Fix** button appears in **{{connectors-ui}}**.
+
+:::{image} /deploy-manage/images/kibana-connectors-with-missing-secrets.png
+:alt: Connectors with missing secrets
+:screenshot:
+:::
+
+## Monitoring connectors [monitoring-connectors]
+
+You can query the [Event log index](/explore-analyze/alerting/alerts/event-log-index.md) to gather information on connector successes and failures.
+
+If you're using {{stack}}, then you can also use the [Task Manager health API](/deploy-manage/monitor/kibana-task-manager-health-monitoring.md) to monitor connector performance. However, if connectors fail to run, they will report as successful to Task Manager. The failure stats will not accurately depict connector failures.

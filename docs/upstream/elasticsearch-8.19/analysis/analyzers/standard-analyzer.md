@@ -1,0 +1,277 @@
+<!-- Converted from analysis/analyzers/standard-analyzer.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Standard analyzer
+
+The `standard` analyzer is the default analyzer which is used if none is
+specified. It provides grammar based tokenization (based on the Unicode Text
+Segmentation algorithm, as specified in
+[Unicode Standard Annex #29](https://unicode.org/reports/tr29/)) and works well
+for most languages.
+
+### Example output
+
+```console
+POST _analyze
+{
+  "analyzer": "standard",
+  "text": "The 2 QUICK Brown-Foxes jumped over the lazy dog's bone."
+}
+```
+
+```console-result
+{
+  "tokens": [
+    {
+      "token": "the",
+      "start_offset": 0,
+      "end_offset": 3,
+      "type": "<ALPHANUM>",
+      "position": 0
+    },
+    {
+      "token": "2",
+      "start_offset": 4,
+      "end_offset": 5,
+      "type": "<NUM>",
+      "position": 1
+    },
+    {
+      "token": "quick",
+      "start_offset": 6,
+      "end_offset": 11,
+      "type": "<ALPHANUM>",
+      "position": 2
+    },
+    {
+      "token": "brown",
+      "start_offset": 12,
+      "end_offset": 17,
+      "type": "<ALPHANUM>",
+      "position": 3
+    },
+    {
+      "token": "foxes",
+      "start_offset": 18,
+      "end_offset": 23,
+      "type": "<ALPHANUM>",
+      "position": 4
+    },
+    {
+      "token": "jumped",
+      "start_offset": 24,
+      "end_offset": 30,
+      "type": "<ALPHANUM>",
+      "position": 5
+    },
+    {
+      "token": "over",
+      "start_offset": 31,
+      "end_offset": 35,
+      "type": "<ALPHANUM>",
+      "position": 6
+    },
+    {
+      "token": "the",
+      "start_offset": 36,
+      "end_offset": 39,
+      "type": "<ALPHANUM>",
+      "position": 7
+    },
+    {
+      "token": "lazy",
+      "start_offset": 40,
+      "end_offset": 44,
+      "type": "<ALPHANUM>",
+      "position": 8
+    },
+    {
+      "token": "dog's",
+      "start_offset": 45,
+      "end_offset": 50,
+      "type": "<ALPHANUM>",
+      "position": 9
+    },
+    {
+      "token": "bone",
+      "start_offset": 51,
+      "end_offset": 55,
+      "type": "<ALPHANUM>",
+      "position": 10
+    }
+  ]
+}
+```
+
+The above sentence would produce the following terms:
+
+```text
+[ the, 2, quick, brown, foxes, jumped, over, the, lazy, dog's, bone ]
+```
+
+### Configuration
+
+The `standard` analyzer accepts the following parameters:
+
+`max_token_length`::
+
+    The maximum token length. If a token is seen that exceeds this length then
+    it is split at `max_token_length` intervals. Defaults to `255`.
+
+`stopwords`::
+
+    A pre-defined stop words list like `_english_` or an array containing a
+    list of stop words. Defaults to `_none_`.
+
+`stopwords_path`::
+
+    The path to a file containing stop words.
+
+See the Stop Token Filter for more information
+about stop word configuration.
+
+### Example configuration
+
+In this example, we configure the `standard` analyzer to have a
+`max_token_length` of 5 (for demonstration purposes), and to use the
+pre-defined list of English stop words:
+
+```console
+PUT my-index-000001
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_english_analyzer": {
+          "type": "standard",
+          "max_token_length": 5,
+          "stopwords": "_english_"
+        }
+      }
+    }
+  }
+}
+
+POST my-index-000001/_analyze
+{
+  "analyzer": "my_english_analyzer",
+  "text": "The 2 QUICK Brown-Foxes jumped over the lazy dog's bone."
+}
+```
+
+```console-result
+{
+  "tokens": [
+    {
+      "token": "2",
+      "start_offset": 4,
+      "end_offset": 5,
+      "type": "<NUM>",
+      "position": 1
+    },
+    {
+      "token": "quick",
+      "start_offset": 6,
+      "end_offset": 11,
+      "type": "<ALPHANUM>",
+      "position": 2
+    },
+    {
+      "token": "brown",
+      "start_offset": 12,
+      "end_offset": 17,
+      "type": "<ALPHANUM>",
+      "position": 3
+    },
+    {
+      "token": "foxes",
+      "start_offset": 18,
+      "end_offset": 23,
+      "type": "<ALPHANUM>",
+      "position": 4
+    },
+    {
+      "token": "jumpe",
+      "start_offset": 24,
+      "end_offset": 29,
+      "type": "<ALPHANUM>",
+      "position": 5
+    },
+    {
+      "token": "d",
+      "start_offset": 29,
+      "end_offset": 30,
+      "type": "<ALPHANUM>",
+      "position": 6
+    },
+    {
+      "token": "over",
+      "start_offset": 31,
+      "end_offset": 35,
+      "type": "<ALPHANUM>",
+      "position": 7
+    },
+    {
+      "token": "lazy",
+      "start_offset": 40,
+      "end_offset": 44,
+      "type": "<ALPHANUM>",
+      "position": 9
+    },
+    {
+      "token": "dog's",
+      "start_offset": 45,
+      "end_offset": 50,
+      "type": "<ALPHANUM>",
+      "position": 10
+    },
+    {
+      "token": "bone",
+      "start_offset": 51,
+      "end_offset": 55,
+      "type": "<ALPHANUM>",
+      "position": 11
+    }
+  ]
+}
+```
+
+The above example produces the following terms:
+
+```text
+[ 2, quick, brown, foxes, jumpe, d, over, lazy, dog's, bone ]
+```
+
+### Definition
+
+The `standard` analyzer consists of:
+
+Tokenizer::
+* Standard Tokenizer
+
+Token Filters::
+* Lower Case Token Filter
+* Stop Token Filter (disabled by default)
+
+If you need to customize the `standard` analyzer beyond the configuration
+parameters then you need to recreate it as a `custom` analyzer and modify
+it, usually by adding token filters. This would recreate the built-in
+`standard` analyzer and you can use it as a starting point:
+
+```console
+PUT /standard_example
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "rebuilt_standard": {
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase"       <1>
+          ]
+        }
+      }
+    }
+  }
+}
+```
+<1> You'd add any token filters after `lowercase`.

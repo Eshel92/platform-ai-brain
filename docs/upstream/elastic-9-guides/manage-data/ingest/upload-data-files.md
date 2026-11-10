@@ -1,0 +1,83 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/serverless/current/elasticsearch-ingest-data-file-upload.html
+  - https://www.elastic.co/guide/en/kibana/current/connect-to-elasticsearch.html#upload-data-kibana
+applies_to:
+  stack: ga
+  serverless: ga
+products:
+  - id: cloud-serverless
+  - id: kibana
+---
+
+# Upload data files [upload-data-kibana]
+
+You can upload files, analyze their fields and metrics, and import their data into an {{es}} index using the {{data-viz}}.
+
+1. Open the **Integrations** page using the global search field, then search for **Upload a file** using the integrations search field.
+
+2. Select **Upload a file** to open the {{data-viz}}.
+
+3. Depending on your version and deployment:
+
+    ::::{applies-switch}
+
+    :::{applies-item} stack: ga 9.0.0-9.1.8
+
+    1. Drag a file into the upload area or select **Select or drag and drop a file** to choose a file from your computer.
+
+        You can upload different file formats for analysis with the {{data-viz}}.
+
+        The supported file formats are:
+          * CSV, TSV, NDJSON, log files
+            * Up to 500 MB by default
+          * PDF, TXT, RTF, ODF, Microsoft Office files (up to 60 MB)
+
+        After you upload a file, you can inspect its data and make any necessary changes before importing it.
+
+    2. Select **Import**.
+
+    3. Enter a name for the index where the data will be stored, then select **Import** again to complete the process.
+
+    :::
+
+    :::{applies-item} { "serverless": "ga", "stack": "ga 9.2" }
+
+    1. Select **New index** or **Existing index**.
+    2. Enter a name for the new index, or select an existing index from the dropdown.
+    3. Drag one or more files into the upload area, or select **Select or drag and drop files**.
+
+       The supported file formats are:
+         * CSV, TSV, NDJSON, log files
+           * {applies_to}`serverless: ga` Up to 500 MB
+           * {applies_to}`stack: ga` Up to 500 MB by default
+         * PDF, TXT, RTF, ODF, Microsoft Office files (up to 60 MB)
+
+       After you upload your files, you can inspect the data and make any necessary changes before importing it.
+
+       {applies_to}`serverless: ga` {applies_to}`stack: ga 9.3+` To stop analysis of a file, select **Remove file**.
+
+    4. Select **Import**.
+
+       {applies_to}`serverless: ga` {applies_to}`stack: ga 9.3+` While the import is in progress, select **Cancel** to stop it.
+
+    :::
+
+    ::::
+
+After the uploaded data is imported into the specified {{es}} index, you can start exploring it. For more details, refer to [Explore and analyze](/explore-analyze/index.md).
+
+::::{important}
+The upload feature is not intended for use as part of a repeated production process, but rather for the initial exploration of your data.
+
+::::
+
+## Required privileges
+
+{{es}} provides roles and privileges that control which users can upload files. To upload a file in {{kib}} and import it into an {{es}} index, you’ll need:
+
+* `all` {{kib}} privileges for **Integrations**, **Discover** and **Data Views Management** 
+* `manage_pipeline` or `manage_ingest_pipelines` cluster privilege
+* `create`, `create_index`, `manage`, and `read` index privileges for the index
+
+You can manage your roles, privileges, and spaces in **{{stack-manage-app}}**.

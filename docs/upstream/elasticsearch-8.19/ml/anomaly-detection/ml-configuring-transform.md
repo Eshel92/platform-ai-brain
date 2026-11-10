@@ -1,0 +1,425 @@
+<!-- Converted from ml/anomaly-detection/ml-configuring-transform.asciidoc (AsciiDoc). Includes are inlined. -->
+
+# Altering data in your datafeed with runtime fields
+
+If you use datafeeds, you can use runtime fields to alter your data before it 
+is analyzed. You can add an optional `runtime_mappings` property to your 
+datafeeds, where you can specify field types and scripts that evaluate custom 
+expressions without affecting the indices that you're retrieving the data from.
+
+If your datafeed defines runtime fields, you can use those fields in your
+anomaly detection job. For example, you can use the runtime fields in the analysis
+functions in one or more detectors. Runtime fields can impact search performance 
+based on the computation defined in the runtime script.
+
+===============================
+Some of these examples use regular expressions. By default, regular
+expressions are disabled because they circumvent the protection that Painless
+provides against long running and memory hungry scripts. For more information,
+see [Painless scripting language](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/modules-scripting-painless.html).
+
+Machine learning analysis is case sensitive. For example, "John" is considered to be 
+different than "john". This is one reason you might consider using scripts that 
+convert your strings to upper or lowercase letters.
+===============================
+
+* ml-configuring-transform1
+* ml-configuring-transform2
+* ml-configuring-transform3
+* ml-configuring-transform4
+* ml-configuring-transform5
+* ml-configuring-transform6
+* ml-configuring-transform7
+* ml-configuring-transform8
+
+The following index APIs create and add content to an index that is used in
+subsequent examples:
+
+```console
+PUT /my-index-000001
+{
+  "mappings":{
+    "properties": {
+      "@timestamp": { "type": "date" },
+      "aborted_count": { "type": "long" },
+      "another_field": { "type": "keyword" }, <1>
+      "clientip": { "type": "keyword" },
+      "coords": {
+        "properties": {
+          "lat": { "type": "keyword" },
+          "lon": { "type": "keyword" }
+        }
+      },
+      "error_count": { "type": "long" },
+      "query": { "type": "keyword" },
+      "some_field": { "type": "keyword" },
+      "tokenstring1":{ "type":"keyword" },
+      "tokenstring2":{ "type":"keyword" },
+      "tokenstring3":{ "type":"keyword" }
+    }
+  }
+}
+
+PUT /my-index-000001/_doc/1
+{
+  "@timestamp":"2017-03-23T13:00:00",
+  "error_count":36320,
+  "aborted_count":4156,
+  "some_field":"JOE",
+  "another_field":"SMITH  ",
+  "tokenstring1":"foo-bar-baz",
+  "tokenstring2":"foo bar baz",
+  "tokenstring3":"foo-bar-19",
+  "query":"www.ml.elastic.co",
+  "clientip":"123.456.78.900",
+  "coords": {
+    "lat" : 41.44,
+    "lon":90.5
+  }
+}
+```
+
+<1> In this example, string fields are mapped as `keyword` fields to support
+aggregation. If you want both a full text (`text`) and a keyword (`keyword`)
+version of the same field, use multi-fields. For more information, see
+[fields](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/multi-fields.html).
+
+**Example 1: Adding two numerical fields**
+
+```console
+PUT _ml/anomaly_detectors/test1
+{
+  "analysis_config":{
+    "bucket_span": "10m",
+    "detectors":[
+      {
+        "function":"mean",
+        "field_name": "total_error_count" <1>
+      }
+    ]
+  },
+  "data_description": {
+    "time_field":"@timestamp"
+  },
+  "datafeed_config":{
+    "datafeed_id": "datafeed-test1",
+    "indices": ["my-index-000001"],
+    "runtime_mappings": {
+      "total_error_count": { <2>
+        "type": "long",
+        "script": {
+          "source": "emit(doc['error_count'].value + doc['aborted_count'].value)"
+        }
+      }
+    }
+  }
+}
+```
+
+<1> A runtime field named `total_error_count` is referenced in the detector
+within the job.
+<2> The runtime field is defined in the datafeed.
+
+This `test1` anomaly detection job contains a detector that uses a runtime field in a
+mean analysis function. The `datafeed-test1` datafeed defines the runtime field.
+It contains a script that adds two fields in the document to produce a "total"
+error count.
+
+The syntax for the `runtime_mappings` property is identical to that used by 
+Elasticsearch. For more information, see [Runtime fields](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/runtime.html).
+
+You can preview the contents of the datafeed by using the following API:
+
+```console
+GET _ml/datafeeds/datafeed-test1/_preview
+```
+
+In this example, the API returns the following results, which contain a sum of
+the `error_count` and `aborted_count` values:
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "total_error_count": 40476
+  }
+]
+```
+
+**Note:** This example demonstrates how to use runtime fields, but it contains
+insufficient data to generate meaningful results.
+
+You can alternatively use Kibana to create an advanced anomaly detection job that uses
+runtime fields. To add the `runtime_mappings` property to your datafeed, you must 
+use the **Edit JSON** tab. For example:
+
+(Figure: images/ml-runtimefields.jpg)
+
+**Example 2: Concatenating strings**
+
+```console
+PUT _ml/anomaly_detectors/test2
+{
+  "analysis_config":{
+    "bucket_span": "10m",
+    "detectors":[
+      {
+        "function":"low_info_content",
+        "field_name":"my_runtime_field" <1>
+      }
+    ]
+  },
+  "data_description": {
+    "time_field":"@timestamp"
+  },
+  "datafeed_config":{
+    "datafeed_id": "datafeed-test2",
+    "indices": ["my-index-000001"],
+    "runtime_mappings": {
+      "my_runtime_field": {
+        "type": "keyword",
+        "script": {
+          "source": "emit(doc['some_field'].value + '_' + doc['another_field'].value)" <2>
+        }
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test2/_preview
+```
+
+<1> The runtime field has a generic name in this case, since it is used for 
+various tests in the examples.
+<2> The runtime field uses the plus (+) operator to concatenate strings.
+
+The preview datafeed API returns the following results, which show that "JOE"
+and "SMITH  " have been concatenated and an underscore was added:
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_runtime_field": "JOE_SMITH  "
+  }
+]
+```
+
+**Example 3: Trimming strings**
+
+```console
+POST _ml/datafeeds/datafeed-test2/_update
+{
+  "runtime_mappings": {
+    "my_runtime_field": {
+      "type": "keyword",
+      "script": {
+        "source": "emit(doc['another_field'].value.trim())" <1>
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test2/_preview
+```
+
+<1> This runtime field uses the `trim()` function to trim extra white space from 
+a string.
+
+The preview datafeed API returns the following results, which show that "SMITH  "
+has been trimmed to "SMITH":
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_script_field": "SMITH"
+  }
+]
+```
+
+**Example 4: Converting strings to lowercase**
+
+```console
+POST _ml/datafeeds/datafeed-test2/_update
+{
+  "runtime_mappings": {
+    "my_runtime_field": {
+      "type": "keyword",
+      "script": {
+        "source": "emit(doc['some_field'].value.toLowerCase())" <1>
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test2/_preview
+```
+
+<1> This runtime field uses the `toLowerCase` function to convert a string to 
+all lowercase letters. Likewise, you can use the `toUpperCase` function to 
+convert a string to uppercase letters.
+
+The preview datafeed API returns the following results, which show that "JOE"
+has been converted to "joe":
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_script_field": "joe"
+  }
+]
+```
+
+**Example 5: Converting strings to mixed case formats**
+
+```console
+POST _ml/datafeeds/datafeed-test2/_update
+{
+  "runtime_mappings": {
+    "my_runtime_field": {
+      "type": "keyword",
+      "script": {
+        "source": "emit(doc['some_field'].value.substring(0, 1).toUpperCase() + doc['some_field'].value.substring(1).toLowerCase())" <1>
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test2/_preview
+```
+
+<1> This runtime field is a more complicated example of case manipulation. It 
+uses the `subString()` function to capitalize the first letter of a string and
+converts the remaining characters to lowercase.
+
+The preview datafeed API returns the following results, which show that "JOE" has 
+been converted to "Joe":
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_script_field": "Joe"
+  }
+]
+```
+
+**Example 6: Replacing tokens**
+
+```console
+POST _ml/datafeeds/datafeed-test2/_update
+{
+  "runtime_mappings": {
+    "my_runtime_field": {
+      "type": "keyword",
+      "script": {
+        "source": "emit(/\\s/.matcher(doc['tokenstring2'].value).replaceAll('_'))" <1>
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test2/_preview
+```
+
+<1> This script uses regular expressions to replace white space with 
+underscores.
+
+The preview datafeed API returns the following results, which show that "foo bar 
+baz" has been converted to "foo_bar_baz":
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_script_field": "foo_bar_baz"
+  }
+]
+```
+
+**Example 7: Regular expression matching and concatenation**
+
+```console
+POST _ml/datafeeds/datafeed-test2/_update
+{
+  "runtime_mappings": {
+    "my_runtime_field": {
+      "type": "keyword",
+      "script": {
+        "source": "def m = /(.*)-bar-([0-9][0-9])/.matcher(doc['tokenstring3'].value); emit(m.find() ? m.group(1) + '_' + m.group(2) : '');" <1>
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test2/_preview
+```
+
+<1> This script looks for a specific regular expression pattern and emits the
+matched groups as a concatenated string. If no match is found, it emits an empty
+string.
+
+The preview datafeed API returns the following results, which show that
+"foo-bar-19" has been converted to "foo_19":
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_script_field": "foo_19"
+  }
+]
+```
+
+**Example 8: Transforming geopoint data**
+
+```console
+PUT _ml/anomaly_detectors/test3
+{
+  "analysis_config":{
+    "bucket_span": "10m",
+    "detectors":[
+      {
+        "function":"lat_long",
+        "field_name": "my_coordinates"
+      }
+    ]
+  },
+  "data_description": {
+    "time_field":"@timestamp"
+  },
+  "datafeed_config":{
+    "datafeed_id": "datafeed-test3",
+    "indices": ["my-index-000001"],
+    "runtime_mappings": {
+      "my_coordinates": {
+        "type": "keyword",
+        "script": {
+          "source": "emit(doc['coords.lat'].value + ',' + doc['coords.lon'].value)"
+        }
+      }
+    }
+  }
+}
+
+GET _ml/datafeeds/datafeed-test3/_preview
+```
+
+In Elasticsearch, location data can be stored in `geo_point` fields but this data type is
+not supported natively in machine learning analytics. This example of a runtime field
+transforms the data into an appropriate format. For more information,
+see ml-geo-functions.
+
+The preview datafeed API returns the following results, which show that
+`41.44` and `90.5` have been combined into "41.44,90.5":
+
+```js
+[
+  {
+    "@timestamp": 1490274000000,
+    "my_coordinates": "41.44,90.5"
+  }
+]
+```

@@ -1,0 +1,342 @@
+---
+navigation_title: Common problems
+mapped_pages:
+  - https://www.elastic.co/guide/en/observability/current/apm-common-problems.html
+  - https://www.elastic.co/guide/en/serverless/current/observability-apm-troubleshooting.html
+applies_to:
+  stack: ga
+  serverless:
+    observability: ga
+products:
+  - id: observability
+  - id: cloud-serverless
+---
+
+# Common problems with {{product.apm}} [apm-common-problems]
+
+This section describes common problems you might encounter when using {{apm-server}} and the Applications UI in {{kib}}.
+
+**{{apm-server}}**:
+
+* [No data is indexed](#apm-no-data-indexed)
+* [Common SSL-related problems](#apm-common-ssl-problems)
+* [I/O Timeout](#apm-io-timeout)
+* [Field limit exceeded](#apm-field-limit-exceeded)
+
+**Applications UI**:
+
+* [Too many unique transaction names](#troubleshooting-too-many-transactions)
+* [Too many unique services](#troubleshooting-too-many-services)
+* [Unknown route](#troubleshooting-unknown-route)
+* [Fields are not searchable](#troubleshooting-fields-unsearchable)
+* [Service Maps: no connection between client and server](#service-map-rum-connections)
+* [No data shown in the infrastructure tab](#troubleshooting-apm-infra-data)
+
+
+## No data is indexed [apm-no-data-indexed]
+```yaml {applies_to}
+stack: ga
+```
+
+If no data shows up in {{es}}, first make sure that your {{product.apm}} components are properly connected.
+
+:::::::{tab-set}
+
+::::::{tab-item} {{fleet}}-managed
+**Is {{agent}} healthy?**
+
+In {{kib}} open **{{fleet}}** and find the host that is running the {{product.apm}} integration; confirm that its status is **Healthy**. If it isn’t, check the {{agent}} logs to diagnose potential causes. Refer to [Monitor {{agent}}s](/reference/fleet/monitor-elastic-agent.md) to learn more.
+
+**Is {{apm-server}} happy?**
+
+In {{kib}}, open **{{fleet}}** and select the host that is running the {{product.apm}} integration. Open the **Logs** tab and select the `elastic_agent.apm_server` dataset. Look for any {{apm-server}} errors that could help diagnose the problem.
+
+**Can the {{apm-agent}} connect to {{apm-server}}**
+
+To determine if the {{apm-agent}} can connect to the {{apm-server}}, send requests to the instrumented service and look for lines containing `[request]` in the {{apm-server}} logs.
+
+If no requests are logged, confirm that:
+
+1. SSL isn’t [misconfigured](#apm-ssl-client-fails).
+2. The host is correct. For example, if you’re using Docker, ensure a bind to the right interface (for example, set `apm-server.host = 0.0.0.0:8200` to match any IP) and set the `SERVER_URL` setting in the {{apm-agent}} accordingly.
+
+If you see requests coming through the {{apm-server}} but they are not accepted (a response code other than `202`), refer to [{{apm-server}} response codes](apm-server-response-codes.md) to narrow down the possible causes.
+
+**Instrumentation gaps**
+
+{{product.apm}} agents provide auto-instrumentation for many popular frameworks and libraries. If the {{apm-agent}} is not auto-instrumenting something that you were expecting, data won’t be sent to the {{stack}}. Refer to the [{{apm-agent}} documentation](/reference/apm-agents/index.md) for details on what is automatically instrumented.
+::::::
+
+::::::{tab-item} {{apm-server}} binary
+If no data shows up in {{es}}, first check that the {{product.apm}} components are properly connected.
+
+To ensure that {{apm-server}} configuration is valid and it can connect to the configured output, {{es}} by default, run the following commands:
+
+```sh
+apm-server test config
+apm-server test output
+```
+
+To see if the agent can connect to the {{apm-server}}, send requests to the instrumented service and look for lines containing `[request]` in the {{apm-server}} logs.
+
+If no requests are logged, it might be that SSL is [misconfigured](#apm-ssl-client-fails) or that the host is wrong. Particularly, if you are using Docker, ensure to bind to the right interface (for example, set `apm-server.host = 0.0.0.0:8200` to match any IP) and set the `SERVER_URL` setting in the agent accordingly.
+
+If you see requests coming through the {{apm-server}} but they are not accepted (response code other than `202`), refer to [{{apm-server}} response codes](apm-server-response-codes.md) to narrow down the possible causes.
+
+Another reason for data not showing up is that the agent is not auto-instrumenting something you were expecting, check the [agent documentation](/reference/apm-agents/index.md) for details on what is automatically instrumented.
+
+{{apm-server}} currently relies on {{es}} to create indices that do not exist. As a result, {{es}} must be configured to allow [automatic index creation]({{es-apis}}operation/operation-create) for {{product.apm}} indices.
+::::::
+
+:::::::
+
+## Common SSL-related problems [apm-common-ssl-problems]
+```yaml {applies_to}
+stack: ga
+```
+
+* [SSL client fails to connect](#apm-ssl-client-fails)
+* [x509: cannot validate certificate](#apm-cannot-validate-certificate)
+* [getsockopt: no route to host](#apm-getsockopt-no-route-to-host)
+* [getsockopt: connection refused](#apm-getsockopt-connection-refused)
+* [No connection could be made because the target machine actively refused it](#apm-target-machine-refused-connection)
+
+
+### SSL client fails to connect [apm-ssl-client-fails]
+
+The target host might be unreachable or the certificate might not be valid. To fix this problem:
+
+1. Make sure that the {{apm-server}} process on the target host is running and you can connect to it. Try to ping the target host to verify that you can reach it from the host running {{apm-server}}. Then use either `nc` or `telnet` to make sure that the port is available. For example:
+
+    ```shell
+    ping <hostname or IP>
+    telnet <hostname or IP> 8200
+    ```
+
+2. Verify that the certificate is valid and that the hostname and IP match.
+3. Use OpenSSL to test connectivity to the target server and diagnose problems. Refer to the [OpenSSL documentation](https://www.openssl.org/docs/manmaster/man1/openssl-s_client.html) for more info.
+
+
+### x509: cannot validate certificate for <IP address> because it doesn’t contain any IP SANs [apm-cannot-validate-certificate]
+
+This happens because your certificate is only valid for the hostname present in the Subject field. To resolve this problem, try one of these solutions:
+
+* Create a DNS entry for the hostname, mapping it to the server’s IP.
+* Create an entry in `/etc/hosts` for the hostname. Or, on Windows, add an entry to `C:\Windows\System32\drivers\etc\hosts`.
+* Re-create the server certificate and add a Subject Alternative Name (SAN) for the IP address of the server. This makes the server’s certificate valid for both the hostname and the IP address.
+
+
+### getsockopt: no route to host [apm-getsockopt-no-route-to-host]
+
+This is not an SSL problem. It’s a networking problem. Make sure the two hosts can communicate.
+
+
+### getsockopt: connection refused [apm-getsockopt-connection-refused]
+
+This is not an SSL problem. Make sure that {{ls}} is running and that there is no firewall blocking the traffic.
+
+
+### No connection could be made because the target machine actively refused it [apm-target-machine-refused-connection]
+
+A firewall is refusing the connection. Check if a firewall is blocking the traffic on the client, the network, or the destination host.
+
+
+## I/O Timeout [apm-io-timeout]
+```yaml {applies_to}
+stack: ga
+```
+
+I/O Timeouts can occur when your timeout settings across the stack are not configured correctly, especially when using a load balancer.
+
+You might see an error like the one below in the {{apm-agent}} logs, and/or a similar error on the {{apm-server}} side:
+
+```txt
+[ElasticAPM] {{apm-server}} responded with an error:
+"read tcp 123.34.22.113:8200->123.34.22.40:41602: i/o timeout"
+```
+
+To fix this, ensure timeouts are incrementing from the {{apm-agent}}, through your load balancer, to the {{apm-server}}.
+
+By default, the {{apm-agent}} timeouts are set at 10 seconds, and the server timeout is set at 3600 seconds. Your load balancer should be set somewhere between these numbers.
+
+For example:
+
+```txt
+{{apm-agent}} --> Load Balancer  --> {{apm-server}}
+   10s            15s               3600s
+```
+
+The {{apm-server}} timeout can be configured by updating the [maximum duration for reading an entire request](/solutions/observability/apm/apm-server/general-configuration-options.md#apm-read_timeout).
+
+
+## Field limit exceeded [apm-field-limit-exceeded]
+
+When adding too many distinct tag keys on a transaction or span, you risk creating a [mapping explosion](/manage-data/data-store/mapping.md#mapping-limit-settings).
+
+For example, you should avoid that user-specified data, like URL parameters, is used as a tag key. Likewise, using the current timestamp or a user ID as a tag key is not a good idea. However, tag **values** with a high cardinality are not a problem. Just try to keep the number of distinct tag keys at a minimum.
+
+The symptom of a mapping explosion is that transactions and spans are not indexed anymore after a certain time. Usually, on the next day, the spans and transactions will be indexed again because a new index is created each day. But as soon as the field limit is reached, indexing stops again.
+
+In the {{apm-agent}} logs, you won’t see a sign of failures as the {{apm-server}} asynchronously sends the data it received from the agents to {{es}}. However, the {{apm-server}} and {{es}} log a warning like this:
+
+```txt
+{\"type\":\"illegal_argument_exception\",\"reason\":\"Limit of total fields [1000] in [INDEX_NAME] has been exceeded\"}
+```
+
+
+## Too many unique transaction names [troubleshooting-too-many-transactions]
+```yaml {applies_to}
+stack: ga
+```
+
+Transaction names are defined in each {{apm-agent}}; when a {{apm-agent}} supports a framework, it includes logic for naming the transactions that the framework creates. In some cases though, like when using a {{apm-agent}}’s API to create custom transactions, it is up to the user to define a pattern for transaction naming. When transactions are named incorrectly, each unique URL can be associated with a unique transaction group—causing an explosion in the number of transaction groups per service, and leading to inaccuracies in the Applications UI.
+
+To fix a large number of unique transaction names, you need to change how you are using the {{apm-agent}} API to name your transactions. To do this, ensure you are **not** naming based on parameters that can change. For example, user ids, product ids, order numbers, query parameters, etc., should be stripped away, and commonality should be found between your unique URLs.
+
+Let’s look at an example from the RUM agent documentation. Here are a few URLs you might find on Elastic.co:
+
+```txt
+// Blog Posts
+https://www.elastic.co/blog/reflections-on-three-years-in-the-elastic-public-sector
+https://www.elastic.co/blog/say-heya-to-the-elastic-search-awards
+https://www.elastic.co/blog/and-the-winner-of-the-elasticon-2018-training-subscription-drawing-is
+
+// Documentation
+https://www.elastic.co/guide/en/elastic-stack/current/index.html
+https://www.elastic.co/guide/en/apm/get-started/current/index.html
+https://www.elastic.co/guide/en/infrastructure/guide/current/index.html
+```
+
+These URLs, like most, include unique names. If we named transactions based on each unique URL, we’d end up with the problem described above—a very large number of different transaction names. Instead, we should strip away the unique information and group our transactions based on common information. In this case, that means naming all blog transactions, `/blog`, and all documentation transactions, `/guide`.
+
+If you feel like you’d be losing valuable information by following this naming convention, don’t fret! You can always add additional metadata to your transactions using [labels](/solutions/observability/apm/metadata.md#apm-data-model-labels) (indexed) or [custom context](/solutions/observability/apm/metadata.md#apm-data-model-custom) (non-indexed).
+
+After ensuring you’ve correctly named your transactions, you might still see errors in the Applications UI related to transaction group limit reached:
+
+`The number of transaction groups has been reached. Current {{apm-server}} capacity for handling unique transaction groups has been reached. There are at least X transactions missing in this list. Decrease the number of transaction groups in your service or increase the memory allocated to {{apm-server}}.`
+
+You will see this warning if an agent is creating too many transaction groups. This could indicate incorrect instrumentation which will have to be fixed in your application. Alternatively you can increase the memory of the {{apm-server}}.
+
+`Number of transaction groups exceed the allowed maximum(1,000) that are displayed. The maximum number of transaction groups displayed in {{kib}} has been reached. Try narrowing down results by using the query bar..`
+
+You will see this warning if your results have more than `1000` unique transaction groups. Alternatively you can use the query bar to reduce the number of unique transaction groups in your results.
+
+**More information**
+
+While this can happen with any {{apm-agent}}, it typically occurs with the RUM agent. For more information on how to correctly set `transaction.name` in the RUM agent, refer to [custom initial page load transaction names](apm-agent-rum-js://reference/custom-transaction-name.md).
+
+The RUM agent can also set the `transaction.name` when observing for transaction events. Refer to [`apm.observe()`](apm-agent-rum-js://reference/agent-api.md#observe) for more information.
+
+If your problem is occurring in a different {{apm-agent}}, the tips above still apply. Refer to the relevant [Agent API documentation](/reference/apm-agents/index.md) to adjust how you’re naming your transactions.
+
+
+## Too many unique services [troubleshooting-too-many-services]
+
+The **Service inventory** stops listing every service separately once it reaches a limit. Your data is still ingested and stored, and you can still open the services that are listed. Only the inventory list is affected.
+
+Two limits can cause this, and each one shows a different warning:
+
+* A **warning icon** above the table, with the tooltip *The limit of n services is exceeded*, means you reached the [limit on the services {{kib}} displays](#troubleshooting-too-many-services-displayed).
+* A row named **Remaining Services** at the end of the table, with its own warning icon, means you reached the [limit on the services tracked in aggregated metrics](#troubleshooting-too-many-services-aggregated).
+
+In both cases, a service is each unique combination of `service.name`, `service.environment`, `service.language.name`, and `agent.name`. This means that one application can count as several services, for example when it reports from more than one environment. This is why a production deployment can reach a limit while a development one with more instrumented applications doesn't.
+
+### Limit on the services {{kib}} displays [troubleshooting-too-many-services-displayed]
+
+By default, {{kib}} returns up to 1,000 services to the Service inventory. Services past that limit are left out of the list, and the warning shows the current limit.
+
+This limit is applied when {{kib}} queries your data, so it doesn't depend on how the data was ingested. It works the same for {{apm-agent}}s and EDOT SDKs, and for {{apm-server}} and the {{motlp}}.
+
+The services are still there, so any of the following brings them back into view:
+
+* Use the query bar to narrow the list to the services you need.
+* Create [service groups](/solutions/observability/apm/services.md#service-groups) and view one group at a time.
+* {applies_to}`stack: ga 9.6+` {applies_to}`serverless: ga` Raise the limit in the `observability:apmMaxNumberOfServices` advanced setting, shown as **Maximum services in the Services Inventory**. The highest value you can set is 5,000.
+
+:::{note}
+Raising the limit makes the Service inventory query slower and increases its memory use on {{es}}. Past about 2,000 services, the query can also exceed `search.max_buckets`, the cluster-wide cap on aggregation buckets that defaults to 65,536. When that happens, the query fails instead of returning a shorter list, so raise `search.max_buckets` to match, or leave the service limit lower and filter the list instead.
+:::
+
+### Limit on the services tracked in aggregated metrics [troubleshooting-too-many-services-aggregated]
+
+Service metrics are aggregated as your data is written, and only a limited number of services can be tracked at a time. Services past that limit are combined into a single overflow bucket, which the Service inventory shows as **Remaining Services**. 
+
+With {{apm-server}}, service metrics share a limit of 1,000 services per GB of memory available to {{apm-server}}.
+
+Because this happens as the data is written, narrowing the query or raising the display limit doesn't recover the individual services. To list them separately, reduce the number of unique services you send by:
+
+* Using stable values for `service.name` and `service.environment`. Values taken from build numbers, per-instance identifiers, or short-lived test environments create a new service every time they change.
+* Reviewing your instrumentation so that only the services you need to monitor send {{product.apm}} data.
+* Increase the memory available to {{apm-server}}.
+
+For the full set of limits and an explanation of how overflow buckets work, refer to [Aggregated metrics: limits and overflows](/solutions/observability/apm/metrics.md#_aggregated_metrics_limits_and_overflows).
+
+If you also see warnings about transaction groups, refer to [Too many unique transaction names](#troubleshooting-too-many-transactions), which covers the equivalent limits for transactions.
+
+
+## Unknown route [troubleshooting-unknown-route]
+```yaml {applies_to}
+stack: ga
+```
+
+The [transaction overview](/solutions/observability/apm/transactions-ui.md) will only display helpful information when the transactions in your services are named correctly. If you’re seeing "GET unknown route" or "unknown route" in the Applications UI, it could be a sign that something isn’t working as it should.
+
+{{product.apm}} agents come with built-in support for popular frameworks out-of-the-box. This means, among other things, that the {{apm-agent}} will try to automatically name HTTP requests. As an example, the Node.js agent uses the route that handled the request, while the Java agent uses the Servlet name.
+
+"Unknown route" indicates that the {{apm-agent}} can’t determine what to name the request, perhaps because the technology you’re using isn’t supported, the agent has been installed incorrectly, or because something is happening to the request that the agent doesn’t understand.
+
+To resolve this, you’ll need to head over to the relevant [{{product.apm}} agent documentation](/reference/apm-agents/index.md). Specifically, view the agent’s supported technologies page. You can also use the agent’s public API to manually set a name for the transaction.
+
+
+## Fields are not searchable [troubleshooting-fields-unsearchable]
+```yaml {applies_to}
+stack: ga
+```
+
+In {{es}}, index templates are used to define settings and mappings that determine how fields should be analyzed. The recommended index templates for {{product.apm}} come from the built-in {{es}} apm-data plugin. These templates, by default, specify which fields are indexed and which are not.
+
+As an example, some {{product.apm}} agents store cookie values in `http.request.cookies`. Since dynamic indexing is turned off for `http.request`, and `http.request.cookies` is not declared in a custom mapping, the values in `http.request.cookies` are not indexed and therefore not searchable.
+
+**Ensure a {{product.apm}} {{data-source}} exists** As a first step, you should ensure the correct {{data-source}} exists. In {{kib}}, go to **{{stack-manage-app}}** > **{{data-sources-caps}}**. You should see the {{product.apm}} {{data-source}}—the default is `traces-apm*,apm-*,logs-apm*,apm-*,metrics-apm*,apm-*`. If you don’t, the {{data-source}} doesn’t exist. To fix this, navigate to the Applications UI in {{kib}} and select **Add data**. In the {{product.apm}} tutorial, click **Load {{kib}} objects** to create the {{product.apm}} {{data-source}}.
+
+**Ensure a field is searchable** There are two things you can do to if you’d like to ensure a field is searchable:
+
+1. Index your additional data as [labels](/solutions/observability/apm/metadata.md) instead. These are dynamic by default, which means they will be indexed and become searchable and aggregatable.
+2. Create a custom mapping for the field.
+
+
+## Service Maps: no connection between client and server [service-map-rum-connections]
+```yaml {applies_to}
+stack: ga
+```
+
+If the service map is not showing an expected connection between the client and server, it’s likely because you haven’t configured [`distributedTracingOrigins`](apm-agent-rum-js://reference/distributed-tracing.md).
+
+This setting is necessary, for example, for cross-origin requests. If you have a basic web application that provides data using an API on `localhost:4000`, and serves HTML from `localhost:4001`, you’d need to set `distributedTracingOrigins: ['https://localhost:4000']` to ensure the origin is monitored as a part of distributed tracing. In other words, `distributedTracingOrigins` is consulted prior to the {{apm-agent}} adding the distributed tracing `traceparent` header to each request.
+
+
+## No data shown in the infrastructure tab [troubleshooting-apm-infra-data]
+```yaml {applies_to}
+stack: ga
+```
+
+If you don’t see any data in the **Infrastructure** tab for a selected service in the Applications UI, the cause depends on how the service is instrumented.
+
+### OTel-instrumented services
+
+For services instrumented with OpenTelemetry, the **Infrastructure** tab exclusively looks for OTel-observed hosts, pods, and containers. If the tab is empty, confirm that the underlying infrastructure is also being observed with OTel (for example, using {{agent}} with host metrics enabled). Infrastructure observed only by {{agent}} or {{metricbeat}} doesn't appear for OTel-instrumented services.
+
+### {{product.apm}}-instrumented services
+
+**If you also do *not* see the data in the** [**Infrastructure inventory**](../../../solutions/observability/infra-and-hosts/view-infrastructure-metrics-by-resource-type.md)
+
+Refer to the [Infrastructure troubleshooting docs](../troubleshooting-infrastructure-monitoring.md).
+
+**If you *do* see the data in the** [**Infrastructure inventory**](../../../solutions/observability/infra-and-hosts/view-infrastructure-metrics-by-resource-type.md)
+
+It’s likely that there is a problem correlating {{product.apm}} and infrastructure data. The `host.hostname` field value in the {{product.apm}} data and the `host.name` field value in infrastructure data are used to correlate data, and the queries used to correlate the data are case sensitive.
+
+To fix this, make sure these two fields match exactly.
+
+For example, if the {{apm-agent}} is not configured to use the correct host name, the host name might be set to the container name or the {{k8s}} pod name. To get the correct host name, you need to set some additional configuration options, specifically `system.kubernetes.node.name` as described in [{{k8s}} data](/solutions/observability/apm/elastic-apm-events-intake-api.md#apm-api-kubernetes-data).
+

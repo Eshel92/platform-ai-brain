@@ -36,6 +36,8 @@ SOURCES = UPSTREAM / "sources.json"
 BASE = os.environ.get("UPSTREAM_GIT_BASE", "https://github.com").rstrip("/")
 TEXT = {".md", ".markdown", ".txt", ".rst", ".adoc", ".yaml", ".yml"}
 LICENSES = [
+    ("Attribution-NonCommercial-NoDerivatives 4.0", "CC BY-NC-ND 4.0"),
+    ("Attribution-NonCommercial-ShareAlike 4.0", "CC BY-NC-SA 4.0"),
     ("Apache License", "Apache-2.0"),
     ("Attribution-NonCommercial-ShareAlike 3.0", "CC BY-NC-SA 3.0"),
     ("Attribution 4.0 International", "CC BY 4.0"),
@@ -52,12 +54,17 @@ def git(*args: str, cwd: Path | None = None) -> str:
     return result.stdout.strip()
 
 
-def wanted(rel: str, source: dict) -> bool:
-    if Path(rel).suffix.lower() not in TEXT | set(source.get("extra_extensions", [])):
-        return False
+def selected(rel: str, source: dict) -> bool:
+    """The source's include / exclude patterns."""
     if source.get("include") and not any(fnmatch.fnmatch(rel, p) for p in source["include"]):
         return False
     return not any(fnmatch.fnmatch(rel, p) for p in source.get("exclude", []))
+
+
+def wanted(rel: str, source: dict) -> bool:
+    if Path(rel).suffix.lower() not in TEXT | set(source.get("extra_extensions", [])):
+        return False
+    return selected(rel, source)
 
 
 def license_of(repo: Path) -> tuple[str, Path | None]:
@@ -86,11 +93,14 @@ def sync(source: dict) -> str:
             base = repo / folder
             target = build / Path(folder).name if len(source["paths"]) > 1 else build
             if source.get("convert"):  # one self-contained Markdown file per page
-                count, found = convert_tree(source["convert"], base, target)
+                count, found = convert_tree(source["convert"], base, target,
+                                            keep=lambda rel: selected(rel, source), attrs=source.get("attrs"))
                 files, notes = files + count, notes | found
-                for extra in base.glob("*.md"):
-                    shutil.copy2(extra, target / extra.name)
-                    files += 1
+                if source["convert"] != "md":  # stray Markdown next to rst/AsciiDoc sources
+                    for extra in base.glob("*.md"):
+                        target.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(extra, target / extra.name)
+                        files += 1
                 continue
             for path in sorted(base.rglob("*")):
                 rel = path.relative_to(base).as_posix()
@@ -117,7 +127,9 @@ def sync(source: dict) -> str:
             "repo": source["repo"], "ref": source["ref"], "commit": commit,
             "paths": source["paths"], "files": files, "bytes": size, "license": label,
             "format": {"rst": "Markdown, converted from reStructuredText (includes inlined)",
-                       "adoc": "Markdown, converted from AsciiDoc (includes inlined)"}.get(source.get("convert"), "as upstream"),
+                       "adoc": "Markdown, converted from AsciiDoc (includes inlined)",
+                       "asciidoc": "Markdown, converted from AsciiDoc (snippets inlined)",
+                       "md": "Markdown (substitutions filled in, shared snippets inlined)"}.get(source.get("convert"), "as upstream"),
             "notes": sorted(notes),
             "synced": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }

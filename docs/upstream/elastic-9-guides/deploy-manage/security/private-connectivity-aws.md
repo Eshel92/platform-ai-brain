@@ -1,0 +1,654 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/cloud/current/ec-traffic-filtering-vpc.html
+  - https://www.elastic.co/guide/en/cloud-heroku/current/ech-traffic-filtering-vpc.html
+applies_to:
+  deployment:
+    ess: ga
+  serverless: ga
+products:
+  - id: cloud-hosted
+  - id: cloud-serverless
+navigation_title: AWS PrivateLink
+sub:
+  policy-type: "Private connection"
+  service-name: "AWS PrivateLink"
+  example-phz-dn: "vpce.us-east-1.aws.elastic-cloud.com"
+  example-default-dn: "us-east-1.aws.elastic-cloud.com"
+  example-serverless-phz-dn: "private.us-east-1.aws.elastic.cloud"
+---
+
+# Private connectivity with AWS PrivateLink
+
+You can use AWS PrivateLink to establish a secure connection for your {{ech}} deployments and {{serverless-full}} projects to communicate with other AWS services. AWS routes the PrivateLink traffic within the AWS data center and never exposes it to the public internet.
+
+AWS PrivateLink connects your Virtual Private Cloud (VPC) to the AWS-hosted services that you use, treating them as if they were in your VPC. You can create and use VPC endpoints to securely access AWS-hosted services.
+
+You can also optionally filter traffic to your deployments or projects by creating virtual private connection (VPC) filters as part of your private connection policy in {{ecloud}}. This limits traffic to your deployment or project to the VPC specified in the policy, as well as any other policies applied to the deployment or project.
+
+To learn how private connection policies impact your deployment or project, refer to [](/deploy-manage/security/network-security-policies.md).
+
+:::{tip}
+{{ech}} and {{serverless-full}} also support [IP filters](/deploy-manage/security/ip-filtering-cloud.md). You can apply both IP filters and private connections to a single {{ecloud}} resource.
+:::
+
+## Requirements
+```{applies_to}
+serverless:
+```
+
+The following requirements apply to the project where you want to apply a private connection policy:
+
+:::{include} _snippets/network-sec-tier-reqs.md
+:::
+
+There are no specific requirements for other {{serverless-short}} project types or {{ech}} deployments.
+
+## Considerations
+
+Before you decide to set up private connectivity with AWS PrivateLink, review the following considerations:
+
+### Private connections and regions
+
+Private connectivity with AWS PrivateLink is supported only in AWS regions. You can set up private connections in [AWS regions where {{ecloud}} is available](#ec-private-link-service-names-aliases). You can also set up [cross-region PrivateLink connections](#ec-aws-inter-region-private-link) to reach your deployment or project from additional AWS regions.
+
+AWS interface virtual private connection (VPC) endpoints are configured for one or more availability zones (AZ). In some regions, our VPC endpoint service is not present in all the possible AZs that a region offers. You can only choose AZs that are common on both sides. As the names of AZs (for example `us-east-1a`) differ between AWS accounts, the [list of AWS regions](#ec-private-link-service-names-aliases) shows the ID (e.g. `use1-az4`) of each available AZ for the service.
+
+Refer to [interface endpoint availability zone considerations](https://docs.aws.amazon.com/vpc/latest/userguide/vpce-interface.html#vpce-interface-availability-zones) for more details.
+
+### Availability zones
+
+::::{applies-switch}
+:::{applies-item} ess: ga
+Elastic [charges](/deploy-manage/cloud-organization/billing/cloud-hosted-deployment-billing-dimensions.md) for inter-node traffic regardless of whether nodes are in the same or different availability zones (AZ). As a result, placing the deployment nodes within a single AZ, instead of two or three, does not reduce inter-node costs.
+
+On the customer VPC side, the inter-availability zone data transfer, within the same AWS region, towards AWS PrivateLink endpoints, [is free of charge](https://aws.amazon.com/about-aws/whats-new/2022/04/aws-data-transfer-price-reduction-privatelink-transit-gateway-client-vpn-services/). As a result, you do not incur charges for cross-AZ data transfer within your VPC when the target is the AWS PrivateLink {{ecloud}} service endpoint. We recommend you set up the VPC endpoints in all supported {{ecloud}} AZs for a particular region for maximum traffic throughput and resiliency.
+
+If Elastic and your VPC overlap in two AZs or less, you can create subnets and VPC PrivateLink endpoints in your VPC within the same availability zones where the Elastic PrivateLink service is present.
+:::
+:::{applies-item} serverless: ga
+{{serverless-full}} does not expose availability zones (AZ) to you—you don't choose or see AZs for your project. On the AWS side, however, interface VPC endpoints are still configured for one or more AZs. Inter-availability zone data transfer within the same AWS region toward AWS PrivateLink endpoints [is free of charge](https://aws.amazon.com/about-aws/whats-new/2022/04/aws-data-transfer-price-reduction-privatelink-transit-gateway-client-vpn-services/). We recommend you set up VPC endpoints in all AZs where the {{ecloud}} PrivateLink service is present for your region, for maximum throughput and resiliency.
+:::
+::::
+
+## Limitations
+
+When using AWS PrivateLink, the following limitations apply:
+
+```{include} _snippets/private-connectivity-limitations-ech.md
+```
+```{include} _snippets/aws-privatelink-cloud-id-limitation.md
+```
+
+## PrivateLink service names and aliases [ec-private-link-service-names-aliases]
+
+PrivateLink Service is set up by Elastic in all supported AWS regions under the following service names.
+
+Some metadata might differ between {{ech}} and {{serverless-full}}, even if the region is the same.
+
+:::::{applies-switch}
+::::{applies-item} ess: ga
+
+:::{dropdown} AWS public regions
+| Region | VPC service name | Private hosted zone domain name | AZ names (AZ IDs) |
+| --- | --- | --- | --- |
+| af-south-1 | `com.amazonaws.vpce.af-south-1.vpce-svc-0d3d7b74f60a6c32c` | `vpce.af-south-1.aws.elastic-cloud.com` | `af-south-1a` (`afs1-az1`), `af-south-1b` (`afs1-az2`), `af-south-1c` (`afs1-az3`) |
+| ap-east-1 | `com.amazonaws.vpce.ap-east-1.vpce-svc-0f96fbfaf55558d5c` | `vpce.ap-east-1.aws.elastic-cloud.com` | `ap-east-1a` (`ape1-az1`), `ap-east-1b` (`ape1-az2`), `ap-east-1c` (`ape1-az3`) |
+| ap-northeast-1 | `com.amazonaws.vpce.ap-northeast-1.vpce-svc-0e1046d7b48d5cf5f` | `vpce.ap-northeast-1.aws.elastic-cloud.com` | `ap-northeast-1b` (`apne1-az4`), `ap-northeast-1c` (`apne1-az1`), `ap-northeast-1d` (`apne1-az2`) |
+| ap-northeast-2 | `com.amazonaws.vpce.ap-northeast-2.vpce-svc-0d90cf62dae682b84` | `vpce.ap-northeast-2.aws.elastic-cloud.com` | `ap-northeast-2a` (`apne2-az1`), `ap-northeast-2b` (`apne2-az2`), `ap-northeast-2c` (`apne2-az3`) |
+| ap-south-1 | `com.amazonaws.vpce.ap-south-1.vpce-svc-0e9c1ae5caa269d1b` | `vpce.ap-south-1.aws.elastic-cloud.com` | `ap-south-1a` (`aps1-az1`), `ap-south-1b` (`aps1-az3`), `ap-south-1c` (`aps1-az2`) |
+| ap-southeast-1 | `com.amazonaws.vpce.ap-southeast-1.vpce-svc-0cbc6cb9bdb683a95` | `vpce.ap-southeast-1.aws.elastic-cloud.com` | `ap-southeast-1a` (`apse1-az1`), `ap-southeast-1b` (`apse1-az2`), `ap-southeast-1c` (`apse1-az3`) |
+| ap-southeast-2 | `com.amazonaws.vpce.ap-southeast-2.vpce-svc-0cde7432c1436ef13` | `vpce.ap-southeast-2.aws.elastic-cloud.com` | `ap-southeast-2a` (`apse2-az1`), `ap-southeast-2b` (`apse2-az3`), `ap-southeast-2c` (`apse2-az2`) |
+| ca-central-1 | `com.amazonaws.vpce.ca-central-1.vpce-svc-0d3e69dd6dd336c28` | `vpce.ca-central-1.aws.elastic-cloud.com` | `ca-central-1a` (`cac1-az1`), `ca-central-1b` (`cac1-az2`), `ca-central-1d` (`cac1-az4`) |
+| eu-central-1 | `com.amazonaws.vpce.eu-central-1.vpce-svc-081b2960e915a0861` | `vpce.eu-central-1.aws.elastic-cloud.com` | `eu-central-1a` (`euc1-az2`), `eu-central-1b` (`euc1-az3`), `eu-central-1c` (`euc1-az1`) |
+| eu-central-2 | `com.amazonaws.vpce.eu-central-2.vpce-svc-07deba12e07d77434` | `vpce.eu-central-2.aws.elastic-cloud.com` | `eu-central-2a` (`euc2-az1`), `eu-central-2b` (`euc2-az2`), `eu-central-2c` (`euc2-az3`) |
+| eu-south-1 | `com.amazonaws.vpce.eu-south-1.vpce-svc-03d8fc8a66a755237` | `vpce.eu-south-1.aws.elastic-cloud.com` | `eu-south-1a` (`eus1-az1`), `eu-south-1b` (`eus1-az2`), `eu-south-1c` (`eus1-az3`) |
+| eu-north-1 | `com.amazonaws.vpce.eu-north-1.vpce-svc-05915fc851f802294` | `vpce.eu-north-1.aws.elastic-cloud.com` | `eu-north-1a` (`eun1-az1`), `eu-north-1b` (`eun1-az2`), `eu-north-1c` (`eun1-az3`) |
+| eu-west-1 | `com.amazonaws.vpce.eu-west-1.vpce-svc-01f2afe87944eb12b` | `vpce.eu-west-1.aws.elastic-cloud.com` | `eu-west-1a` (`euw1-az2`), `eu-west-1b` (`euw1-az1`), `eu-west-1c` (`euw1-az3`) |
+| eu-west-2 | `com.amazonaws.vpce.eu-west-2.vpce-svc-0e42a2c194c97a1d0` | `vpce.eu-west-2.aws.elastic-cloud.com` | `eu-west-2a` (`euw2-az2`), `eu-west-2b` (`euw2-az3`), `eu-west-2c` (`euw2-az1`) |
+| eu-west-3 | `com.amazonaws.vpce.eu-west-3.vpce-svc-0d6912d10db9693d1` | `vpce.eu-west-3.aws.elastic-cloud.com` | `eu-west-3a` (`euw3-az1`), `eu-west-3b` (`euw3-az2`), `eu-west-3c` (`euw3-az3`) |
+| me-south-1 | `com.amazonaws.vpce.me-south-1.vpce-svc-0381de3eb670dcb48` | `vpce.me-south-1.aws.elastic-cloud.com` | `me-south-3a` (`mes1-az1`), `me-south-3b` (`mes1-az2`), `me-south-3c` (`mes1-az3`) |
+| sa-east-1 | `com.amazonaws.vpce.sa-east-1.vpce-svc-0b2dbce7e04dae763` | `vpce.sa-east-1.aws.elastic-cloud.com` | `sa-east-1a` (`sae1-az1`), `sa-east-1b` (`sae1-az2`), `sa-east-1c` (`sae1-az3`) |
+| us-east-1 | `com.amazonaws.vpce.us-east-1.vpce-svc-0e42e1e06ed010238` | `vpce.us-east-1.aws.elastic-cloud.com` | `us-east-1a` (`use1-az4`), `us-east-1b` (`use1-az6`), `us-east-1e` (`use1-az2`) |
+| us-east-2 | `com.amazonaws.vpce.us-east-2.vpce-svc-02d187d2849ffb478` | `vpce.us-east-2.aws.elastic-cloud.com` | `us-east-2a` (`use2-az1`), `us-east-2b` (`use2-az2`), `us-east-2c` (`use2-az3`) |
+| us-west-1 | `com.amazonaws.vpce.us-west-1.vpce-svc-00def4a16a26cb1b4` | `vpce.us-west-1.aws.elastic-cloud.com` | `us-west-1a` (`usw1-az1`), `us-west-1b` (`usw1-az2`), `us-west-1c` (`usw1-az3`) |
+| us-west-2 | `com.amazonaws.vpce.us-west-2.vpce-svc-0e69febae1fb91870` | `vpce.us-west-2.aws.elastic-cloud.com` | `us-west-2a` (`usw2-az2`), `us-west-2b` (`usw2-az1`), `us-west-2c` (`usw2-az3`) |
+:::
+
+
+:::{dropdown} GovCloud regions
+| Region | VPC service name | Private hosted zone domain name |
+| --- | --- | --- |
+| us-gov-east-1 (GovCloud) | `com.amazonaws.vpce.us-gov-east-1.vpce-svc-0bba5ffa04f0cb26d` | `vpce.us-gov-east-1.aws.elastic-cloud.com` |
+:::
+::::
+::::{applies-item} serverless: ga
+
+:::{dropdown} AWS public regions
+| Region | VPC service name | Private hosted zone domain name | AZ names (AZ IDs) |
+| --- | --- | --- | --- |
+| ap-northeast-1 | `com.amazonaws.vpce.ap-northeast-1.vpce-svc-06284ba62764f1d90` | `private.ap-northeast-1.aws.elastic.cloud` | `ap-northeast-1a` (`apne1-az4`), `ap-northeast-1c` (`apne1-az1`), `ap-northeast-1d` (`apne1-az2`) |
+| ap-southeast-1 | `com.amazonaws.vpce.ap-southeast-1.vpce-svc-03b39b802f04ea0d0` | `private.ap-southeast-1.aws.elastic.cloud` | `ap-southeast-1a` (`apse1-az2`), `ap-southeast-1b` (`apse1-az1`), `ap-southeast-1c` (`apse1-az3`) |
+| ap-southeast-2 | `com.amazonaws.vpce.ap-southeast-2.vpce-svc-0f49488ed054785dd` | `private.ap-southeast-2.aws.elastic.cloud` | `ap-southeast-2a` (`apse2-az1`), `ap-southeast-2b` (`apse2-az3`), `ap-southeast-2c` (`apse2-az2`) |
+| ca-central-1 | `com.amazonaws.vpce.ca-central-1.vpce-svc-07c1055703fa21557` | `private.ca-central-1.aws.elastic.cloud` | `ca-central-1a` (`cac1-az1`), `ca-central-1b` (`cac1-az2`), `ca-central-1d` (`cac1-az4`) |
+| eu-central-1 | `com.amazonaws.vpce.eu-central-1.vpce-svc-08bdd241053768a93` | `private.eu-central-1.aws.elastic.cloud` | `eu-central-1a` (`euc1-az2`), `eu-central-1b` (`euc1-az3`), `eu-central-1c` (`euc1-az1`) |
+| eu-west-1 | `com.amazonaws.vpce.eu-west-1.vpce-svc-063ee4d57bcb7e850` | `private.eu-west-1.aws.elastic.cloud` | `eu-west-1a` (`euw1-az2`), `eu-west-1b` (`euw1-az3`), `eu-west-1c` (`euw1-az1`) |
+| eu-west-2 | `com.amazonaws.vpce.eu-west-2.vpce-svc-0eff494bfad918e69` | `private.eu-west-2.aws.elastic.cloud` | `eu-west-2a` (`euw2-az2`), `eu-west-2b` (`euw2-az3`), `eu-west-2c` (`euw2-az1`) |
+| us-east-1 | `com.amazonaws.vpce.us-east-1.vpce-svc-06b7aa0d52044e98f` | `private.us-east-1.aws.elastic.cloud` | `us-east-1b` (`use1-az2`), `us-east-1c` (`use1-az4`), `us-east-1d` (`use1-az6`) |
+| us-east-2 | `com.amazonaws.vpce.us-east-2.vpce-svc-05572e19a6a405b79` | `private.us-east-2.aws.elastic.cloud` | `us-east-2a` (`use2-az1`), `us-east-2b` (`use2-az2`), `us-east-2c` (`use2-az3`) |
+| us-west-2 | `com.amazonaws.vpce.us-west-2.vpce-svc-057a54fcdb1617033` | `private.us-west-2.aws.elastic.cloud` | `us-west-2a` (`usw2-az2`), `us-west-2b` (`usw2-az1`), `us-west-2c` (`usw2-az3`) |
+:::
+
+You can also view the service metadata for your selected region by starting to [create a new private connection policy](#ec-add-vpc-elastic) for the region and expanding the **Service metadata** dropdown.
+::::
+:::::
+
+## Set up a private connection
+
+The process of setting up a private connection with AWS PrivateLink is split between the AWS console and the {{ecloud}} UI. These are the high-level steps:
+
+| AWS console | {{ecloud}} |
+| --- | --- |
+| 1. [Create a VPC endpoint using {{ecloud}} service name.](#ec-aws-vpc-dns) |  |
+| 2. [Create a DNS record pointing to the VPC endpoint.](#ec-aws-vpc-dns) |  |
+|  | 3. **Optional**: [Create a private connection policy.](#ec-add-vpc-elastic)<br><br>A private connection policy is required to filter traffic using the VPC endpoint ID. |
+|  | 4. **Optional**: [Associate the private connection policy with deployments or projects](#associate-private-connection-policy). |
+|  | 5. **Optional**: [Add an IP filter to allow SSO to {{kib}} from the {{ecloud}} console.](#sso-kib-ip-filter) |
+|  | 6. [Interact with your deployments or projects over PrivateLink](#ec-access-the-deployment-over-private-link). |
+
+After you create your private connection policy, you can [edit](#edit-private-connection-policy), [disassociate](#remove-private-connection-policy), or [delete](#delete-private-connection-policy) it.
+
+:::{admonition} Private connection policies are optional
+Private connection policies are optional for AWS PrivateLink. After the VPC endpoint and DNS record are created, private connectivity is established. You only need to create a private connection policy if you want to filter traffic to your deployment or project using VPC filters.
+:::
+
+
+### Before you begin [ec-aws-vpc-overlapping-azs]
+
+Before you begin, you should ensure your VPC endpoint is in all availability zones (AZ) supported by {{ecloud}} for the region and resource type. Placing your VPC endpoint in all supported {{ecloud}} availability zones for the region improves throughput and resiliency when connecting over PrivateLink.
+
+:::{important}
+For {{ech}} deployments, if your VPC is not in all supported availability zones (AZ), the traffic can become imbalanced between the clients and the nodes of a deployment that are receiving traffic from the clients, including {{es}} coordinating nodes, APM instances, and Integrations Server instances. The unbalanced traffic can saturate some nodes or underutilize others, which might impact performance.
+:::
+
+You can find the zone name to zone ID mapping with AWS CLI:
+
+```sh
+$ aws ec2 describe-availability-zones --region us-east-1 | jq -c '.AvailabilityZones[] | { id: .ZoneId, name: .ZoneName } ' | sort
+{"id":"use1-az1","name":"us-east-1c"}
+{"id":"use1-az2","name":"us-east-1e"}
+{"id":"use1-az3","name":"us-east-1d"}
+{"id":"use1-az4","name":"us-east-1a"}
+{"id":"use1-az5","name":"us-east-1f"}
+{"id":"use1-az6","name":"us-east-1b"}
+```
+
+The mapping will be different for your region. Our production VPC Service for `us-east-1` is located in `use1-az2`, `use1-az4`, `use1-az6`. We need to create the VPC Endpoint for the preceding mapping in at least one of `us-east-1e`, `us-east-1a`, `us-east-1b`.
+
+:::{note}
+This limitation does not apply to [cross-region PrivateLink connections](#ec-aws-inter-region-private-link). If you're creating a cross-region connection, then you don't need to check that your VPC is present in all availability zones.
+:::
+
+### Create your VPC endpoint and DNS entries in AWS [ec-aws-vpc-dns]
+
+1. Create a VPC endpoint in your VPC using the service name for your region.
+
+    Refer to the [AWS documentation](https://docs.aws.amazon.com/vpc/latest/userguide/vpce-interface.html#create-interface-endpoint) for additional details on creating a VPC interface endpoint to an endpoint service.
+
+    Select **PrivateLink Ready partner services** as the endpoint type. Use [the service name for your region](#ec-private-link-service-names-aliases) as the **Service name**.
+
+    :::{image} /deploy-manage/images/cloud-ec-private-link-service.png
+    :alt: PrivateLink
+    :screenshot:
+    :::
+
+    The security group for the endpoint should, at minimum, allow for inbound connectivity from your instances' CIDR range on ports 443 and 9243. Security groups for the instances should allow for outbound connectivity to the endpoint on ports 443 and 9243. If you use this endpoint for remote cluster traffic to an {{ech}} deployment, also allow port `9443` or `9400`, depending on the security model you configure.
+
+    <!--need to verify this for serverless-->
+
+    :::{tip}
+    You can also create a cross-region endpoint. Refer to [Setting up a cross-region Private Link connection](#ec-aws-inter-region-private-link).
+    :::
+
+2. Create a DNS record.
+
+    1. Create a Private hosted zone.
+
+        Refer to the **Private hosted zone domain name** column in the [PrivateLink service names and aliases](#ec-private-link-service-names-aliases) table for the name of the zone.
+
+        For example, in `us-east-1`:
+
+        * For {{ech}} deployments: Use `{{example-phz-dn}}`.
+        * For {{serverless-short}} projects: Use `{{example-serverless-phz-dn}}`.
+
+        Don’t forget to associate the zone with your VPC.
+
+        :::{tip}
+        Private hosted zone domain names differ between {{ech}} and {{serverless-full}}, even if the region is the same.
+        :::
+
+        :::{image} /deploy-manage/images/cloud-ec-private-link-private-hosted-zone-example.png
+        :alt: Private hosted zone example
+        :screenshot:
+        :::
+
+    2. Create a DNS CNAME alias pointing to the PrivateLink endpoint. Add the record to a private DNS zone in your VPC. Use `*` as the record name, and the VPC endpoint DNS name as a value.
+
+        Refer to the [AWS documentation](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-creating.html) for details on creating a CNAME record which points to your VPC endpoint DNS name.
+
+        :::{image} /deploy-manage/images/cloud-ec-private-link-cname.png
+        :alt: PrivateLink CNAME
+        :screenshot:
+        :::
+
+### Test the connection
+
+After you create your VPC endpoint and DNS entries, check that you are able to reach your deployment or project over PrivateLink.
+
+:::::{applies-switch}
+::::{applies-item} ess: ga
+:::{include} _snippets/private-url-struct.md
+:::
+
+{{ech}} supports ports `443` and `9243` for {{es}} and {{kib}} traffic. Remote cluster traffic for cross-cluster search and cross-cluster replication uses port `9400` with the TLS certificate based security model, or `9443` with the API key based model. Refer to [Connection paths and private connectivity](/deploy-manage/remote-clusters.md#remote-clusters-connection-paths) for the supported combinations.
+::::
+::::{applies-item} serverless: ga
+:::{include} _snippets/private-url-struct-serverless.md
+:::
+::::
+:::::
+
+:::{tip}
+Private hosted zone domain names differ between {{ech}} and {{serverless-full}}, even if the region is the same.
+:::
+
+To test the connection:
+
+1. If needed, find the endpoint of an application in your deployment or project:
+
+    :::::{applies-switch}
+    :::: {applies-item} ess: ga
+    :::{include} _snippets/find-endpoint.md
+    :::
+    ::::
+    :::: {applies-item} serverless: ga
+    :::{include} _snippets/find-endpoint-serverless.md
+    :::
+    ::::
+    :::::
+
+2. Test the setup using the following cURL command. Pass the username and password for a user that has access to the cluster.
+
+    ::::{applies-switch}
+    :::{applies-item} ess: ga
+    Make sure to replace the URL with your deployment's endpoint information and the private hosted zone domain name that you registered.
+
+    **Request**
+
+    ```sh
+    $ curl -v https://my-deployment-d53192.es.vpce.us-east-1.aws.elastic-cloud.com -u {username}:{password}
+    ```
+
+    **Response**
+
+    ```sh
+    * Server certificate:
+    *  subject: CN=*.us-east-1.aws.elastic-cloud.com
+    *  SSL certificate verify ok.
+    ..
+        < HTTP/1.1 200 OK
+    ..
+    {
+        "name" : "instance-0000000009",
+        "cluster_name" : "fb7e805e5cfb4931bdccc4f3cb591f5f",
+        "cluster_uuid" : "2cTHeCQYS2a0iH7YnQHrIQ",
+        "version" : { ... },
+        "tagline" : "You Know, for Search"
+    }
+    ```
+    :::
+    :::{applies-item} serverless: ga
+    Make sure to replace the URL with the **Private endpoint** URL from your project.
+
+    **Request**
+
+    ```sh
+    $ curl -v https://my-project-d53192.es.private.us-east-1.aws.elastic.cloud -u {username}:{password}
+    ```
+
+    **Response**
+
+    ```sh
+    * Server certificate:
+    *  subject: CN=*.es.private.us-east-1.aws.elastic.cloud
+    *  SSL certificate verify ok.
+    ..
+        < HTTP/1.1 200 OK
+    ..
+    {
+        "name" : "instance-0000000009",
+        "cluster_name" : "fb7e805e5cfb4931bdccc4f3cb591f5f",
+        "cluster_uuid" : "2cTHeCQYS2a0iH7YnQHrIQ",
+        "version" : { ... },
+        "tagline" : "You Know, for Search"
+    }
+    ```
+    :::
+    ::::
+
+The connection is established, and a valid certificate is presented to the client. Elastic responds, in the case of the {{es}} endpoint, with basic information about the cluster.
+
+## Optional: Create a private connection policy [ec-add-vpc-elastic]
+
+After you test your PrivateLink connection, you can create a private connection policy in {{ecloud}}.
+
+Private connection policies are optional for AWS PrivateLink. After the VPC endpoint and DNS record are created, private connectivity is established.
+
+Creating a private connection policy and associating it with your deployments or projects allows you to filter traffic to your deployments or projects using VPC filters.
+
+Follow these high-level steps to add a private connection policy that can be associated with your deployments or projects.
+
+1. Optional: [Find your VPC endpoint ID](#ec-find-your-endpoint).
+2. [Create a private connection policy using the VPC endpoint](#create-private-connection-policy).
+3. [Associate the VPC endpoint with your deployment or project](#associate-private-connection-policy).
+
+### Optional: Find your VPC endpoint ID [ec-find-your-endpoint]
+
+The VPC endpoint ID is only required if you want to filter traffic to your deployment or project using VPC filters.
+
+You can find your VPC endpoint ID in the AWS console:
+
+:::{image} /deploy-manage/images/cloud-ec-private-link-endpoint-id.png
+:alt: VPC Endpoint ID
+:screenshot:
+:::
+
+### Create a new private connection policy [create-private-connection-policy]
+
+Create a new private connection policy.
+
+:::{include} _snippets/network-security-page.md
+:::
+3. Select **Private connection**.
+4. Select the resource type that the private connection will be applied to.
+5.  Select the cloud provider and region for the private connection.
+
+    :::{tip}
+    Private connection policies are bound to a single resource type and region, and can be assigned only to resources with the same resource type and in the same region. If you want to associate a policy with multiple resource types or resources in multiple regions, then you have to recreate the policy for all applicable resource types and regions.
+    :::
+6.  Under **Connectivity**, select **PrivateLink**.
+7.  Optional: Under **VPC filter**, enter your VPC endpoint ID. You should only specify a VPC filter if you want to filter traffic to your deployment or project. For each VPC filter, select **Add description** to add an optional description that helps you identify the filter later.
+
+    If you don't specify a VPC filter, then the private connection policy acts only as a record that you've established private connectivity between AWS and Elastic in the applicable region.
+
+    :::{tip}
+    You can apply multiple policies to a single deployment or project. The policies can be of different types. In case of multiple policies, traffic can match any associated policy to be forwarded to the resource. If none of the policies match, the request is rejected with `403 Forbidden`.
+
+    [Learn more about how network security policies affect your deployment or project](network-security-policies.md).
+    :::
+
+8.  Optional: Under **Apply to resources**, associate the new private connection policy with one or more deployments or projects. If you specified a VPC filter, then after you associate the filter with a resource, it starts filtering traffic.
+9. To automatically attach this private connection policy to new resources of this type, select **Apply by default**.
+10.  Click **Create**.
+11. (Optional) If you created a private connection policy for {{ech}} deployments, you can [claim your VPC endpoint ID](/deploy-manage/security/claim-private-connection-api.md), so that no other organization is able to use it in a private connection policy.
+
+The next step is to [associate the policy](#associate-private-connection-policy) with your deployment or project.
+
+### Optional: Associate a private connection policy with a deployment or project[associate-private-connection-policy]
+
+You can associate a private connection policy with your deployment or project from the policy's settings, or from your deployment's or project's settings.
+
+#### From a deployment or project
+
+:::::{applies-switch}
+::::{applies-item} ess: ga
+:::{include} _snippets/associate-filter.md
+:::
+::::
+::::{applies-item} serverless: ga
+1. Find your project on the home page or on the **Serverless projects** page, then select **Manage** to access its settings menus.
+
+   On the **Serverless projects** page, you can narrow your projects by name, ID, or choose from several other filters. To customize your view, use a combination of filters, or change the format from a grid to a list.
+2. On the **Security** page, under **Network security**, select **Apply policies** > **{{policy-type}}**.
+3. Choose the policy you want to apply and select **Apply**.
+::::
+:::::
+
+#### From the policy settings
+
+:::{include} _snippets/network-security-page.md
+:::
+3. Find the policy you want to edit.
+4. Under **Apply to resources**, associate the policy with one or more deployments or projects.
+5. Click **Update** to save your changes.
+
+## Optional: Add an IP filter to allow SSO to {{kib}} from the {{ecloud}} console [sso-kib-ip-filter]
+
+:::{include} _snippets/ip-filter-for-pc.md
+:::
+
+## Access the resource over a PrivateLink [ec-access-the-deployment-over-private-link]
+
+For traffic to connect with the deployment or project over AWS PrivateLink, the client making the request needs to be located within the VPC where you’ve created the VPC endpoint. You can also set up network traffic to flow through the originating VPC from somewhere else, such as another VPC or VPN from your corporate network. This assumes that the VPC endpoint and the DNS record are also available within that context. Check your service provider documentation for setup instructions.
+
+::::{important}
+Use the alias you’ve set up as CNAME DNS record to access your resource.
+::::
+
+:::::{applies-switch}
+::::{applies-item} ess: ga
+:::{include} _snippets/private-url-struct.md
+:::
+
+{{ech}} supports ports `443` and `9243` for Elasticsearch and Kibana traffic. Remote cluster traffic for cross-cluster search and cross-cluster replication uses port `9400` with the TLS certificate based security model, or `9443` with the API key based model. Refer to [Connection paths and private connectivity](/deploy-manage/remote-clusters.md#remote-clusters-connection-paths) for the supported combinations.
+::::
+::::{applies-item} serverless: ga
+:::{include} _snippets/private-url-struct-serverless.md
+:::
+::::
+:::::
+
+:::{tip}
+Private hosted zone domain names differ between {{ech}} and {{serverless-full}}, even if the region is the same.
+:::
+
+To access the deployment or project:
+
+1. If needed, find the endpoint of an application in your deployment or project:
+
+    :::::{applies-switch}
+    :::: {applies-item} ess: ga
+    :::{include} _snippets/find-endpoint.md
+    :::
+    ::::
+    :::: {applies-item} serverless: ga
+    :::{include} _snippets/find-endpoint-serverless.md
+    :::
+    ::::
+    :::::
+
+2. Send a request:
+
+    ::::{applies-switch}
+    :::{applies-item} ess: ga
+    **Request**
+
+    ```sh
+    $ curl -v https://my-deployment-d53192.es.vpce.us-east-1.aws.elastic-cloud.com -u {username}:{password}
+    ```
+
+    **Response**
+
+    ```sh
+    * Server certificate:
+    *  subject: CN=*.us-east-1.aws.elastic-cloud.com
+    *  SSL certificate verify ok.
+    ..
+        < HTTP/1.1 200 OK
+    ..
+    {
+        "name" : "instance-0000000009",
+        "cluster_name" : "fb7e805e5cfb4931bdccc4f3cb591f5f",
+        "cluster_uuid" : "2cTHeCQYS2a0iH7YnQHrIQ",
+        "version" : { ... },
+        "tagline" : "You Know, for Search"
+    }
+    ```
+    :::
+    :::{applies-item} serverless: ga
+    **Request**
+
+    ```sh
+    $ curl -v https://my-project-d53192.es.private.us-east-1.aws.elastic.cloud -u {username}:{password}
+    ```
+
+    **Response**
+
+    ```sh
+    * Server certificate:
+    *  subject: CN=*.us-east-1.aws.elastic.cloud
+    *  SSL certificate verify ok.
+    ..
+        < HTTP/1.1 200 OK
+    ..
+    {
+        "name" : "instance-0000000009",
+        "cluster_name" : "fb7e805e5cfb4931bdccc4f3cb591f5f",
+        "cluster_uuid" : "2cTHeCQYS2a0iH7YnQHrIQ",
+        "version" : { ... },
+        "tagline" : "You Know, for Search"
+    }
+    ```
+    :::
+    ::::
+
+
+
+### AWS PrivateLink and Fleet
+
+:::::{applies-switch}
+
+::::{applies-item} ech: ga
+:::{include} _snippets/private-connection-fleet.md
+:::
+::::
+
+::::{applies-item} serverless: ga
+When a private connection is set up for your project, {{fleet}} adds two entries that can route {{agent}} traffic over AWS PrivateLink:
+
+* A {{fleet-server}} host named **Private Fleet Server**, listed in the **Fleet server hosts** section.
+* An {{es}} output named **Private Elasticsearch Output**, listed in the **Outputs** section.
+
+Both entries appear on the **Fleet** → **Settings** page with an **AWS PrivateLink** badge, and they point to the private endpoints of your project. Elastic manages their names and URLs, so you can't change them. Neither entry is used until you select it, either as the default for all agent policies or in an individual policy.
+
+To send data from all agent policies over the private connection:
+
+1. Go to **Fleet** → **Settings**.
+2. In the **Fleet server hosts** section, select **Edit** for **Private Fleet Server**, then select **Make this Fleet server the default one**.
+3. In the **Outputs** section, select **Edit** for **Private Elasticsearch Output**, then select **Make this output the default for agent integrations**. To also send agent monitoring data over the private connection, select **Make this output the default for agent monitoring**.
+4. Save your changes.
+
+To send data from a single agent policy over the private connection, and leave the remaining policies on the public endpoints:
+
+1. Go to **Fleet** → **Agent policies**, then select the policy you want to change.
+2. On the **Settings** tab, set **Fleet Server** to **Private Fleet Server**.
+3. Set **Output for integrations** and, optionally, **Output for agent monitoring** to **Private Elasticsearch Output**.
+4. Save your changes.
+
+A selection made in an agent policy takes precedence over the defaults on the **Settings** page.
+
+If the private connection is later removed from your project, {{fleet}} restores the public {{fleet-server}} host and output as the defaults and deletes the private entries. Agent policies that used a private entry revert to the default, so {{agents}} continue to reach a valid endpoint.
+
+:::{admonition} Limitations
+* You can't create another {{es}} output that points to the private endpoint. Only the output that {{fleet}} adds can use that URL.
+* {{managed-integrations}} don't use the private endpoints. Elastic runs their collectors and writes the data to your project over Elastic's internal network. For more information, refer to [Security and data residency](/manage-data/ingest/managed-integrations/managed-integrations.md#managed-integrations-data-security).
+:::
+::::
+
+:::::
+
+## Setting up a cross-region PrivateLink connection [ec-aws-inter-region-private-link]
+
+AWS supports cross-region PrivateLink as described on the [AWS blog](https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cross-region-connectivity-for-aws-privatelink/).
+
+This means your deployment or project on {{ecloud}} can be in a different region than the PrivateLink endpoints or the clients that consume the deployment or project endpoints.
+
+### Supported source regions
+
+You can set up a cross-region PrivateLink connection from any AWS region where AWS supports cross-region PrivateLink to any [AWS region where {{ecloud}} is available](#ec-private-link-service-names-aliases). For more information about how cross-region PrivateLink works, including opt-in region requirements and other considerations, refer to [Cross-Region access](https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html#endpoint-service-cross-region) in the AWS documentation.
+
+Cross-region PrivateLink [does not cross AWS partition boundaries](https://aws.amazon.com/about-aws/whats-new/2024/11/aws-privatelink-across-region-connectivity/). You can't establish a cross-region PrivateLink connection between commercial AWS regions and AWS GovCloud or AWS China regions.
+
+If a specific source region isn't working, [contact Elastic Support](/troubleshoot/index.md#contact-us).
+
+### Set up a cross-region PrivateLink connection
+
+In this example, `region 1` contains your VPC endpoint and `region 2` is the region where your deployment or project is hosted.
+
+1. Begin to create your VPC endpoint in `region 1`, as described in [Create your VPC endpoint and DNS entries in AWS](#ec-aws-vpc-dns). In the service settings, do the following:
+
+    * In the **Service name** field, enter the [VPC service name](#ec-private-link-service-names-aliases) for `region 2`.
+    * Select **Enable Cross Region endpoint** and select `region 2` from the **Select a region** drop-down list.
+
+2. [Create a private connection policy](#create-private-connection-policy) in the region where your deployment or project is hosted (`region 2`), and [associate it](#associate-private-connection-policy) with your deployment or project.
+
+3. [Test the connection](#ec-access-the-deployment-over-private-link) from a VM or client in `region 1` to your Private Link endpoint, and it should be able to connect to your {{es}} deployment or project hosted in `region 2`.
+
+## Manage private connection policies
+
+After you create your private connection policy, you can edit it, remove it from your deployment or project, or delete it.
+
+### Edit a private connection policy [edit-private-connection-policy]
+
+You can edit a policy's name, description, VPC endpoint ID, and more.
+
+:::{include} _snippets/network-security-page.md
+:::
+3. Find the policy you want to edit, then click the **Edit** {icon}`pencil` button.
+4. Click **Update** to save your changes.
+
+:::{tip}
+You can also edit private connection policies from your deployment or project's **Security** page or your project's **Network security** page.
+:::
+
+### Remove a private connection policy from your deployment or project [remove-private-connection-policy]
+
+If you want to remove a specific policy from a deployment or project, or delete the policy, then you need to disconnect it from any associated deployments or projects first. You can do this from the policy's settings, or from your deployment or project's settings. To remove an association through the UI:
+
+#### From your deployment or project
+
+::::{applies-switch}
+:::{applies-item} ess: ga
+1. Find your deployment on the home page or on the **Hosted deployments** page, then select **Manage** to access its settings menus.
+
+    On the **Hosted deployments** page you can narrow your deployments by name, ID, or choose from several other filters. To customize your view, use a combination of filters, or change the format from a grid to a list.
+2. On the **Security** page, under **Network security**, find the policy that you want to disconnect.
+3. Under **Actions**, click the **Delete** icon.
+:::
+:::{applies-item} serverless: ga
+1. Find your project on the home page or on the **Serverless projects** page, then select **Manage** to access its settings menus.
+
+   On the **Serverless projects** page, you can narrow your projects by name, ID, or choose from several other filters. To customize your view, use a combination of filters, or change the format from a grid to a list.
+2. On the **Security** page, under **Network security**, find the policy that you want to disconnect.
+3. Under **Actions**, click the **Delete** icon.
+:::
+::::
+
+#### From the private connection policy settings
+
+:::{include} _snippets/network-security-page.md
+:::
+3. Find the policy you want to edit, then click the **Edit** {icon}`pencil` button.
+4. Under **Apply to resources**, click the `x` beside the resource that you want to disconnect.
+5. Click **Update** to save your changes.
+
+
+### Delete a private connection policy [delete-private-connection-policy]
+
+If you need to remove a policy, you must first remove any associations with deployments or projects.
+
+To delete a policy:
+
+:::{include} _snippets/network-security-page.md
+:::
+3. Find the policy you want to edit, then click the **Delete** icon. The icon is inactive if there are deployments or projects associated with the policy.

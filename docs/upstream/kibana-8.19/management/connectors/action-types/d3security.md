@@ -1,0 +1,48 @@
+<!-- Converted from management/connectors/action-types/d3security.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## D3 Security connector and action
+
+The D3 Security connector uses [axios](https://github.com/axios/axios) to send a POST request to a D3 Security endpoint. You can use the connector for rule actions.
+
+To create this connector, you must first configure a webhook key in your D3 SOAR environment. For configuration tips, refer to configure-d3security.
+
+### Create connectors in Kibana
+
+You can create connectors in *{stack-manage-app} > {connectors-ui}*.  For example:
+
+(Figure: management/connectors/images/d3security-connector.png)
+
+#### Connector configuration
+
+D3 Security connectors have the following configuration properties:
+
+Name::      The name of the connector.
+URL::   The D3 Security API request URL.
+Token::   The D3 Security token.
+
+### Test connectors
+
+You can test connectors as you're creating or editing the connector in Kibana. For example:
+
+(Figure: management/connectors/images/d3security-params-test.png)
+
+The D3 Security actions have the following configuration properties.
+
+Body::      A typeless payload sent to the D3 Security API URL. For example:
+this can be any type, it is not validated
+
+### Connector networking configuration
+
+Use the Action configuration settings to customize connector networking configurations, such as proxies, certificates, or TLS settings. You can set configurations that apply to all your connectors or use `xpack.actions.customHostSettings` to set per-host configurations.
+
+### Configure D3 Security
+
+To generate an API URL and a token in D3 Security:
+
+1. Log in to your D3 SOAR environment.
+2. Navigate to *Configuration*.
+3. Navigate to *Integration*. Search for Kibana. Click *Fetch Event*.
+4. Select the *Enable Webhook* checkbox.
+5. Click *Set up Webhook Keys*.
+6. Under *Event Ingestion*, click the plus sign(+). Select the site for the webhook integration, then click *Generate*.
+7. Copy the request URL and request header value to configure the connector.

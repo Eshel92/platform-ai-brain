@@ -1,0 +1,13 @@
+<!-- Converted from settings/cases-settings.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Cases settings in Kibana
+
+You do not need to configure any additional settings to use cases in Kibana.
+To provide greater control over case features, you can configure the following settings in the `kibana.yml` file:
+
+`xpack.cases.files.allowedMimeTypes`::
+The MIME types that you can attach to a case, represented in an array of strings. For example: `['image/tiff','text/csv','application/zip'].`
+The default MIME types are specified in {kib-repo}blob/{branch}/x-pack/platform/plugins/shared/cases/common/constants/mime_types.ts[mime_types.ts].
+
+`xpack.cases.files.maxSize`::
+The size limit for files that you can attach to a case, represented as the number of bytes. By default, the limit is 10 MiB for images and 100 MiB for all other MIME types. If you specify a value for this setting, it affects all file types.

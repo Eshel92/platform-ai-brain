@@ -431,15 +431,33 @@ class RstConverter:
         return "".join(parts)
 
 
-# ---------------------------------------------------------------- Cassandra AsciiDoc (Antora)
+# ---------------------------------------------------------------- AsciiDoc (Cassandra / Antora, Elastic 8.x)
+
+MAX_INLINE = 30_000  # an include bigger than this becomes a pointer instead of being pasted in
+MAX_PAGE = 1_000_000  # a converted page bigger than this falls back to its raw source
+MAX_TOTAL = 400_000_000  # a whole conversion bigger than this stops with an error
+
+
+def pick_tags(body: str, include_attrs: str) -> str:
+    """Keep only the tagged regions an include asks for (`tag=x` / `tags=x;y`), then drop tag markers."""
+    tags = re.search(r"tags?=([\w;,-]+)", include_attrs)
+    if tags:
+        picked = []
+        for tag in re.split(r"[;,]", tags.group(1)):
+            found = re.search(rf"tag::{re.escape(tag)}\[\][^\n]*\n(.*?)\n[^\n]*end::{re.escape(tag)}\[\]", body, re.S)
+            if found:
+                picked.append(found.group(1))
+        body = "\n".join(picked) if picked else body
+    return "\n".join(l for l in body.split("\n") if not re.search(r"(tag|end)::[\w-]+\[\]", l))
 
 class AdocConverter:
     """Converts an Antora `doc/` folder: modules/<module>/pages/**/*.adoc become <module>/<page>.md."""
 
     ADMON = {"NOTE": "Note", "TIP": "Tip", "IMPORTANT": "Important", "WARNING": "Warning", "CAUTION": "Caution"}
 
-    def __init__(self, source: Path):
-        self.src = source
+    def __init__(self, source: Path, attrs: dict | None = None):
+        self.src = source.resolve()
+        self.base_attrs = dict(attrs or {})
         self.notes: set[str] = set()
 
     def pages(self) -> list[Path]:
@@ -464,23 +482,14 @@ class AdocConverter:
             path = self.resolve(m.group(1), page)
             if not path or depth > 6:
                 return f"(Include not available offline: {m.group(1)})"
-            body = path.read_text(encoding="utf-8", errors="replace")
-            tags = re.search(r"tags?=([\w;,-]+)", m.group(2))
-            if tags:
-                picked = []
-                for tag in re.split(r"[;,]", tags.group(1)):
-                    found = re.search(rf"tag::{re.escape(tag)}\[\]\s*\n(.*?)\n.*?end::{re.escape(tag)}\[\]", body, re.S)
-                    if found:
-                        picked.append(found.group(1))
-                body = "\n".join(picked) or body
-            body = "\n".join(l for l in body.split("\n") if not re.search(r"(tag|end)::[\w-]+\[\]", l))
+            body = pick_tags(path.read_text(encoding="utf-8", errors="replace"), m.group(2))
             return self.expand(body, path if path.suffix == ".adoc" else page, depth + 1)
 
-        return re.sub(r"^include::([^\[]+)\[([^\]]*)\]\s*$", include, text, flags=re.M)
+        return re.sub(r"^include::([^\[\n]+)\[([^\]\n]*)\]\s*$", include, text, flags=re.M)
 
     def convert_page(self, page: Path) -> str:
         text = self.expand(page.read_text(encoding="utf-8", errors="replace"), page)
-        attrs, out, fence, admon, lang = {}, [], None, None, ""
+        attrs, out, fence, admon, lang, comment = dict(self.base_attrs), [], None, None, "", False
         for line in text.split("\n"):
             if fence:
                 if line.strip() == fence:
@@ -489,6 +498,13 @@ class AdocConverter:
                 else:
                     out.append(line)
                 continue
+            if line.strip() in ("////", "++++"):  # comment and raw-HTML passthrough blocks
+                comment = not comment
+                continue
+            if line.strip() in ("--", "+"):  # open-block delimiters and list continuations
+                continue
+            if comment or re.match(r"^\[\[[^\]]*\]\]$", line.strip()) or re.match(r"^ifeval::", line):
+                continue
             m = re.match(r"^:([\w-]+):\s*(.*)$", line)
             if m:
                 attrs[m.group(1)] = m.group(2)
@@ -496,9 +512,12 @@ class AdocConverter:
             if re.match(r"^\[source,\s*([\w+-]+).*\]$", line.strip()):
                 lang = re.match(r"^\[source,\s*([\w+-]+)", line.strip()).group(1)
                 continue
-            if line.strip() in ("----", "...."):
+            if re.fullmatch(r"-{4,}|\.{4,}", line.strip()):
                 out.append(f"```{lang}")
                 fence, lang = line.strip(), ""
+                continue
+            if re.match(r"^\.[A-Za-z]", line):  # block title
+                out.append(f"**{self.inline(line[1:].strip(), attrs)}**")
                 continue
             m = re.match(r"^\[(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$", line.strip())
             if m:
@@ -515,11 +534,11 @@ class AdocConverter:
                 continue
             m = re.match(r"^(=+)\s+(.*)$", line)
             if m:
-                out += ["", "#" * min(len(m.group(1)), 6) + " " + m.group(2), ""]
+                out += ["", "#" * min(len(m.group(1)), 6) + " " + self.inline(m.group(2), attrs), ""]
                 continue
             m = re.match(r"^(NOTE|TIP|IMPORTANT|WARNING|CAUTION):\s*(.*)$", line)
             if m:
-                out.append(f"**{self.ADMON[m.group(1)]}:** {m.group(2)}")
+                out.append(f"**{self.ADMON[m.group(1)]}:** {self.inline(m.group(2), attrs)}")
                 continue
             if line.startswith("image::"):
                 out.append(f"(Figure: {line[7:].split('[')[0]})")
@@ -539,21 +558,163 @@ class AdocConverter:
         return re.sub(r"\+\+?([^+\n]+?)\+\+?", r"\1", line)
 
 
-def convert_tree(kind: str, source: Path, out: Path) -> tuple[int, set[str]]:
-    """Convert every page under `source` into `out`. Returns (pages written, notes)."""
-    converter = RstConverter(source) if kind == "rst" else AdocConverter(source)
-    count = 0
+ELASTIC_ATTRS = {  # the usual product-name attributes from Elastic's shared AsciiDoc settings
+    "es": "Elasticsearch", "kib": "Kibana", "ls": "Logstash", "beats": "Beats", "stack": "Elastic Stack",
+    "ecloud": "Elastic Cloud", "ess": "Elasticsearch Service", "ece": "Elastic Cloud Enterprise",
+    "eck": "Elastic Cloud on Kubernetes", "agent": "Elastic Agent", "fleet": "Fleet", "fleet-server": "Fleet Server",
+    "ml": "machine learning", "ml-cap": "Machine learning", "ml-init": "ML",
+    "ilm": "index lifecycle management", "ilm-cap": "Index lifecycle management", "ilm-init": "ILM",
+    "slm": "snapshot lifecycle management", "slm-cap": "Snapshot lifecycle management", "slm-init": "SLM",
+    "ccr": "cross-cluster replication", "ccr-cap": "Cross-cluster replication", "ccr-init": "CCR",
+    "ccs": "cross-cluster search", "ccs-cap": "Cross-cluster search", "ccs-init": "CCS",
+    "dfeed": "datafeed", "dfeeds": "datafeeds", "dfeed-cap": "Datafeed", "dfeeds-cap": "Datafeeds",
+    "anomaly-detect": "anomaly detection", "anomaly-job": "anomaly detection job", "anomaly-jobs": "anomaly detection jobs",
+    "dataframe": "data frame", "dataframes": "data frames", "transform": "transform", "transforms": "transforms",
+    "transform-cap": "Transform", "transforms-cap": "Transforms", "esql": "ES|QL", "xpack": "X-Pack",
+    "security-features": "security features", "observability": "Observability", "elastic-sec": "Elastic Security",
+    "apm": "APM", "kibana": "Kibana", "elasticsearch": "Elasticsearch", "infer": "inference",
+    "api-request-title": "Request", "api-prereq-title": "Prerequisites", "api-description-title": "Description",
+    "api-path-parms-title": "Path parameters", "api-query-parms-title": "Query parameters",
+    "api-request-body-title": "Request body", "api-response-body-title": "Response body",
+    "api-response-codes-title": "Response codes", "api-examples-title": "Examples",
+    "api-definitions-title": "Properties", "yes-icon": "✓", "no-icon": "✗",
+    "es-pull": "https://github.com/elastic/elasticsearch/pull/", "es-issue": "https://github.com/elastic/elasticsearch/issues/",
+    "kib-pull": "https://github.com/elastic/kibana/pull/", "kib-issue": "https://github.com/elastic/kibana/issues/",
+    "api-es": "https://www.elastic.co/docs/api/doc/elasticsearch", "api-kibana": "https://www.elastic.co/docs/api/doc/kibana",
+    "wikipedia": "https://en.wikipedia.org/wiki", "watcher": "Watcher", "ess-icon": "",
+}
+
+
+class AsciidocTreeConverter(AdocConverter):
+    """Plain AsciiDoc trees (Elastic 8.x docs): every .asciidoc/.adoc file becomes <same path>.md.
+
+    Includes of small snippet files are inlined; includes of whole chapters (files with their own
+    heading) become a pointer to that chapter's .md, so index pages don't balloon.
+    """
+
+    def __init__(self, source: Path, attrs: dict | None = None):
+        source = source.resolve()
+        root = next((p for p in [source, *source.parents] if (p / ".git").exists()), source)
+        dirs = {"es-repo-dir": str(root), "es-ref-dir": str(root / "docs" / "reference"),
+                "kib-repo-dir": str(root / "docs"), "kibana-root": str(root), "elasticsearch-root": str(root)}
+        super().__init__(source, {**ELASTIC_ATTRS, **dirs, **(attrs or {})})
+
+    def pages(self) -> list[Path]:
+        return sorted(p for p in self.src.rglob("*") if p.suffix in (".asciidoc", ".adoc") and p.is_file())
+
+    def out_name(self, page: Path) -> str:
+        return page.relative_to(self.src).with_suffix(".md").as_posix()
+
+    def resolve(self, target: str, page: Path) -> Path | None:
+        attrs = {**self.base_attrs, "docdir": str(self.src)}  # Asciidoctor: the root document's folder
+        target = re.sub(r"\{([\w-]+)\}", lambda m: attrs.get(m.group(1), m.group(0)), target)
+        path = Path(target) if Path(target).is_absolute() else page.parent / target
+        return path if path.is_file() else None
+
+    def expand(self, text: str, page: Path, depth: int = 0) -> str:
+        def include(m: re.Match) -> str:
+            path = self.resolve(m.group(1), page)
+            if not path or depth > 6:
+                return f"(Include not available offline: {m.group(1)})"
+            body = pick_tags(path.read_text(encoding="utf-8", errors="replace"), m.group(2))
+            # A chapter with its own heading, or anything big: point to it instead of pasting it in.
+            if re.search(r"^=+ \S", body, re.M) or len(body) > MAX_INLINE:
+                try:
+                    return f"(See `{path.relative_to(self.src).with_suffix('.md').as_posix()}`)"
+                except ValueError:
+                    return f"(See {path.name})"
+            return self.expand(body, path, depth + 1)
+
+        return re.sub(r"^include::([^\[\n]+)\[([^\]\n]*)\]\s*$", include, text, flags=re.M)
+
+
+class MarkdownConverter:
+    """Markdown trees: fills in {{name}} substitutions from docset.yml (Elastic 9.x docs) and inlines
+    shared snippets (`:::{include} path` in Elastic docs, `{{< embed-md "file" >}}` in Redis docs)."""
+
+    def __init__(self, source: Path, attrs: dict | None = None):
+        self.src = source = source.resolve()
+        self.root = next((p for p in [source, *source.parents] if (p / ".git").exists()), source)
+        self.notes: set[str] = set()
+        self.subs: dict[str, str] = dict(attrs or {})
+        self.docs_root = self.root
+        for folder in [source, *source.parents]:
+            docset = folder / "docset.yml"
+            if docset.is_file():
+                self.docs_root = folder
+                if yaml is not None:
+                    try:
+                        data = yaml.safe_load(docset.read_text(encoding="utf-8")) or {}
+                        self.subs = {**{str(k): str(v) for k, v in (data.get("subs") or {}).items()}, **self.subs}
+                    except Exception:
+                        self.notes.add("docset.yml unreadable: {{substitutions}} left as is")
+                break
+            if folder == self.root:
+                break
+        self.embeds = next((p for p in [self.root / "content" / "embeds"] if p.is_dir()), None)
+
+    def pages(self) -> list[Path]:
+        return sorted(p for p in self.src.rglob("*.md") if p.is_file())
+
+    def include(self, target: str, page: Path, depth: int) -> str:
+        path = (self.docs_root / target.lstrip("/")) if target.startswith("/") else page.parent / target
+        if not path.is_file() or depth > 4:
+            return f"(Include not available offline: {target})"
+        body = path.read_text(encoding="utf-8", errors="replace")
+        if len(body) > MAX_INLINE:
+            return f"(See {target})"
+        return self.expand(body, path, depth + 1)
+
+    def expand(self, text: str, page: Path, depth: int = 0) -> str:
+        text = re.sub(r"^:::\{include\}\s+(\S+)\s*\n:::\s*$", lambda m: self.include(m.group(1), page, depth),
+                      text, flags=re.M)
+        if self.embeds:
+            def embed(m: re.Match) -> str:
+                path = self.embeds / m.group(1)
+                if not path.is_file() or depth > 4:
+                    return f"(Shared text not available offline: {m.group(1)})"
+                body = path.read_text(encoding="utf-8", errors="replace")
+                return f"(See shared text {m.group(1)})" if len(body) > MAX_INLINE else self.expand(body, path, depth + 1)
+            text = re.sub(r'\{\{<\s*embed-md\s+"([^"]+)"\s*>\}\}', embed, text)
+        return text
+
+    def convert_page(self, page: Path) -> str:
+        text = self.expand(page.read_text(encoding="utf-8", errors="replace"), page)
+        return re.sub(r"\{\{\s*([\w.-]+)\s*\}\}", lambda m: self.subs.get(m.group(1), m.group(0)), text)
+
+    def out_name(self, page: Path) -> str:
+        return page.relative_to(self.src).as_posix()
+
+
+CONVERTERS = {"rst": RstConverter, "adoc": AdocConverter, "asciidoc": AsciidocTreeConverter, "md": MarkdownConverter}
+
+
+def convert_tree(kind: str, source: Path, out: Path, keep=None, attrs: dict | None = None) -> tuple[int, set[str]]:
+    """Convert every page under `source` into `out`. `keep(rel)` filters pages by their path inside
+    `source`. Returns (pages written, notes)."""
+    source = source.resolve()
+    converter = RstConverter(source) if kind == "rst" else CONVERTERS[kind](source, attrs)
+    count = total = 0
     for page in converter.pages():
+        if total > MAX_TOTAL:
+            raise RuntimeError(f"conversion output passed {MAX_TOTAL // 1_000_000} MB: stopping, something is wrong")
+        if keep and not keep(page.relative_to(source).as_posix()):
+            continue
         if kind == "rst":
             target = out / page.relative_to(source).with_suffix(".md")
         else:
             target = out / converter.out_name(page)
         target.parent.mkdir(parents=True, exist_ok=True)
+        raw = page.read_text(encoding="utf-8", errors="replace")
         try:
-            target.write_text(converter.convert_page(page), encoding="utf-8")
+            text = converter.convert_page(page)
+            if len(text) > MAX_PAGE:  # something inlined far too much: keep the page as written upstream
+                text = "<!-- Too large after conversion; raw source follows. -->\n\n" + raw
+                converter.notes.add(f"raw (too large) for {page.name}")
         except Exception as error:  # one odd page shouldn't stop the sync; keep its raw text
-            target.write_text(f"<!-- Conversion failed ({error}); raw source follows. -->\n\n"
-                              + page.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+            text = f"<!-- Conversion failed ({error}); raw source follows. -->\n\n" + raw
             converter.notes.add(f"raw fallback for {page.name}")
+        target.write_text(text, encoding="utf-8")
+        total += len(text)
         count += 1
     return count, converter.notes

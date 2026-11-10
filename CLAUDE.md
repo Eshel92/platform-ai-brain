@@ -37,7 +37,7 @@ Version questions: `commons/knowledge/platform-versions.md` first.
 
 ## Writing rules
 
-- **Search first:** `grep -rilE '<terms>' --include='*.md' --exclude-dir=upstream .` Update an existing page rather than
+- **Search first:** `bash scripts/run.sh brain.py search <terms>` (or `grep -rilF` for an exact string). Update an existing page rather than
   adding a near-duplicate: set `last_verified` to today and add a `## History` line.
 - **Start from a template.** Header fields: `title`, `type`, `tags`, `applies_to`, `confidence`
   (decisions use `status`), `last_verified`, `owners`, `source`, and an optional `rule`.

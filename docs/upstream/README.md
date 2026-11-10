@@ -9,7 +9,7 @@ the air gap. One folder per product and version.
 
 Each folder has a `.upstream` file (where it came from) and the project's `LICENSE` when it has one.
 
-Almost everything is Markdown. MongoDB (reStructuredText) and Cassandra (AsciiDoc) are converted
+Almost everything is Markdown. MongoDB (reStructuredText), Cassandra and Elastic 8.x (AsciiDoc) are converted
 while syncing by `scripts/upstream_convert.py`: one self-contained `.md` per page, with includes,
 generated steps and placeholders filled in.
 

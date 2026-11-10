@@ -1,0 +1,32 @@
+<!-- Converted from user/security/access-agreement.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Access agreement
+
+Access agreement is a [subscription feature](https://www.elastic.co/subscriptions) that requires users to acknowledge and accept an
+agreement before accessing Kibana. The agreement text supports Markdown format and can be specified using the
+`xpack.security.authc.providers.<provider-type>.<provider-name>.accessAgreement.message` setting.
+
+You can specify a default access agreement  using the `xpack.security.accessAgreement.message` setting. 
+This message will be used for each provider who doesn't specify an access agreement.
+
+============================================================================
+You need to acknowledge the access agreement only once per session, and Kibana reports the acknowledgement in the audit logs.
+============================================================================
+
+Here is an example of defining an access agreement in `kibana.yml`:
+
+```yaml
+xpack.security.authc.providers:
+  basic.basic1:
+    order: 0
+    accessAgreement:
+      message: |
+        **You are accessing a system with sensitive information**
+
+        By logging in, you acknowledge that information system usage
+        ...(shortened)
+```
+
+When you authenticate using `basic.basic1`, you'll see the following agreement that you must acknowledge before you can access Kibana:
+
+(Figure: images/access-agreement.png)

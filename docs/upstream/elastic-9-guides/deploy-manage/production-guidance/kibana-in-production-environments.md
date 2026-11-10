@@ -1,0 +1,60 @@
+---
+navigation_title: Run {{kib}} in production
+applies_to:
+  deployment:
+    ess: all
+    ece: all
+    eck: all
+    self: all
+products:
+  - id: kibana
+  - id: cloud-hosted
+  - id: cloud-enterprise
+  - id: cloud-kubernetes
+---
+
+# Run {{kib}} in production
+
+How you deploy {{kib}} largely depends on your use case. If you are the only user, you can run {{kib}} on your local machine and configure it to point to whatever {{es}} instance you want to interact with. Conversely, if you have a large number of heavy {{kib}} users, you might need to load balance across multiple {{kib}} instances that are all connected to the same {{es}} cluster or deployment.
+
+## Scalability
+
+Scaling {{kib}} requires accounting for a mix of interactive UI traffic, API requests, and background work. The relative impact of each can vary depending on the features and solutions you use.
+
+Background work includes alerting rules, detection rules, reports, and other periodic tasks that [{{kib}} Task Manager](./kibana-task-manager-scaling-considerations.md) schedules, executes, and coordinates.
+
+Additionally, the task manager enables distributed coordination across multiple {{kib}} instances, allowing {{kib}} to function as a logical cluster in certain aspects.
+
+::::{important}
+* {{kib}} does not support rolling [upgrades](/deploy-manage/upgrade/deployment-or-cluster/kibana.md), and deploying mixed versions of {{kib}} can result in data loss or upgrade failures. Shut down all instances of {{kib}} before performing an upgrade, and ensure all running {{kib}} instances have matching versions.
+* While {{kib}} isn’t resource intensive, we still recommend running {{kib}} separate from  your {{es}} data or master nodes.
+::::
+
+## Section overview
+
+This section provides guidance on key configurations and optimizations for running {{kib}} in production environments. You’ll learn how to scale, secure, and optimize {{kib}} for high availability and performance, as well as how to manage background tasks and other features effectively.
+
+Topics covered include:
+
+* [High availability and traffic distribution](./kibana-load-balance-traffic.md): For self-managed deployments, learn how to load balance traffic across multiple {{kib}} instances, how to balance traffic to different deployments, and how to distribute {{kib}} traffic across multiple {{es}} instances.
+
+* [Scaling {{kib}} based on traffic](./kibana-traffic-scaling-considerations.md): Learn the quantity of CPU and memory resources needed by {{kib}} to handle expected traffic.
+
+* [Configure {{kib}} memory usage](./kibana-configure-memory.md): Configure {{kib}} memory limit in self-managed deployments.
+
+* [Manage {{kib}} background tasks](./kibana-task-manager-scaling-considerations.md): Learn how {{kib}} runs background tasks like alerting and reporting, and get guidance on scaling and throughput tuning for reliable task execution. Applicable to all deployment types.
+
+* [Optimize {{kib}} alerting performance](./kibana-alerting-production-considerations.md): Learn how {{kib}} runs alerting rules and actions using background tasks, and how to scale alerting by tuning task throughput and circuit breakers. Applicable to all deployment types.
+
+* [{{kib}} reporting production setup](./kibana-reporting-production-considerations.md): Learn how {{kib}} generates reports using a headless version of Chromium, and how to configure your environment securely for production, including sandboxing and OS compatibility.
+
+
+::::{note}
+Not all recommendations in this section apply to every [deployment type](/deploy-manage/deploy.md#choosing-your-deployment-type). Be sure to check the section headers or applicability notes to confirm whether a given configuration is relevant to your environment.
+::::
+
+
+In addition to the guidance provided in this section, other areas of the documentation cover important aspects for running {{kib}} in production, such as:
+
+* [Secure your cluster or deployment](/deploy-manage/security/secure-your-cluster-deployment.md)
+* [Authentication and authorization](/deploy-manage/users-roles/cluster-or-deployment-auth.md)

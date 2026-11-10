@@ -1,0 +1,9 @@
+<!-- Converted from user/reporting/reporting-pdf-limitations.asciidoc (AsciiDoc). Includes are inlined. -->
+
+We recommend using PNG/PDF reports to export moderate amounts of data only. The feature enables a high-level
+export capability, but it's not intended for bulk export. If you need to export several pages of image data,
+consider using multiple report jobs to export a small number of pages at a time. If the screenshot of exported
+dashboard contains a large number of pixels, consider splitting the large dashboard into smaller artifacts to
+use less memory and CPU resources.
+
+For the most reliable configuration of PDF/PNG {report-features}, consider installing Kibana using Docker or using Elastic Cloud.

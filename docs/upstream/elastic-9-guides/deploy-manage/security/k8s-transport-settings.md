@@ -1,0 +1,221 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-transport-settings.html
+applies_to:
+  deployment:
+    eck: all
+products:
+  - id: cloud-kubernetes
+---
+
+# Manage transport certificates on ECK [k8s-transport-settings]
+
+The transport module in {{es}} is used for internal communication between nodes within the cluster as well as communication between remote clusters. For more information, refer to [Networking settings](elasticsearch://reference/elasticsearch/configuration-reference/networking-settings.md). For customization options of the HTTP layer, refer to [Access services](../deploy/cloud-on-k8s/accessing-services.md) and [HTTP TLS certificates](./k8s-https-settings.md).
+
+:::{include} ./_snippets/own-ca-warning.md
+:::
+
+## Customize the Transport Service [k8s_customize_the_transport_service]
+
+In the `spec.transport.service.` section, you can change the Kubernetes service used to expose the {{es}} transport module:
+
+```yaml
+spec:
+  transport:
+    service:
+      metadata:
+        labels:
+          my-custom: label
+      spec:
+        type: LoadBalancer
+```
+
+Check the [Kubernetes Publishing Services (ServiceTypes)](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) that are currently available.
+
+Consider the following when customizing the Kubernetes services handled by ECK:
+
+* When you change the `clusterIP` setting of the service, ECK deletes and re-creates the service, as `clusterIP` is an immutable field. This causes a short network disruption, but it should not affect existing connections as the transport module uses long-lived TCP connections.
+
+* If you change the service’s `port` to expose a different port externally, set `targetPort` to `9300`, which is the default {{es}} transport interface port. Otherwise, Kubernetes uses the same value for both, resulting in failed connections.
+
+## Configure a custom Certificate Authority [k8s-transport-ca]
+
+{{es}} uses X.509 certificates to establish encrypted and authenticated connections between nodes in the cluster. By default, ECK creates a transport CA for each cluster and uses it to issue a certificate for each node in the cluster. Refer to [Transport layer security](/deploy-manage/security/secure-cluster-communications.md#encrypt-internode-communication) for more information.
+
+Instead of using the default ECK-generated CA, you can provide your own CA through a Kubernetes secret. ECK uses this CA to issue node certificates for transport connections. The CA certificate must be stored under `ca.crt` in the secret, and the private key under `ca.key`.
+
+To use your own CA, reference the secret containing the CA certificate and private key in the `spec.transport.tls.certificate` section of the {{es}} resource, as shown in the following example:
+
+```yaml
+spec:
+  transport:
+    tls:
+      certificate:
+        secretName: custom-ca
+```
+
+
+## Customize the node transport certificates [k8s_customize_the_node_transport_certificates]
+
+The operator generates TLS certificates for each node in the cluster. You can add extra IP addresses or DNS names to the generated certificates as follows:
+
+```yaml
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 8.16.1
+  transport:
+    tls:
+      subjectAltNames:
+      - ip: 1.2.3.4
+      - dns: hulk.example.com
+  nodeSets:
+  - name: default
+    count: 3
+```
+
+
+## Issue node transport certificates with third-party tools [k8s-transport-third-party-tools]
+
+When following the instructions in [Configure a custom Certificate Authority](#k8s-transport-ca) the issuance of certificates is orchestrated by the ECK operator and the operator needs access to the CAs private key. If this is undesirable it is also possible to configure node transport certificates without involving the ECK operator. The following two pre-requisites apply:
+
+1. The tooling used must be able to issue individual certificates for each {{es}} node and dynamically add or remove certificates as the cluster scales up and down.
+2. The ECK operator must be configured to be aware of the CA in use for the [remote cluster](../remote-clusters/eck-remote-clusters.md) support to work.
+
+The following example configuration using [cert-manager csi-driver](https://cert-manager.io/docs/projects/csi-driver/) and [trust-manager](https://cert-manager.io/docs/projects/trust-manager/) meets these two requirements:
+
+```yaml
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 8.16.1
+  transport:
+    tls:
+      certificateAuthorities:
+        configMapName: trust <2>
+      selfSignedCertificates:
+        disabled: true <1>
+  nodeSets:
+  - name: default
+    count: 3
+    config:
+      xpack.security.transport.ssl.key: /usr/share/elasticsearch/config/cert-manager-certs/tls.key
+      xpack.security.transport.ssl.certificate: /usr/share/elasticsearch/config/cert-manager-certs/tls.crt
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          volumeMounts:
+          - name: transport-certs
+            mountPath: /usr/share/elasticsearch/config/cert-manager-certs
+        volumes:
+        - name: transport-certs
+          csi:
+            driver: csi.cert-manager.io
+            readOnly: true
+            volumeAttributes:
+              csi.cert-manager.io/issuer-name: ca-cluster-issuer <2>
+              csi.cert-manager.io/issuer-kind: ClusterIssuer
+              csi.cert-manager.io/dns-names: "${POD_NAME}.${POD_NAMESPACE}.svc.cluster.local" <3>
+```
+
+1. Disables the default certificates generated by ECK for the transport layer.
+2. The example assumes that a `ClusterIssuer` by the name of `ca-cluster-issuer` exists and a PEM encoded version of the CA certificate is available in a ConfigMap (in the example named `trust`).  The CA certificate must be in a file called `ca.crt` inside the ConfigMap in the same namespace as the {{es}} resource.
+3. If the remote cluster server is enabled, additional DNS names and nodeSet configuration are required. For details, refer to [Configure remote cluster server with externally managed certificates](#rcs-third-party).
+
+The following manifest is only provided to illustrate how these certificates can be configured in principle, using the trust-manager Bundle resource and cert-manager provisioned certificates:
+
+```yaml
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: trust
+spec:
+  sources:
+  - secret:
+      name: "root-ca-secret"
+      key: "tls.crt"
+  target:
+    configMap:
+      key: "ca.crt"
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {} <1>
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ca-cluster-issuer
+spec:
+  ca:
+    secretName: root-ca-secret
+...
+```
+
+1. This example uses a self-signed issuer for the root CA and a second issuer for the {{es}} cluster transport certificates as the cert-manager CSI driver does not support self-signed CAs.
+
+
+When transitioning from a configuration that uses externally provisioned certificates back to ECK-managed self-signed transport certificates it is important to ensure that the externally provisioned CA remains configured as a trusted CA through the `.spec.transport.tls.certificateAuthorities` attribute until all nodes in the cluster have been updated to use the ECK-managed certificates. When transitioning from ECK-managed certificates to externally provisioned ones, ECK ensures automatically that the ECK CA remains configured until the transition has been completed.
+
+### Configure remote cluster server with externally managed certificates [rcs-third-party]
+
+If you enable the remote cluster server interface for [Remote clusters](/deploy-manage/remote-clusters/eck-remote-clusters-landing.md) with API key-based authentication and use third-party tools to issue transport certificates, you must apply additional configuration beyond the settings shown in the previous example:
+
+* Extend the certificate SANs to cover the remote cluster service and Pod FQDNs:
+  * `<cluster-name>-es-remote-cluster.${POD_NAMESPACE}.svc`
+  * `${POD_NAME}.<cluster-name>-es-<nodeset-name>.${POD_NAMESPACE}.svc`
+* Configure the `xpack.security.remote_cluster_server.ssl.key` and `xpack.security.remote_cluster_server.ssl.certificate` settings in every nodeSet.
+
+The following manifest shows a complete configuration for a cluster named `quickstart` with a single nodeSet named `default`:
+
+```yaml
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 8.16.1
+  remoteClusterServer:
+    enabled: true
+  transport:
+    tls:
+      certificateAuthorities:
+        configMapName: trust
+      selfSignedCertificates:
+        disabled: true
+  nodeSets:
+  - name: default
+    count: 3
+    config:
+      xpack.security.transport.ssl.key: /usr/share/elasticsearch/config/cert-manager-certs/tls.key
+      xpack.security.transport.ssl.certificate: /usr/share/elasticsearch/config/cert-manager-certs/tls.crt
+      xpack.security.remote_cluster_server.ssl.key: /usr/share/elasticsearch/config/cert-manager-certs/tls.key <1>
+      xpack.security.remote_cluster_server.ssl.certificate: /usr/share/elasticsearch/config/cert-manager-certs/tls.crt <1>
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          volumeMounts:
+          - name: transport-certs
+            mountPath: /usr/share/elasticsearch/config/cert-manager-certs
+        volumes:
+        - name: transport-certs
+          csi:
+            driver: csi.cert-manager.io
+            readOnly: true
+            volumeAttributes:
+              csi.cert-manager.io/issuer-name: ca-cluster-issuer
+              csi.cert-manager.io/issuer-kind: ClusterIssuer
+              csi.cert-manager.io/dns-names: "${POD_NAME}.${POD_NAMESPACE}.svc.cluster.local,quickstart-es-remote-cluster.${POD_NAMESPACE}.svc,${POD_NAME}.quickstart-es-default.${POD_NAMESPACE}.svc" <2>
+```
+1. The remote cluster server endpoint uses the same certificate as the transport endpoint.
+2. The DNS names include the Pod FQDNs and the remote cluster service FQDN.
+

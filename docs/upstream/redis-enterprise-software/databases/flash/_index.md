@@ -1,0 +1,162 @@
+---
+Title: Flex and Auto Tiering
+alwaysopen: false
+categories:
+- docs
+- operate
+- rs
+- rc
+description: Flex and Auto Tiering enable your data to span both RAM and dedicated flash memory.
+hideListLinks: true
+linktitle: Flex and Auto Tiering
+weight: 50
+aliases: /operate/rs/databases/auto-tiering/
+---
+
+{{<banner-article>}}
+This article includes a general overview of Flex and its predecessor Auto Tiering. For more detailed information about Flex, see the dedicated [Flex databases](/content/operate/rs/flex/_index.md) section instead.
+{{</banner-article>}}
+
+[Flex](/content/operate/rs/flex/_index.md) and Auto Tiering in Redis Software enable databases to use solid state drives (SSDs) to extend beyond DRAM capacity.
+Developers can build applications that require large datasets using the same Redis API.
+Using SSDs can significantly reduce the infrastructure costs compared to only DRAM deployments. 
+
+Frequently used data, called hot data, belongs in the fastest memory level to deliver a real-time user experience.
+Data that is accessed less frequently, called warm data, can be kept in a slightly slower memory tier.
+Flex maintains hot data in DRAM, keeps warm data in SSDs, and transfers data between tiers automatically.
+
+Flex is based on a high-performance storage engine (Speedb) that manages the complexity of using SSDs and DRAM as the total available memory for databases in a Redis Software cluster. This implementation offers a performance boost of up to 10k operations per second per core of the database, doubling the performance of Redis on Flash.
+
+Just like all-RAM databases, Flex databases are compatible with existing Redis applications.
+
+Flex is also supported on [Redis Cloud](/content/operate/rc/_index.md) and [Redis Enterprise Software for Kubernetes](/content/operate/kubernetes/flex/_index.md).
+
+## Flex versus Auto Tiering
+
+Flex is the enhanced successor to Auto Tiering, generally available as of Redis Software version 8.0.2.
+
+Redis database versions support Flex and Auto Tiering as follows:
+
+| Redis database version | Flex | Auto Tiering |
+|------------------------|------------|--------------|
+| 8.0 and later | <span title="Supported">&#x2705;</span> | <span title="Not supported">&#x274c;</span> |
+| 7.4 | <span title="Supported">&#x2705;</span> | <span title="Supported">&#x2705;</span>|
+| 7.2 and earlier | <span title="Not supported">&#x274c;</span> | <span title="Supported">&#x2705;</span> |
+
+Flex requires the Speedb driver, while Auto Tiering can use either RocksDB or Speedb. See [Manage Auto Tiering storage engine](/content/operate/rs/databases/flash/storage-engine.md) for more information.
+
+## Use cases
+
+The benefits associated with Flex and Auto Tiering are dependent on the use case.
+
+Flex and Auto Tiering are ideal when your:
+
+- working set is significantly smaller than your dataset (high RAM hit rate)
+- average key size is smaller than average value size
+- most recent data is the most frequently used (high RAM hit rate)
+
+Flex and Auto Tiering are not recommended for:
+
+- A large number of keys or long key names. With Auto Tiering, all key names are stored in RAM regardless of whether their values are on flash. High key count alone can exhaust the RAM limit even when individual key names are short.
+- Broad access patterns (any value could be pulled into RAM).
+- Large working sets (working set is stored in RAM).
+- Frequently moved data (moving to and from RAM too often can impact performance).
+- Large collection types (hashes, sets, or lists with millions of elements) whose total serialized size approaches or exceeds the RAM limit. Unlike scalar values, large collections cannot be partially offloaded to flash and must fit in RAM when accessed.
+
+Flex and Auto Tiering are not intended to be used for persistent storage. Redis Software database persistent and ephemeral storage should be on different disks, either local or attached.
+
+## Where is my data?
+
+When using Flex, RAM storage holds:
+- Key indexes
+- Dictionaries
+- Hot data (working set), including frequently accessed keys and values
+
+All data is accessed through RAM. If a key or value in flash memory is accessed, it becomes part of the working set and is moved to RAM. This data is referred to as "hot data".
+
+Inactive or infrequently accessed data is referred to as "warm data" and stored in flash memory. When more space is needed in RAM, warm keys and values are moved from RAM to flash storage.
+
+> [!NOTE]
+>  When using Auto Tiering with Redis Search, indexes are also stored in RAM.
+
+## RAM to Flash ratio
+
+Redis Software allows you to configure and tune the ratio of RAM-to-Flash for each database independently, optimizing performance for your specific use case.
+While this is an online operation requiring no downtime for your database, it is recommended to perform it during maintenance windows as data might move between tiers (RAM <-> Flash).
+
+The RAM limit cannot be smaller than 10% of the total memory. We recommend you keep at least 20% of all values in RAM. Do not set the RAM limit to 100%.
+
+## Flash memory
+
+Implementing Flex requires pre planning around memory and sizing. Considerations and requirements for Flex include:
+
+- Flash memory must be locally attached. Using network-attached storage (NAS), storage area networks (SAN), or solutions such as AWS Elastic Block Storage (EBS) is not supported. 
+- Flash memory must be dedicated to Flex and not shared with other parts of the database, such as durability, binaries, or persistence.
+- For the best performance, the SSDs should be NVMe based, but SATA can also be used.
+- For Auto Tiering, the available flash space must be greater than or equal to the total database size (RAM+Flash). The extra space accounts for write buffers and [write amplification](https://en.wikipedia.org/wiki/Write_amplification).
+- For Flex, flash space should be approximately three times the total memory limit of all Flex databases on the node. Because you can increase a database's memory limit after creation, size flash space for the expected peak memory limit.
+
+> [!NOTE]
+>  The Redis Software database persistent and ephemeral storage should be on different disks, either local or attached. 
+
+After these requirements are met, you can create and manage both Flex databases and
+all-RAM databases in the same cluster.
+
+When you begin planning the deployment of a Flex database in production,
+we recommend working closely with the Redis technical team for sizing and performance tuning.
+
+### Cloud environments
+
+When running in a cloud environment:
+
+- Flash memory is on the ephemeral SSDs of the cloud instance (for example the local NVMe of AWS i4i instances and Azure Lsv2 and Lsv3 series).
+- Persistent database storage needs to be network attached (for example, AWS EBS for AWS).
+
+> [!NOTE]
+> We specifically recommend "[Storage Optimized I4i - High I/O Instances](https://aws.amazon.com/ec2/instance-types/#storage-optimized)" because of the performance of NVMe for flash memory. 
+
+### On-premises environments
+
+When you begin planning the deployment of Flex in production, we recommend working closely with the Redis technical team for sizing and performance tuning.
+
+On-premises environments support more deployment options than other environments.
+
+The following table shows which data types and features are supported for Flex and Auto Tiering:
+
+| Data type/feature | Flex support | Auto Tiering support |
+|-------------------|--------------|----------------------|
+| [Active-Active databases](/content/operate/rs/databases/active-active/_index.md) | <span title="Not supported">&#x274c;</span> |<span title="Supported">&#x2705;</span> Requires Redis<br />technical team's approval |
+| [JSON](/content/develop/data-types/json/_index.md) | <span title="Supported">&#x2705;</span> | <span title="Supported">&#x2705;</span> |
+| [Probabilistic data structures](/content/develop/data-types/_index.md#probabilistic-data-types) | <span title="Supported">&#x2705;</span> | <span title="Supported">&#x2705;</span> |
+| [Redis Search](/content/operate/oss_and_stack/stack-with-enterprise/search/_index.md) | <span title="Supported">&#x2705;</span> | <span title="Supported">&#x2705;</span> |
+| Standard [Redis data types](/content/develop/data-types/_index.md) | <span title="Supported">&#x2705;</span> | <span title="Supported">&#x2705;</span> |
+| [Time series](/content/develop/data-types/timeseries/_index.md) | <span title="Not supported">&#x274c;</span> | <span title="Supported">&#x2705;</span> |
+
+> [!WARNING]
+> Flex is not supported running on network attached storage (NAS), storage area network (SAN), or with local HDD drives. 
+
+## Size limits for keys and values
+
+Flex databases cannot store keys or values larger than 4GB in flash storage.
+
+Keys or values larger than 4GB will be stored in RAM only, and warnings will appear in the Redis logs similar to:
+
+```sh
+# WARNING: key too big for disk driver, size: 4703717276, key: subactinfo:htable
+```
+
+If oversized keys consume the shard's available RAM, the shard can return out-of-memory errors even when flash storage has free space remaining.
+
+## Next steps
+
+- [Get started with Flex databases for Redis Software](/content/operate/rs/flex/get-started.md)
+
+- [Auto Tiering quick start](/content/operate/rs/databases/flash/quickstart.md)
+
+- [Ephemeral and persistent storage](/content/operate/rs/installing-upgrading/install/plan-deployment/persistent-ephemeral-storage.md)
+
+- [Plan a Flex deployment for Redis Software](/content/operate/rs/flex/plan.md)
+
+- [Hardware requirements](/content/operate/rs/installing-upgrading/install/plan-deployment/hardware-requirements.md)
+
+- [Flex and Auto Tiering metrics](/content/operate/rs/references/metrics/auto-tiering.md)

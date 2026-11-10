@@ -3,8 +3,9 @@ Platform AI Brain
 Everything outside docs/upstream/ was written for this team.
 
 docs/upstream/ contains text-only copies of third-party documentation, kept for offline use inside
-the team. The content is unchanged; the MongoDB and Cassandra docs were only converted to Markdown
-(includes inlined). Each folder keeps its own license:
+the team. The content is unchanged. Some folders were converted to Markdown (includes inlined,
+placeholders filled in): the MongoDB, Cassandra, Elasticsearch / Kibana 8.19, Elasticsearch 9.5 and
+Redis Enterprise docs. Each folder keeps its own license:
 
 - Each folder's LICENSE file (copied from the source repository), when the repository has one.
 - docs/upstream/VERSIONS.md lists every folder's source repository, commit and license.
@@ -16,3 +17,10 @@ as stated in that repository's README.
 
 The Dell Container Storage Modules folder (dell-csm-powerflex) comes from github.com/dell/csm-docs,
 licensed under the Apache License 2.0, as stated in that repository's README.
+
+The Elastic 9.x guides folder (elastic-9-guides) comes from github.com/elastic/docs-content, licensed
+under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0. Because that license allows no
+derivatives, those files are kept exactly as published (no conversion).
+
+The Redis Enterprise folder (redis-enterprise-software) comes from github.com/redis/docs, licensed under
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0.

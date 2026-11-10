@@ -1,0 +1,143 @@
+<!-- Converted from release-notes/highlights.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## What's new in {minor-version}
+
+coming::[{minor-version}]
+
+Here are the highlights of what's new and improved in Elasticsearch {minor-version}!
+For detailed information about this release, see the es-release-notes and
+breaking-changes.
+
+Other versions:
+
+{ref-bare}/8.18/release-highlights.html[8.18]
+| {ref-bare}/8.17/release-highlights.html[8.17]
+| {ref-bare}/8.16/release-highlights.html[8.16]
+| {ref-bare}/8.15/release-highlights.html[8.15]
+| {ref-bare}/8.14/release-highlights.html[8.14]
+| {ref-bare}/8.13/release-highlights.html[8.13]
+| {ref-bare}/8.12/release-highlights.html[8.12]
+| {ref-bare}/8.11/release-highlights.html[8.11]
+| {ref-bare}/8.10/release-highlights.html[8.10]
+| {ref-bare}/8.9/release-highlights.html[8.9]
+| {ref-bare}/8.8/release-highlights.html[8.8]
+| {ref-bare}/8.7/release-highlights.html[8.7]
+| {ref-bare}/8.6/release-highlights.html[8.6]
+| {ref-bare}/8.5/release-highlights.html[8.5]
+| {ref-bare}/8.4/release-highlights.html[8.4]
+| {ref-bare}/8.3/release-highlights.html[8.3]
+| {ref-bare}/8.2/release-highlights.html[8.2]
+| {ref-bare}/8.1/release-highlights.html[8.1]
+| {ref-bare}/8.0/release-highlights.html[8.0]
+
+### Upgrade `repository-s3` to AWS SDK v2
+
+In earlier versions of Elasticsearch the `repository-s3` plugin was based on the AWS SDK v1. AWS will withdraw support for this SDK before the end of the life of Elasticsearch {minor-version} so we have migrated this plugin to the newer AWS SDK v2.
+The two SDKs are not quite compatible, so please check the breaking changes documentation and test the new version thoroughly before upgrading any production workloads.
+
+[#126843](https://github.com/elastic/elasticsearch/pull/126843)
+
+### Add ability to redirect ingestion failures on data streams to a failure store
+
+Documents that encountered ingest pipeline failures or mapping conflicts
+would previously be returned to the client as errors in the bulk and
+index operations. Many client applications are not equipped to respond
+to these failures. This leads to the failed documents often being
+dropped by the client which cannot hold the broken documents
+indefinitely. In many end user workloads, these failed documents
+represent events that could be critical signals for observability or
+security use cases.
+
+To help mitigate this problem, data streams can now maintain a "failure
+store" which is used to accept and hold documents that fail to be
+ingested due to preventable configuration errors. The data stream's
+failure store operates like a separate set of backing indices with their
+own mappings and access patterns that allow Elasticsearch to accept
+documents that would otherwise be rejected due to unhandled ingest
+pipeline exceptions or mapping conflicts.
+
+Users can enable redirection of ingest failures to the failure store on
+new data streams by specifying it in the new `data_stream_options` field
+inside of a component or index template:
+
+```yaml
+PUT _index_template/my-template
+{
+  "index_patterns": ["logs-test-*"],
+  "data_stream": {},
+  "template": {
+    "data_stream_options": {
+      "failure_store": {
+        "enabled": true
+      }
+    }
+  }
+}'
+```
+
+Existing data streams can be configured with the new data stream
+`_options` endpoint:
+
+```yaml
+PUT _data_stream/logs-test-apache/_options
+{
+  "failure_store": {
+    "enabled": "true"
+  }
+}
+```
+
+When redirection is enabled, any ingestion related failures will be
+captured in the failure store if the cluster is able to, along with the
+timestamp that the failure occurred, details about the error
+encountered, and the document that could not be ingested. Since failure
+stores are a kind of Elasticsearch index, we can search the data stream
+for the failures that it has collected. The failures are not shown by
+default as they are stored in different indices than the normal data
+stream data. In order to retrieve the failures, we use the `_search` API
+along with a new bit of index pattern syntax, the `::` selector.
+
+```yaml
+POST logs-test-apache::failures/_search
+```
+
+This index syntax informs the search operation to target the indices in
+its failure store instead of its backing indices. It can be mixed in a
+number of ways with other index patterns to include their failure store
+indices in the search operation:
+
+```yaml
+POST logs-*::failures/_search
+POST logs-*,logs-*::failures/_search
+POST *::failures/_search
+POST _query
+{
+  "query": "FROM my_data_stream*::failures"
+}
+```
+
+[#126973](https://github.com/elastic/elasticsearch/pull/126973)
+
+### Upgrade to lucene 9.12.2
+
+* Reduce NeighborArray on-heap memory during HNSW graph building
+* Fix IndexSortSortedNumericDocValuesRangeQuery for integer sorting
+* ValueSource.fromDoubleValuesSource(dvs).getSortField() would throw errors when used if the DoubleValuesSource needed scores
+* Disable connectedComponents logic in HNSW graph building.
+
+[#129555](https://github.com/elastic/elasticsearch/pull/129555)
+
+### ES|QL cross-cluster querying is now generally available
+
+The ES|QL Cross-Cluster querying feature has been in technical preview since 8.13.
+As of releases 8.19.0 and 9.1.0 this is now generally available.
+This feature allows you to run ES|QL queries across multiple clusters.
+
+[#130034](https://github.com/elastic/elasticsearch/pull/130034)
+
+### Mark Token Pruning for Sparse Vector as GA
+
+Token pruning for sparse_vector queries has been live since 8.13 as tech preview.
+As of 8.19.0 and 9.1.0, this is now generally available.
+
+[#130212](https://github.com/elastic/elasticsearch/pull/130212)

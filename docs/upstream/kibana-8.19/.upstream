@@ -1,0 +1,17 @@
+{
+  "name": "kibana-8.19",
+  "team": "team2-elastic",
+  "about": "Kibana 8.19 guide: setup, settings, management, Discover, dashboards, alerting",
+  "repo": "elastic/kibana",
+  "ref": "8.19",
+  "commit": "cacaaadc85de60f9ebcbb3586e86fae4ca980180",
+  "paths": [
+    "docs"
+  ],
+  "files": 352,
+  "bytes": 2756697,
+  "license": "Apache-2.0",
+  "format": "Markdown, converted from AsciiDoc (snippets inlined)",
+  "notes": [],
+  "synced": "2026-11-10T09:22:55Z"
+}

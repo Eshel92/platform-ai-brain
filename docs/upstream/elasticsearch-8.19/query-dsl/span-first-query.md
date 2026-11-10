@@ -1,0 +1,22 @@
+<!-- Converted from query-dsl/span-first-query.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Span first query
+
+Matches spans near the beginning of a field. Here is an example:
+
+```console
+GET /_search
+{
+  "query": {
+    "span_first": {
+      "match": {
+        "span_term": { "user.id": "kimchy" }
+      },
+      "end": 3
+    }
+  }
+}
+```
+
+The `match` clause can be any other span type query. The `end` controls
+the maximum end position permitted in a match.

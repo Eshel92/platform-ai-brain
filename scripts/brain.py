@@ -7,10 +7,13 @@ Standard library only, so it runs on any workstation without pip.
     python3 scripts/brain.py index                    # writes INDEX.md files (not committed)
     python3 scripts/brain.py rules [--team T] [--limit N]
     python3 scripts/brain.py stale [--days N]
+    python3 scripts/brain.py search <words> [--folder F ...] [--docs] [--limit N]
+    python3 scripts/brain.py show <file> [<section>] [--from LINE] [--lines N]
 """
 from __future__ import annotations
 
 import argparse
+import math
 import datetime as dt
 import re
 import sys
@@ -245,6 +248,171 @@ def stale(days: int) -> int:
     return 0
 
 
+# ---------- search & show ----------
+
+UPSTREAM = ROOT / "docs" / "upstream"
+STOP = set("a an and are as at be by can do does for from how i if in into is it its of on or that the "
+           "this to was we what when where which why will with you your".split())
+WORD = re.compile(r"[a-z0-9_][a-z0-9_.\-]*[a-z0-9_]|[a-z0-9_]")
+HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+
+
+def words(text: str) -> list[str]:
+    return [w for w in WORD.findall(text.lower()) if len(w) > 1 and w not in STOP]
+
+
+def count_word(low: str, word: str) -> int:
+    return len(re.findall(rf"(?<![a-z0-9_]){re.escape(word)}(?![a-z0-9_])", low))
+
+
+def outline(lines: list[str]) -> list[tuple[int, int, str]]:
+    """(line number, level, title) of every Markdown heading outside code fences."""
+    found, fenced = [], False
+    for number, line in enumerate(lines, start=1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced and (m := HEADING.match(line)):
+            found.append((number, len(m.group(1)), m.group(2)))
+    return found
+
+
+def page_title(text: str, path: Path) -> str:
+    meta = parse(text) or {}
+    for key in ("title", "Title", "linkTitle"):  # Redis docs use Title
+        if isinstance(meta.get(key), str) and meta[key]:
+            return meta[key]
+    heads = outline(text.split("\n"))
+    return heads[0][2] if heads else path.stem
+
+
+def search_scope(folders: list[str] | None, docs: bool) -> list[Path]:
+    if docs:
+        return [UPSTREAM]
+    if not folders:
+        return [ROOT / t for t in TEAMS if (ROOT / t).is_dir()] + [ROOT / INBOX]
+    scope = []
+    for name in folders:
+        for candidate in (ROOT / name, UPSTREAM / name):
+            if candidate.is_dir():
+                scope.append(candidate)
+                break
+        else:
+            names = ", ".join(sorted(p.name for p in UPSTREAM.iterdir() if p.is_dir())) if UPSTREAM.is_dir() else ""
+            sys.exit(f"no folder '{name}'. Brain folders: {', '.join(TEAMS)}. Vendor docs: {names}")
+    return scope
+
+
+def search(query: str, folders: list[str] | None, docs: bool, limit: int) -> int:
+    terms = list(dict.fromkeys(words(query)))
+    if not terms:
+        sys.exit("give some search words")
+    files = [p for base in search_scope(folders, docs) for p in sorted(base.rglob("*.md")) if p.name != "INDEX.md"]
+    hits, df = [], {t: 0 for t in terms}
+    for path in files:
+        text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+        low = text.lower()
+        rel = path.relative_to(ROOT).as_posix()
+        if not any(t in low or t in rel.lower() for t in terms):
+            continue
+        counts = {t: count_word(low, t) for t in terms}
+        if not any(counts.values()):
+            continue
+        for t, c in counts.items():
+            df[t] += 1 if c else 0
+        hits.append((path, rel, text, low, counts))
+    if not hits:
+        print(f'nothing found for "{query}"')
+        return 0
+
+    total = len(files)
+    avg = sum(len(h[3]) for h in hits) / len(hits)
+    ranked = []
+    for path, rel, text, low, counts in hits:
+        title = page_title(text, path)
+        title_low, rel_low = title.lower(), rel.lower()
+        score, matched = 0.0, 0
+        for t in terms:
+            idf = math.log(1 + (total - df[t] + 0.5) / (df[t] + 0.5))
+            tf = counts[t]
+            if tf:
+                matched += 1
+                score += idf * tf * 2.2 / (tf + 1.2 * (0.25 + 0.75 * len(low) / avg))
+            if count_word(title_low, t):
+                score += 2 * idf
+            if t in rel_low:
+                score += idf
+        score *= matched / len(terms)
+        if len(terms) > 1 and " ".join(terms) in " ".join(words(low)[:20000]):
+            score *= 1.5
+        ranked.append((score, rel, title, text, len(text)))
+    ranked.sort(key=lambda r: -r[0])
+
+    where = ", ".join(p.relative_to(ROOT).as_posix() for p in search_scope(folders, docs))
+    print(f'Top matches for "{query}" in {where} ({total} pages searched):')
+    for number, (score, rel, title, text, size) in enumerate(ranked[:limit], start=1):
+        best, best_line = -1.0, (0, "")
+        body_start = text.find("\n---", 3) + 4 if text.startswith("---") else 0  # skip the header block
+        offset = text.count("\n", 0, body_start)
+        for line_no, line in enumerate(text[body_start:].split("\n"), start=offset + 1):
+            if line.lstrip("# ").strip() == title or line.startswith("<!--"):  # title / converter note
+                continue
+            ll = line.lower()
+            present = sum(1 for t in terms if t in ll) + (0.5 if line.startswith("#") else 0)
+            if present >= 1 and present > best:
+                best, best_line = present, (line_no, line.strip())
+        print(f" {number}. {rel}  [{max(1, size // 1000)} KB]")
+        print(f"    {title[:110]}")
+        if best_line[0]:
+            print(f"    L{best_line[0]}: {best_line[1][:130]}")
+    print('Next: brain.py show <path> for the outline, show <path> "<section>" for one section.')
+    return 0
+
+
+def show(file: str, section: str | None, start: int | None, count: int) -> int:
+    path = Path(file)
+    if not path.is_absolute():
+        path = path if path.is_file() else ROOT / file
+    if not path.is_file():
+        sys.exit(f"no such file: {file}")
+    lines = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n").split("\n")
+    try:
+        rel = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        rel = str(path)
+    heads = outline(lines)
+
+    if start is None and section is None:  # outline only
+        size = sum(len(l) + 1 for l in lines)
+        print(f"{rel}: {len(lines)} lines, {max(1, size // 1000)} KB, {len(heads)} headings")
+        for number, level, title in heads[:80]:
+            print(f"  L{number:<6}{'  ' * (level - 1)}{title[:120]}")
+        if len(heads) > 80:
+            print(f'  … {len(heads) - 80} more headings: use show <path> "<words>" to jump to one')
+        return 0
+
+    if start is not None:
+        first, last = max(start, 1), min(max(start, 1) + count - 1, len(lines))
+    else:
+        want = section.lower()
+        match = next((h for h in heads if want in h[2].lower()), None)
+        if match:
+            first = match[0]
+            nxt = next((h for h in heads if h[0] > first and h[1] <= match[1]), None)
+            last = (nxt[0] - 1) if nxt else len(lines)
+        else:
+            hit = next((n for n, l in enumerate(lines, start=1) if want in l.lower()), None)
+            if hit is None:
+                print(f'"{section}" not found in {rel}. Run show {rel} for the outline.')
+                return 1
+            first, last = max(hit - 5, 1), len(lines)
+        last = min(last, first + count - 1)
+    print(f"{rel}: lines {first}-{last} of {len(lines)}")
+    print("\n".join(lines[first - 1:last]))
+    if last < len(lines):
+        print(f"… more: show {rel} --from {last + 1}")
+    return 0
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):  # Windows consoles and pipes default to a non-UTF-8 code page
         if hasattr(stream, "reconfigure"):
@@ -259,7 +427,22 @@ def main() -> int:
     p_rules.add_argument("--limit", type=int, default=0)
     p_stale = sub.add_parser("stale")
     p_stale.add_argument("--days", type=int, default=180)
+    p_search = sub.add_parser("search", help="rank pages by how well they match some words")
+    p_search.add_argument("query", nargs="+")
+    p_search.add_argument("--folder", action="append", help="a team folder or a docs/upstream folder (repeatable)")
+    p_search.add_argument("--docs", action="store_true", help="search all of docs/upstream")
+    p_search.add_argument("--limit", type=int, default=10)
+    p_show = sub.add_parser("show", help="print a page's outline, one section, or a range of lines")
+    p_show.add_argument("file")
+    p_show.add_argument("section", nargs="?")
+    p_show.add_argument("--from", dest="start", type=int)
+    p_show.add_argument("--lines", type=int, default=120)
     args = parser.parse_args()
+
+    if args.command == "search":
+        return search(" ".join(args.query), args.folder, args.docs, args.limit)
+    if args.command == "show":
+        return show(args.file, args.section, args.start, args.lines)
 
     if args.command == "validate":
         files = [to_rel(f) for f in args.files]

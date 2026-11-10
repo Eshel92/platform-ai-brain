@@ -20,7 +20,8 @@ If it isn't worth saving, say so in one line and stop.
 ## 1. Search first: updating beats creating
 
 ```bash
-grep -rilE '<key terms>|<exact error>' "$BRAIN" --include='*.md' --exclude-dir=upstream
+bash "$BRAIN/scripts/run.sh" brain.py search <key terms>
+grep -rilF '<exact error>' "$BRAIN" --include='*.md' --exclude-dir=upstream
 ```
 
 If a page already covers it, **edit that page**: add the new case, adjust `applies_to` or

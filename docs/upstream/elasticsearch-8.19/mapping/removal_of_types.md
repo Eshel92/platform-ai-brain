@@ -1,0 +1,7 @@
+<!-- Converted from mapping/removal_of_types.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Removal of mapping types
+
+Elasticsearch 8.0.0 no longer supports mapping types. For details on how to
+migrate your clusters away from mapping types, see the
+{ref-7x}/removal-of-types.html[removal of types] documentation for the 7.x release.

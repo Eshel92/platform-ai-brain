@@ -1,0 +1,89 @@
+<!-- Converted from api/synthetics/private-locations/get-private-locations.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Get Private Locations API
+
+Retrieves a list of private locations or a single private location by ID.
+
+### Request
+
+`GET <kibana host>:<port>/api/synthetics/private_locations`
+
+`GET <kibana host>:<port>/s/<space_id>/api/synthetics/private_locations`
+
+### Prerequisites
+
+You must have `read` privileges for the *Synthetics and Uptime* feature in the *Observability* section of the
+Kibana feature privileges.
+
+#### List Response Example
+
+The API returns a JSON array of private locations when accessing the list endpoint, with each private location having the following attributes:
+
+- `label` (string): A label for the private location.
+- `id` (string): The unique identifier of the private location.
+- `agentPolicyId` (string): The ID of the agent policy associated with the private location.
+- `isInvalid` (boolean): Indicates whether the location is invalid. If `true`, the location is invalid, which means the agent policy associated with the location is deleted.
+- `geo` (object): Geographic coordinates for the location, including `lat` and `lon`.
+- `namespace` (string): The namespace of the location, which is the same as the namespace of the agent policy associated with the location.
+
+Here's an example list response:
+
+```json
+[
+    {
+        "label": "Test private location",
+        "id": "fleet-server-policy",
+        "agentPolicyId": "fleet-server-policy",
+        "isInvalid": false,
+        "geo": {
+            "lat": 0,
+            "lon": 0
+        },
+        "namespace": "default"
+    },
+    {
+        "label": "Test private location 2",
+        "id": "691225b0-6ced-11ee-8f5a-376306ee85ae",
+        "agentPolicyId": "691225b0-6ced-11ee-8f5a-376306ee85ae",
+        "isInvalid": false,
+        "geo": {
+            "lat": 0,
+            "lon": 0
+        },
+        "namespace": "test"
+    }
+]
+```
+
+#### Get by ID/Label Response Example
+
+The API returns a JSON object of a single private location when accessing the endpoint with a specific `id`, with the same attributes as in the list response.
+
+Here's an example request for a single location by ID:
+
+```sh
+GET api/synthetics/private_locations/<location_id>
+```
+
+or by label:
+
+```sh
+GET api/synthetics/private_locations/<Location label>
+```
+
+Here's an example response object:
+
+```json
+{
+    "label": "Test private location",
+    "id": "test-private-location-id",
+    "agentPolicyId": "test-private-location-id",
+    "isServiceManaged": false,
+    "isInvalid": false,
+    "geo": {
+        "lat": 0,
+        "lon": 0
+    },
+    "namespace": "default"
+}
+```

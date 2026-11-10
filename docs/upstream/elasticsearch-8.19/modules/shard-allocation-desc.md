@@ -1,0 +1,4 @@
+<!-- Converted from modules/shard-allocation-desc.asciidoc (AsciiDoc). Includes are inlined. -->
+
+Shard allocation is the process of assigning shard copies to nodes. This can
+happen during initial recovery, replica allocation, rebalancing, when nodes are added to or removed from the cluster, or when cluster or index settings that impact allocation are updated.

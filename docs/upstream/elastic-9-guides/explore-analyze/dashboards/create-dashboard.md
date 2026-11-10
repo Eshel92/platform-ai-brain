@@ -1,0 +1,103 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/kibana/current/create-dashboard.html
+navigation_title: Create from the UI
+description: Steps to create a dashboard in Kibana, from adding panels and controls to arranging the layout, setting display options, and saving.
+applies_to:
+  stack: ga
+  serverless: ga
+products:
+  - id: kibana
+type: how-to
+---
+
+# Create a dashboard from the {{kib}} UI [create-dashboard]
+
+To build a dashboard panel by panel in {{product.kibana}}, start with an empty dashboard, add your content, and save it. If you need an overview or examples, refer to [](../dashboards.md).
+
+:::{tip} - New ways to create dashboards
+:applies_to: {"stack": "preview 9.4+", "serverless": "preview"}
+New ways to create dashboards are available. You can also [create dashboards programmatically](create-dashboards-programmatically.md) using REST APIs, or [create dashboards using AI](create-dashboards-using-ai.md) through natural language.
+:::
+
+## Requirements [create-dashboard-requirements]
+
+Before creating a dashboard, ensure you have:
+
+* [Data indexed into {{product.elasticsearch}}](/manage-data/ingest.md) and at least one [data view](../find-and-organize/data-views.md) configured
+* **All** privilege for the **Dashboard** feature in {{product.kibana}}
+
+If **Dashboards** asks you to add data or create a data view instead of opening and you're not sure of what to do next, refer to [](/troubleshoot/kibana/discover-dashboards-no-data-screen.md).
+
+## Create a new dashboard [create-dashboard-steps]
+
+1. Open the **Dashboards** page in {{product.kibana}}.
+2. Select **Create dashboard** to start with an empty dashboard.
+
+    When you create a dashboard, you are automatically in edit mode and can make changes to the dashboard.
+
+3. Populate your dashboard with the content that you need. You can:
+
+    * [**Add new visualizations**](../visualize.md#panels-editors). Create a chart using [Lens](../visualize/lens.md), the default visualization editor in {{product.kibana}}, or other visualizations such as [Maps](../visualize/maps.md).
+    * [**Add existing content from the library**](../visualize/visualize-library.md). Select existing visualizations or Discover sessions that have already been configured and saved to the **Visualize Library**.
+    * [**Add annotations or navigation panels**](../visualize.md#panels-editors). Make your dashboard more informative and easier to read with sections, text, and images.
+    * [**Add controls**](../visualize/add-controls.md). Define a set of interactive filters (options lists, range or time sliders) that you and future users of this dashboard can use to explore its data.
+
+    Panels added from the library stay linked to it unless you explicitly unlink them. Edits you make are reflected on every dashboard that uses them. Panels created directly on the dashboard are local to it and are permanently lost if you remove them without saving to the library first.
+
+    {applies_to}`stack: ga 9.4` {applies_to}`serverless: ga` You can add up to 1,000 panels to a dashboard. Refer to [Panel limits](arrange-panels.md#dashboard-panel-limits) for the full breakdown.
+
+4. Organize your dashboard by [organizing the various panels](arrange-panels.md).
+5. Define the main settings of your dashboard from the **Settings** menu in the application menu.
+
+    1. A meaningful title, description, and [tags](../find-and-organize/tags.md) allow you to find the dashboard quickly later when browsing your list of dashboards or using the {{kib}} search bar.
+    2. Additional display options allow you unify the look and feel of the dashboard’s panels:
+
+        * **Store time with dashboard** — Saves the specified time filter.
+        * **Use margins between panels** — Adds a margin of space between each panel.
+        * **Show panel titles** — Displays the titles in the panel headers.
+        * {applies_to}`stack: ga 9.4` {applies_to}`serverless: ga` **Show panel borders** — Displays a border around each panel. Turn off for a cleaner look. Individual panels can [override this setting](arrange-panels.md#customize-panel-settings) from their own settings.
+        * **Sync color palettes across panels** — Applies the same color palette to all panels on the dashboard.
+        * **Sync cursor across panels** — When you hover your cursor over a time series chart or a heatmap, the cursor on all other related dashboard charts automatically appears.
+        * **Sync tooltips across panels** — When you hover your cursor over a **Lens** chart, the tooltips on all other related dashboard charts automatically appear.
+        * {applies_to}`serverless: ga` {applies_to}`stack: unavailable` **Store CPS scope with dashboard** — Saves the current [{{cps}} scope](/explore-analyze/cross-project-search/cross-project-search-manage-scope.md#cps-in-kibana) with the dashboard so it restores automatically when anyone opens it.
+
+    3. Click **Apply**.
+       
+
+
+6. Save the dashboard. When saving, you can configure the following options:
+
+    - **Title** and **Description**: Give the dashboard a meaningful name and description so you and others can find it later.
+    - **Tags**: Add [tags](../find-and-organize/tags.md) to organize and categorize the dashboard.
+    - **Store time with dashboard**: Saves the current time filter with the dashboard.
+    - {applies_to}`serverless: ga` {applies_to}`stack: unavailable` **Store CPS scope with dashboard**: Saves the current [{{cps}} scope](/explore-analyze/cross-project-search/cross-project-search-manage-scope.md#cps-in-kibana) with the dashboard so it restores automatically when opened. When this option is not active, the dashboard opens with the {{cps-init}} scope currently active for the session.
+    - {applies_to}`serverless:` {applies_to}`stack: ga 9.3+` **Permissions**: Control who can access the dashboard. You can share with one of the following permissions:
+      - **Can edit**: Everybody in the space can edit, delete, and fully manage the dashboard.
+      - **Can view**: Everybody in the space can view the dashboard, but cannot edit or delete it.
+    
+      :::{include} ../_snippets/dashboard-ownership.md
+      :::
+
+    :::{image} /explore-analyze/images/save-as-new-dashboard.png
+    :screenshot:
+    :width: 400px
+    :::
+
+
+
+
+## Create a dashboard with {{agent-builder}}
+
+You can also create dashboards through natural language chat with [{{agent-builder}}](/explore-analyze/ai-features/agent-builder/chat.md) agents. Describe what you want to visualize and the agent builds a dashboard with {{esql}}-powered visualization panels. You can iterate on the dashboard in conversation before saving it. To learn more, refer to [Dashboards and visualizations in chat](/explore-analyze/ai-features/agent-builder/agent-builder-dashboards-and-visualizations.md).
+
+## Remove a panel from a dashboard [remove-panel]
+
+If a panel no longer belongs on a dashboard, you can remove it without affecting any other dashboard.
+
+1. In the application menu, select **Edit**.
+2. Hover over the panel, open the panel menu {icon}`boxes_vertical`, and select **Remove**.
+3. Save the dashboard.
+
+If the panel came from the [Visualize library](../visualize/visualize-library.md), it stays in the library and on every other dashboard that uses it. If you created the panel directly on the dashboard, removing it deletes it. To keep a copy, [save the panel to the library](../visualize/visualize-library.md#save-to-visualize-library) before you remove it.
+

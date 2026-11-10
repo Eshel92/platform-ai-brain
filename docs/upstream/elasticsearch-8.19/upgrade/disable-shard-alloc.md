@@ -1,0 +1,22 @@
+<!-- Converted from upgrade/disable-shard-alloc.asciidoc (AsciiDoc). Includes are inlined. -->
+
+When you shut down a data node, the allocation process waits for
+`index.unassigned.node_left.delayed_timeout` (by default, one minute) before
+starting to replicate the shards on that node to other nodes in the cluster,
+which can involve a lot of I/O. Since the node is shortly going to be
+restarted, this I/O is unnecessary. You can avoid racing the clock by
+disabling allocation of replicas before
+shutting down data nodes:
+
+```console
+PUT _cluster/settings
+{
+  "persistent": {
+    "cluster.routing.allocation.enable": "primaries"
+  }
+}
+```
+
+You can also consider gateway settings when restarting 
+large clusters to reduce initial strain while nodes are processing 
+through discovery.

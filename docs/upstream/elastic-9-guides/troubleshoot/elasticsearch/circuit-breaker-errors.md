@@ -1,0 +1,126 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/elasticsearch/reference/current/circuit-breaker-errors.html
+navigation_title: Circuit breaker errors
+description: Diagnose and resolve `circuit_breaking_exception` errors in Elasticsearch. These errors occur when JVM heap memory approaches the circuit breaker limit, causing Elasticsearch to reject requests with HTTP 429.
+applies_to:
+  stack:
+products:
+  - id: elasticsearch
+---
+
+# Circuit breaker errors in {{es}} [circuit-breaker-errors]
+
+{{es}} uses [circuit breakers](elasticsearch://reference/elasticsearch/configuration-reference/circuit-breaker-settings.md) to prevent nodes from running out of JVM heap memory. If Elasticsearch estimates an operation would exceed a circuit breaker, it stops the operation and returns an error.
+
+By default, the [parent circuit breaker](elasticsearch://reference/elasticsearch/configuration-reference/circuit-breaker-settings.md#parent-circuit-breaker) triggers at 95% JVM memory usage. To prevent errors, we recommend taking steps to reduce memory pressure if usage consistently exceeds 85%.
+
+Watch a [video walkthrough of diagnosing circuit breaker errors](https://www.youtube.com/watch?v=k3wYlRVbMSw).
+
+:::{include} /deploy-manage/_snippets/autoops-callout-with-ech.md
+:::
+
+
+
+## Diagnose circuit breaker errors [diagnose-circuit-breaker-errors]
+
+### Error messages
+
+A circuit breaker trips to prevent a request from executing in order to protect the node's stability. When a request triggers a circuit breaker, {{es}} [rejects the request](/troubleshoot/elasticsearch/rejected-requests.md) with a `429` HTTP status code error.
+
+```js
+{
+  'error': {
+    'type': 'circuit_breaking_exception',
+    'reason': '[parent] Data too large, data for [<http_request>] would be [123848638/118.1mb], which is larger than the limit of [123273216/117.5mb], real usage: [120182112/114.6mb], new bytes reserved: [3666526/3.4mb]',
+    'bytes_wanted': 123848638,
+    'bytes_limit': 123273216,
+    'durability': 'TRANSIENT'
+  },
+  'status': 429
+}
+```
+
+{{es}} also writes circuit breaker errors to [`elasticsearch.log`](../../deploy-manage/monitor/logging-configuration/elasticsearch-log4j-configuration-self-managed.md). This is helpful when automated processes, such as allocation, trigger a circuit breaker.
+
+```txt
+Caused by: org.elasticsearch.common.breaker.CircuitBreakingException: [parent] Data too large, data for [<transport_request>] would be [num/numGB], which is larger than the limit of [num/numGB], usages [request=0/0b, fielddata=num/numKB, in_flight_requests=num/numGB, accounting=num/numGB]
+```
+
+### Check circuit breaker statistics
+
+To get statistics about the circuit breaker per node, use one of the following:
+
+* You can use the [get node statistics]({{es-apis}}operation/operation-nodes-stats) API:
+
+    ```console
+    GET _nodes/stats?filter_path=nodes.*.breakers
+    ```
+
+    The response provides the following information:
+    - Estimated memory used for the operation.
+    - Memory limit for the circuit breaker.
+    - Total number of times the circuit breaker has been triggered and prevented an out of memory error since node uptime.
+    - An overhead factor: a constant by which all estimates are multiplied to produce the final estimate.
+    
+
+* {applies_to}`stack: ga 9.3` Starting with {{es}} version 9.3, you can use the [get circuit breakers statistics]({{es-apis}}operation/operation-cat-circuit-breaker) API:
+
+    ```console
+    GET /_cat/circuit_breaker/
+    ```
+
+    This API provides a concise, human-readable tabular output that is useful for quick monitoring and troubleshooting. The response includes the following information for each circuit breaker:
+    - The circuit breaker name (for example, `request`, `fielddata`, `in_flight_requests`).
+    - The node ID where the circuit breaker is located.
+    - Estimated memory currently in use by the circuit breaker.
+    - Memory limit configured for the circuit breaker.
+    - Total number of times the circuit breaker has been triggered.
+    - Overhead factor applied to memory estimates.
+
+### Check JVM memory usage
+
+If you’ve enabled Stack Monitoring, you can view JVM memory usage in {{kib}}. In the main menu, click **Stack Monitoring**. On the Stack Monitoring **Overview** page, click **Nodes**. The **JVM Heap** column lists the current memory usage for each node.
+
+You can also use the [cat nodes API]({{es-apis}}operation/operation-cat-nodes) to get the current `heap.percent` for each node.
+
+```console
+GET _cat/nodes?v=true&h=name,node*,heap*
+```
+
+To get the JVM memory usage for each circuit breaker, use the [node stats API]({{es-apis}}operation/operation-nodes-stats).
+
+```console
+GET _nodes/stats/breaker
+```
+
+
+## Prevent circuit breaker errors [prevent-circuit-breaker-errors]
+
+The following sections describe common causes of circuit breaker errors and how to prevent them.
+
+### Reduce JVM memory pressure
+
+High JVM memory pressure often causes circuit breaker errors. See [High JVM memory pressure](high-jvm-memory-pressure.md).
+
+### Avoid using fielddata on `text` fields
+
+For high-cardinality `text` fields, fielddata can use a large amount of JVM memory. To avoid this, {{es}} disables fielddata on `text` fields by default. If you’ve enabled fielddata and triggered the [fielddata circuit breaker](elasticsearch://reference/elasticsearch/configuration-reference/circuit-breaker-settings.md#fielddata-circuit-breaker), consider disabling it and using a `keyword` field instead. See [`fielddata` mapping parameter](elasticsearch://reference/elasticsearch/mapping-reference/text.md#fielddata-mapping-param).
+
+### Clear the fielddata cache
+
+If you’ve triggered the fielddata circuit breaker and can’t disable fielddata, use the [clear cache API]({{es-apis}}operation/operation-indices-clear-cache) to clear the fielddata cache. This may disrupt any in-flight searches that use fielddata.
+
+```console
+POST _cache/clear?fielddata=true
+```
+
+## Circuit breaker limitations
+
+Circuit breakers may either directly evaluate memory usage estimates or indirectly limit operations that are likely to cause excessive memory consumption. For example, the `script` circuit breaker checks memory indirectly by rate-limiting Painless/Mustache script compilations. However, even with circuit breakers in place, nodes can still encounter out-of-memory (OOM) conditions. This can occur, for example, because:
+
+- Circuit breaker relies on point-in-time memory usage estimations.
+- Parallel operations can still exhaust heap memory even with `parent` circuit breakers enabled.
+- Certain dynamic operations can quickly consume substantial memory. For example [aggregations](/explore-analyze/query-filter/aggregations.md) and [complex queries](elasticsearch://reference/query-languages/query-dsl/compound-queries.md).
+- Circuit breakers protect the node's JVM heap. OOM can still trigger due to non-heap memory, for example within the compilation or thread stacks.
+

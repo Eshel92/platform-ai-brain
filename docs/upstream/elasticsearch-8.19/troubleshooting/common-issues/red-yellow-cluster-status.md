@@ -1,0 +1,252 @@
+<!-- Converted from troubleshooting/common-issues/red-yellow-cluster-status.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Red or yellow cluster health status
+
+A red or yellow cluster health status indicates one or more shards are not assigned to
+a node. 
+
+* **Red health status**: The cluster has some unassigned primary shards, which
+means that some operations such as searches and indexing may fail. 
+* **Yellow health status**: The cluster has no unassigned primary shards but some 
+unassigned replica shards. This increases your risk of data loss and can degrade 
+cluster performance.
+
+When your cluster has a red or yellow health status, it will continue to process
+searches and indexing where possible, but may delay certain management and
+cleanup activities until the cluster returns to green health status. For instance,
+some ILM actions require the index on which they
+operate to have a green health status.
+
+In many cases, your cluster will recover to green health status automatically. 
+If the cluster doesn't automatically recover, then you must manually address 
+the remaining problems so management and cleanup activities can proceed.
+See [this video](https://www.youtube.com/watch?v=v2mbeSd1vTQ)
+for a walkthrough of monitoring allocation health.
+
+****
+If you're using Elastic Cloud Hosted, then you can use AutoOps to monitor your cluster. AutoOps significantly simplifies cluster management with performance recommendations, resource utilization visibility, real-time issue detection and resolution paths. For more information, refer to [Monitor with AutoOps](https://www.elastic.co/guide/en/cloud/current/ec-autoops.html).
+****
+
+#### Diagnose your cluster status
+
+**Check your cluster status**
+
+Use the cluster health API.
+
+```console
+GET _cluster/health?filter_path=status,*_shards
+```
+
+A healthy cluster has a green `status` and zero `unassigned_shards`. A yellow
+status means only replicas are unassigned. A red status means one or
+more primary shards are unassigned.
+
+**View unassigned shards**
+
+To view unassigned shards, use the cat shards API.
+
+```console
+GET _cat/shards?v=true&h=index,shard,prirep,state,node,unassigned.reason&s=state
+```
+
+Unassigned shards have a `state` of `UNASSIGNED`. The `prirep` value is `p` for
+primary shards and `r` for replicas.
+
+To understand why an unassigned shard is not being assigned and what action
+you must take to allow Elasticsearch to assign it, use the
+cluster allocation explanation API.
+
+```console
+GET _cluster/allocation/explain?filter_path=index,node_allocation_decisions.node_name,node_allocation_decisions.deciders.*
+{
+  "index": "my-index",
+  "shard": 0,
+  "primary": false
+}
+```
+
+#### Fix a red or yellow cluster status
+
+A shard can become unassigned for several reasons. The following tips outline the
+most common causes and their solutions.
+
+##### Single node cluster
+
+Elasticsearch will never assign a replica to the same node as the primary shard. A single-node cluster will always have yellow status. To change to green, set number_of_replicas to 0 for all indices.
+
+Therefore, if the number of replicas equals or exceeds the number of nodes, some shards won't be allocated.
+
+##### Recover lost nodes
+
+Shards often become unassigned when a data node leaves the cluster. This can
+occur for several reasons:
+
+* A manual node restart will cause a temporary unhealthy cluster state until the node recovers.
+
+* When a node becomes overloaded or fails, it can temporarily disrupt the cluster’s health, leading to an unhealthy state. Prolonged garbage collection (GC) pauses, caused by out-of-memory errors or high memory usage during intensive searches, can trigger this state. See Reduce JVM memory pressure for more JVM-related issues.
+
+* Network issues can prevent reliable node communication, causing shards to become out of sync. Check the logs for repeated messages about nodes leaving and rejoining the cluster.
+
+After you resolve the issue and recover the node, it will rejoin the cluster.
+Elasticsearch will then automatically allocate any unassigned shards.
+
+You can monitor this process by checking your cluster health. The number of unallocated shards should progressively decrease until green status is reached.
+
+To avoid wasting resources on temporary issues, Elasticsearch <<delayed-allocation,delays
+allocation>> by one minute by default. If you've recovered a node and don’t want
+to wait for the delay period, you can call the <<cluster-reroute,cluster reroute
+API>> with no arguments to start the allocation process. The process runs
+asynchronously in the background.
+
+```console
+POST _cluster/reroute?metric=none
+```
+
+##### Fix allocation settings
+
+Misconfigured allocation settings can result in an unassigned primary shard.
+These settings include:
+
+* Shard allocation index settings
+* Allocation filtering cluster settings
+* Allocation awareness cluster settings
+
+To review your allocation settings, use the <<indices-get-settings,get index
+settings>> and cluster get settings APIs.
+
+```console
+GET my-index/_settings?flat_settings=true&include_defaults=true
+
+GET _cluster/settings?flat_settings=true&include_defaults=true
+```
+
+You can change the settings using the <<indices-update-settings,update index
+settings>> and cluster update settings APIs.
+
+##### Allocate or reduce replicas
+
+To protect against hardware failure, Elasticsearch will not assign a replica to the same
+node as its primary shard. If no other data nodes are available to host the
+replica, it remains unassigned. To fix this, you can:
+
+* Add a data node to the same tier to host the replica.
+
+* Change the `index.number_of_replicas` index setting to reduce the number of
+replicas for each primary shard. We recommend keeping at least one replica per
+primary for high availability.
+
+```console
+PUT _settings
+{
+  "index.number_of_replicas": 1
+}
+```
+
+##### Free up or increase disk space
+
+Elasticsearch uses a low disk watermark to ensure data
+nodes have enough disk space for incoming shards. By default, Elasticsearch does not
+allocate shards to nodes using more than 85% of disk space.
+
+To check the current disk space of your nodes, use the <<cat-allocation,cat
+allocation API>>.
+
+```console
+GET _cat/allocation?v=true&h=node,shards,disk.*
+```
+
+If your nodes are running low on disk space, you have a few options:
+
+* Upgrade your nodes to increase disk space.
+
+* Add more nodes to the cluster.
+
+* Delete unneeded indices to free up space. If you use ILM, you can
+update your lifecycle policy to use <<ilm-searchable-snapshot,searchable
+snapshots>> or add a delete phase. If you no longer need to search the data, you
+can use a snapshot to store it off-cluster.
+
+* If you no longer write to an index, use the <<indices-forcemerge,force merge
+API>> or ILM's force merge action to merge its
+segments into larger ones.
+```console
+POST my-index/_forcemerge
+```
+
+* If an index is read-only, use the shrink index API or
+ILM's shrink action to reduce its primary shard count.
+```console
+POST my-index/_shrink/my-shrunken-index
+```
+
+* If your node has a large disk capacity, you can increase the low disk
+watermark or set it to an explicit byte value.
+```console
+PUT _cluster/settings
+{
+  "persistent": {
+    "cluster.routing.allocation.disk.watermark.low": "90%",
+    "cluster.routing.allocation.disk.watermark.high": "95%"
+  }
+}
+```
+
+**Important:**
+This is usually a temporary solution and may cause instability if disk space is not freed up.
+
+##### Re-enable shard allocation
+
+You typically disable allocation during a restart or other
+cluster maintenance. If you forgot to re-enable allocation afterward, Elasticsearch will
+be unable to assign shards. To re-enable allocation, reset the
+`cluster.routing.allocation.enable` cluster setting.
+
+```console
+PUT _cluster/settings
+{
+  "persistent" : {
+    "cluster.routing.allocation.enable" : null
+  }
+}
+```
+
+See [this video](https://www.youtube.com/watch?v=MiKKUdZvwnI) for walkthrough of troubleshooting "no allocations are allowed".
+
+##### Reduce JVM memory pressure
+
+Shard allocation requires JVM heap memory. High JVM memory pressure can trigger
+circuit breakers that stop allocation and leave shards
+unassigned. See high-jvm-memory-pressure.
+
+##### Recover data for a lost primary shard
+
+If a node containing a primary shard is lost, Elasticsearch can typically replace it
+using a replica on another node. If you can't recover the node and replicas
+don't exist or are irrecoverable, <<cluster-allocation-explain,Allocation 
+Explain>> will report `no_valid_shard_copy` and you'll need to do one of the following: 
+
+* restore the missing data from snapshot 
+* index the missing data from its original data source
+* accept data loss on the index-level by running Delete Index
+* accept data loss on the shard-level by executing Cluster Reroute allocate_stale_primary or allocate_empty_primary command with `accept_data_loss: true`
+**Warning:** Only use this option if node recovery is no longer possible. This
+process allocates an empty primary shard. If the node later rejoins the cluster,
+Elasticsearch will overwrite its primary shard with data from this newer empty shard,
+resulting in data loss.
+```console
+POST _cluster/reroute?metric=none
+{
+  "commands": [
+    {
+      "allocate_empty_primary": {
+        "index": "my-index",
+        "shard": 0,
+        "node": "my-node",
+        "accept_data_loss": "true"
+      }
+    }
+  ]
+}
+```
+
+See [this video](https://www.youtube.com/watch?v=6OAg9IyXFO4) for a walkthrough of troubleshooting `no_valid_shard_copy`.

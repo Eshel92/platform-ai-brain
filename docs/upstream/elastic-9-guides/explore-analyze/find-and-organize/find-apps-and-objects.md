@@ -1,0 +1,45 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/kibana/current/introduction.html#kibana-navigation-search
+applies_to:
+  stack: ga
+  serverless: ga
+products:
+  - id: kibana
+---
+
+# Find apps and objects [kibana-navigation-search]
+
+To quickly find apps and the objects you create, use the search field in the [global header](/explore-analyze/find-and-organize/kibana-interface.md#global-header). Search suggestions include deep links into applications, allowing you to directly navigate to the views you need most.
+
+:::{tip}
+{applies_to}`stack: ga 9.5` {applies_to}`serverless: ga` You can also reorder the apps in the navigation menu and hide the ones you don't use. Refer to [Customize your navigation menu](/explore-analyze/find-and-organize/customize-navigation.md).
+:::
+
+:::{image} /explore-analyze/images/kibana-app-navigation-search.png
+:alt: Example of searching for apps
+:screenshot:
+:width: 60%
+:::
+
+You can search for objects by type, name, and tag. To get the most from the search feature, follow these tips:
+
+* Use the keyboard shortcut to open the search field at any time: **Ctrl+/** on Windows and Linux, or **Command+/** on macOS.
+* Use the provided syntax keywords.
+
+    |     |     |
+    | --- | --- |
+    | Search by type | `type:dashboard`<br>Available types: `application`, `canvas-workpad`, `dashboard`, `data-view`, `lens`, `maps`, `query`, `search`, `visualization` |
+    | Search by tag | `tag:mytagname`<br>`tag:"tag name with spaces"` |
+    | Search by type and name | `type:dashboard my_dashboard_title` |
+    | Advanced searches | `tag:(tagname1 or tagname2) my_dashboard_title`<br>`type:lens tag:(tagname1 or tagname2)`<br>`type:(dashboard or canvas-workpad) logs`<br> |
+
+
+This example searches for dashboards with the tag `Elastic Agent`.
+
+:::{image} /explore-analyze/images/kibana-tags-search.png
+:alt: Example of searching for tags
+:screenshot:
+:width: 60%
+:::
+

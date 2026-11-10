@@ -1,0 +1,9 @@
+<!-- Converted from autoscaling/deciders/frozen-existence-decider.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Frozen existence decider
+
+The {cloud}/ec-autoscaling.html[autoscaling] frozen existence decider (`frozen_existence`) ensures that once the first
+index enters the frozen ILM phase, the frozen tier is scaled into existence.
+
+The frozen existence decider is enabled for all policies governing frozen data
+nodes and has no configuration options.

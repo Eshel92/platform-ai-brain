@@ -1,0 +1,256 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/cloud/current/ec-invite-users.html
+  - https://www.elastic.co/guide/en/serverless/current/general-manage-organization.html
+  - https://www.elastic.co/guide/en/cloud/current/ec-api-organizations.html
+applies_to:
+  deployment:
+    ech: ga
+  serverless: ga
+products:
+  - id: cloud-hosted
+  - id: cloud-serverless
+---
+
+# Manage users
+
+$$$general-assign-user-roles$$$
+
+You can invite users to join your organization to allow them to interact with all or specific {{ecloud}} resources and settings. After they're invited, you can manage the users in your organization.
+
+Alternatively, [configure {{ecloud}} SAML SSO](../../../deploy-manage/users-roles/cloud-organization/configure-saml-authentication.md) to enable your organization members to join the {{ecloud}} organization automatically.
+
+An {{ecloud}} account can belong to multiple organizations. However, the user's roles and the resources that they have access to are controlled at the organization level.
+
+:::{agent-skill}
+:url: https://github.com/elastic/agent-skills@cloud-onboarding
+:::
+
+:::{tip}
+If you're using {{ech}}, then you can also manage users and control access [at the deployment level](/deploy-manage/users-roles/cluster-or-deployment-auth.md).
+:::
+
+## Required permissions
+
+* Only **Organization owners** can invite new users to the organization.
+
+* To assign or modify roles for existing members, your permissions must cover the resources affected by the role assignment:
+  - **Organization owners** can manage role assignments for all members in the organization.
+  - Members with the **Admin** role can view and manage role assignments only for deployments or projects within their scope:
+    - Admins scoped to all deployments and projects can manage assignments across all resources.
+    - Admins scoped to specific deployments or projects can manage assignments only for those resources.
+
+For more information about role scopes and permissions, refer to [User roles and privileges](/deploy-manage/users-roles/cloud-organization/user-roles.md).
+
+## Invite your team [ec-invite-users]
+
+To invite users to your organization:
+
+1. Log in to [{{ecloud}}](https://cloud.elastic.co?page=docs&placement=docs-body).
+2. From the navigation menu, select **Organization** > **Members**.
+3. On the **Members** page, click **Invite members**.
+4. Enter the email addresses of the users you want to invite in the email field.
+
+    To add multiple members, enter the member email addresses, separated by a space.
+
+5. If desired, assign roles to the users so that they automatically get the appropriate permissions when they accept the invitation and sign in to your organization.
+
+    You can grant access to {{ech}} deployments, {{serverless-full}} projects, or connected clusters, either to all resources or scoped to specific ones. You can also allow the user you invite to [**manage workload credentials**](/deploy-manage/users-roles/cloud-organization/user-roles.md#manage-workload-credentials), such as creating and managing their own [API keys](/deploy-manage/api-keys/elastic-cloud-api-keys.md).
+
+6. Click **Send invites**.
+
+    Invitations to join an organization are sent by email. Invited users have 72 hours to accept the invitation before it expires. If the invite has expired, an admin can resend the invitation.
+
+## Invite users to join additional organizations [invite-additional-orgs]
+
+:::{include} _snippets/invite-additional-orgs.md
+:::
+
+## Manage existing users
+
+On the **Members** page, you can view the list of current members, including their status, role, and any other organizations that they are members of.
+
+In the **Actions** column, click the three dots to edit a member’s role, or revoke an invite, or remove a member from your organization.
+
+### Reconcile alternative email addresses
+
+:::{include} /deploy-manage/users-roles/cloud-organization/_snippets/reconcile-email.md
+:::
+
+## View your users' organization memberships
+
+:::{include} _snippets/view-org-memberships.md
+:::
+
+## Manage users through the {{ecloud}} API [ec-api-organizations]
+
+You can also manage members of your organization using the [{{ecloud}} API]({{cloud-apis}}).
+
+:::{dropdown} Get information about your organization
+
+Get information about your {{ecloud}} organization.
+
+```sh
+curl -XGET \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations"
+```
+:::
+
+:::{dropdown} Invite members with {{ecloud}} Console access
+$$$invite-console-access$$$
+
+Invite members to your {{ecloud}} organization. 
+
+These examples grant the member [role-appropriate access to the {{ecloud}} Console](/deploy-manage/users-roles/cloud-organization/user-roles.md#access), either with or without additional project-level access. To invite a user with [limited access to the {{ecloud}} console](#invite-es-kib-access), use the application-only role IDs instead.
+
+**{{ecloud}} Console only access**
+```sh
+curl -XPOST \
+-H 'Content-Type: application/json' \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations/$ORGANIZATION_ID/invitations" \
+-d '
+{
+  "emails": [
+    "test@test.com" <1>
+  ]
+}'
+```
+
+1. One or more email addresses to invite to the organization
+
+**{{ecloud}} Console and resource access**
+
+When creating an invitation, you can define the user's roles and grant access to resources in the API request body:
+
+```sh
+curl -XPOST \
+-H 'Content-Type: application/json' \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations/$ORGANIZATION_ID/invitations" \
+-d '
+{
+  "emails": [
+    "test@test.com"
+  ],
+  "role_assignments": {
+    "deployment": [
+      {
+        "role_id": "deployment-admin",
+        "organization_id": "ORG_ID_PLACEHOLDER",
+        "all": true
+      }
+    ],
+    "project": {
+      "elasticsearch": [
+        {
+          "role_id": "elasticsearch-viewer", <1>
+          "organization_id": "ORG_ID_PLACEHOLDER",
+          "all": false,
+          "project_ids": [
+            "ES_PROJECT_ID_PLACEHOLDER"
+          ],
+          "application_roles": [
+            "logs_viewer"
+          ] <2>
+        }
+      ],
+      "observability": [
+        {
+          "role_id": "observability-editor",
+          "organization_id": "ORG_ID_PLACEHOLDER",
+          "all": false,
+          "project_ids": [
+            "OBS_PROJECT_ID_PLACEHOLDER"
+          ],
+          "application_roles": [
+          ] <3>
+        }
+      ]
+    }
+  }
+}'
+```
+1. When granting a custom Serverless role, you need to grant the relevant `viewer` role ID for the project type. 
+2. [Custom roles](/deploy-manage/users-roles/serverless-custom-roles.md) for the user in this {{serverless-short}} project. 
+3. Pass an empty `application_roles` array to grant only {{ecloud}} Console access to the relevant resources. [Learn more about access options](/deploy-manage/users-roles/cloud-organization/user-roles.md#access).
+
+:::
+
+
+:::{dropdown} Invite members with limited {{ecloud}} Console access
+$$$invite-es-kib-access$$$
+
+To grant a user access to a project [with limited {{ecloud}} Console access](/deploy-manage/users-roles/cloud-organization/user-roles.md#restrict-console-access), use the `*-application-only` role ID for the project type and specify the user's `application_roles`.
+
+A user's {{ecloud}} Console access is restricted only when all of their project role assignments use application-only roles, they hold no access to other resource types such as {{ech}} deployments or connected clusters, and they hold no organization-level role.
+
+```sh
+curl -XPOST \
+-H 'Content-Type: application/json' \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations/$ORGANIZATION_ID/invitations" \
+-d '
+{
+  "emails": [
+    "test@test.com"
+  ],
+  "role_assignments": {
+    "project": {
+      "observability": [
+        {
+          "role_id": "observability-application-only", <1>
+          "organization_id": "ORG_ID_PLACEHOLDER",
+          "all": false,
+          "project_ids": [
+            "OBS_PROJECT_ID_PLACEHOLDER"
+          ],
+          "application_roles": [
+            "editor" <2>
+          ]
+        }
+      ]
+    }
+  }
+}'
+```
+1. Use the application-only role ID for the project type: `elasticsearch-application-only`, `observability-application-only`, `security-application-only`, or `vectordb-application-only`.
+2. The user's [project-level role](/deploy-manage/users-roles/cloud-organization/user-roles.md#general-assign-user-roles-table). [Custom roles](/deploy-manage/users-roles/serverless-custom-roles.md) are also supported.
+:::
+
+:::{dropdown} View pending invitations to your organization
+
+View pending invitations to your {{ecloud}} organization.
+
+```sh
+curl -XGET \
+-H 'Content-Type: application/json' \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations/$ORGANIZATION_ID/invitations"
+```
+:::
+
+:::{dropdown} View members in your organization
+
+View members in your {{ecloud}} organization.
+
+```sh
+curl -XGET \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations/$ORGANIZATION_ID/members"
+```
+:::
+
+:::{dropdown} Remove members from your organization
+
+Remove members from your {{ecloud}} organization.
+
+```sh
+curl -XDELETE \
+-H "Authorization: ApiKey $EC_API_KEY" \
+"https://api.elastic-cloud.com/api/v1/organizations/$ORGANIZATION_ID/members/$USER_IDS"
+```
+
+`USER_IDS`  One or more comma-delimited user ids to remove from the organization
+:::

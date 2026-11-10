@@ -1,0 +1,7 @@
+<!-- Converted from ingest/processors/common-options.asciidoc (AsciiDoc). Includes are inlined. -->
+
+| `description`     | no      | -        | Description of the processor. Useful for describing the purpose of the processor or its configuration.
+| `if`             | no       | -        | Conditionally execute the processor. See conditionally-run-processor.
+| `ignore_failure` | no       | `false`  | Ignore failures for the processor. See handling-pipeline-failures.
+| `on_failure`     | no       | -        | Handle failures for the processor. See handling-pipeline-failures.
+| `tag`            | no       | -        | Identifier for the processor. Useful for debugging and metrics.

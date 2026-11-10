@@ -1,0 +1,311 @@
+<!-- Converted from settings/reporting-settings.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Reporting settings in Kibana
+
+You can configure `xpack.reporting` settings in your `kibana.yml` to:
+
+* Enable or disable the {report-features}
+* Configure an encryption key to protect sensitive authentication data
+* Choose an access control model of how users will be granted privileges to {report-features}
+* Manage the way reporting tasks run in the Kibana server background
+* Control how screenshots are captured for PNG/PDF reports
+* Control the limits and capabilities of CSV reports
+
+### Enable reporting
+
+[[xpack-enable-reporting]]`xpack.reporting.enabled` ::
+When `true`, enables the {report-features}. Set this to `false` to disable {report-features} entirely. The default is `true`.
+
+============
+Disabling the {report-features} is discouraged. If you need to turn off the ability to generate reports,
+configure the roles and spaces in the Kibana application privileges.
+
+If needed, you can also prevent a Kibana instance from claiming reporting work by setting
+`xpack.reporting.queue.pollEnabled: false`.
+============
+
+### Encryption key setting
+
+By default, an encryption key is generated for the {report-features} each
+time you start Kibana. If a static encryption key is not persisted in
+the Kibana configuration, any pending reports fail when you restart Kibana.
+
+If you are load balancing across multiple Kibana instances, each instance needs to have
+the same reporting encryption key. Otherwise, report generation fails if a
+report is queued through one instance, and another instance picks up the job
+from the report queue. The instance that picks up the job is unable to decrypt the
+reporting job metadata.
+
+[[xpack-reporting-encryptionKey]] `xpack.reporting.encryptionKey` ::
+The static encryption key for reporting. Use an alphanumeric text string that is at least 32 characters. By default, Kibana generates a random key when it starts, which causes pending reports to fail after restart. Configure `xpack.reporting.encryptionKey` to preserve the same key across multiple restarts and multiple Kibana instances.
+
+```yaml
+xpack.reporting.encryptionKey: "something_secret"
+```
+
+### Security settings
+
+Reporting has two forms of access control: each user can only access their own reports,
+and custom roles determine who has the privilege to generate reports. When Reporting is configured with
+Kibana application privileges, you can control the spaces and applications where users
+are allowed to generate reports.
+
+============================================================================
+In Kibana 8.x, the `xpack.reporting.roles.enabled` setting controls the model of access control features used for Reporting, which defaults to `true`.
+This enables an older access control model separate from Kibana application privileges, and grants any user with the built-in
+`reporting_user` role the ability to create any type of report in Kibana. But as this model is not based on Kibana application privileges, users that do
+not have permission to create reports will still see {report-features} in Kibana, but will actually receive an error if they attempt to request a report. The default
+model also does not allow API keys or authentication tokens to authorize report generation. 
+
+We recommend that you explicitly opt-out of the default access control model by adding `xpack.reporting.roles.enabled: false` to kibana.yml. This will
+enable you to create custom roles that provide application privileges for reporting, as described in <<grant-user-access, granting users access to
+reporting>>.
+
+In version 9.0, the `xpack.reporting.roles.enabled` setting will be ignored. Kibana will only use the access control model based on application
+privileges, and the built-in `reporting_user` role will have the necessary privileges to generate reports everywhere that Reporting is supported in
+Kibana as of version 9.0. We still recommend that you create custom roles with granular application privileges, in order to grant the least amount of
+privilege that users need.
+============================================================================
+
+[[xpack-reporting-roles-enabled]] `xpack.reporting.roles.enabled`::
+deprecated:[7.14.0,This setting will be ignored in an upcoming version of Kibana.] Sets access
+control to allow users to generate reports when they are assigned the built-in `reporting_user`
+role. This also grants privileges to users that have a role from a set of assigned reporting
+roles, specified by `xpack.reporting.roles.allow`. Defaults to `true`.
+
+`xpack.reporting.roles.allow`::
+deprecated:[7.14.0] In addition to superusers, specifies the roles that can generate reports using the
+[Elasticsearch role management APIs](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/security-api.html#security-role-apis). Requires `xpack.reporting.roles.enabled`
+to be `true`. Defaults to `[ "reporting_user" ]`.
+
+### Background job settings
+
+Reporting generates reports on the Kibana server as background tasks, and jobs are coordinated using documents
+in Elasticsearch. Depending on how often you generate reports and the overall number of reports, you might need to
+change the following settings.
+
+`xpack.reporting.capture.maxAttempts` ::
+If capturing a report fails for any reason, Kibana will re-queue the report job for retry, as many times as this setting. Defaults to `3`.
+
+`xpack.reporting.queue.indexInterval`::
+deprecated:[8.15.0,This setting has no effect.] How often Reporting creates a new index to store report jobs and file contents.
+Valid values are `year`, `month`, `week`, `day`, and `hour`. Defaults to `week`.
+*NOTE*: This setting exists for backwards compatibility, but is unused. Use the built-in ILM policy provided for the reporting plugin to customize the rollover of Reporting data.
+
+[[xpack-reportingQueue-pollEnabled]] `xpack.reporting.queue.pollEnabled` ::
+When `true`, enables the Kibana instance to poll Elasticsearch for pending jobs and claim them for
+execution. When `false`, allows the Kibana instance to only add new jobs to the reporting queue, list
+jobs, and provide the downloads to completed reports through the UI. This requires a deployment where at least
+one other Kibana instance in the Elastic cluster has this setting to `true`. The default is `true`.
+
+**Note:** Running multiple instances of Kibana in a cluster for load balancing of
+reporting requires identical values for `xpack.reporting.encryptionKey` and, if
+security is enabled, `xpack.security.encryptionKey`.
+
+`xpack.reporting.queue.pollInterval`::
+Specifies the {time-units}[time] that the reporting poller waits between polling the index for any pending Reporting jobs. Can be specified as a number of milliseconds. Defaults to `3s`.
+
+[[xpack-reporting-q-timeout]] `xpack.reporting.queue.timeout` ::
+{time-units}[How long] each worker has to produce a report. If your machine is slow or under heavy load, you
+might need to increase this timeout. If a Reporting job execution goes over this time limit, the job is marked
+as a failure and no download will be available. Can be specified as a number of milliseconds. Defaults to `4m`.
+
+### PNG/PDF settings
+
+============
+We recommend using PNG/PDF reports to export moderate amounts of data only. The feature enables a high-level
+export capability, but it's not intended for bulk export. If you need to export several pages of image data,
+consider using multiple report jobs to export a small number of pages at a time. If the screenshot of exported
+dashboard contains a large number of pixels, consider splitting the large dashboard into smaller artifacts to
+use less memory and CPU resources.
+
+For the most reliable configuration of PDF/PNG {report-features}, consider installing Kibana using Docker or using Elastic Cloud.
+
+============
+
+To generate PDF and PNG files, Reporting uses an internal "screenshotting" plugin which manages a headless browser that captures screenshots from Kibana.
+
+The following settings control the capturing process.
+
+`xpack.screenshotting.capture.timeouts.openUrl` ::
+Specify the {time-units}[time] to allow the Reporting browser to wait for the "Loading..." screen to dismiss
+and find the initial data for the page. If the time is exceeded, a screenshot is captured showing the current
+page, and the download link shows a warning message. Can be specified as number of milliseconds. Defaults to `1m`.
+
+`xpack.screenshotting.capture.timeouts.waitForElements` ::
+Specify the {time-units}[time] to allow the Reporting browser to wait for all visualization panels to load on
+the page. If the time is exceeded, a screenshot is captured showing the current page, and the download link
+shows a warning message. Can be specified as number of milliseconds. Defaults to `1m`.
+
+`xpack.screenshotting.capture.timeouts.renderComplete` ::
+Specify the {time-units}[time] to allow the Reporting browser to wait for all visualizations to fetch and
+render the data. If the time is exceeded, a screenshot is captured showing the current page, and the download
+link shows a warning message. Can be specified as number of milliseconds. Defaults to `2m`.
+
+**Note:** If any timeouts from `xpack.screenshotting.capture.timeouts.*` settings occur when
+running a report job, Reporting will log the error and try to continue
+capturing the page with a screenshot. As a result, a download will be
+available, but there will likely be errors in the visualizations in the report.
+
+`xpack.screenshotting.capture.loadDelay`::
+deprecated:[8.0.0,This setting has no effect.] Specify the {time-units}[amount of time] before taking a screenshot when visualizations are not evented. All visualizations that ship with Kibana are evented, so this setting should not have much effect. If you are seeing empty images instead of visualizations, try increasing this value. *NOTE*: This setting exists for backwards compatibility, but is unused and therefore does not have an affect on reporting performance.
+
+#### Chromium headless browser settings
+
+For PDF and PNG reports, Reporting spawns a headless Chromium browser process on the server to load and capture a screenshot of the Kibana app. When installing Kibana on Linux and Windows platforms, the Chromium binary comes bundled with the Kibana download. For Mac platforms, the Chromium binary is downloaded the first time Kibana is started.
+
+`xpack.screenshotting.browser.chromium.disableSandbox`::
+It is recommended that you research the feasibility of enabling unprivileged user namespaces. An exception is if you are running Kibana in Docker because the container runs in a user namespace with the built-in seccomp/bpf filters. For more information, refer to reporting-chromium-sandbox. Defaults to `false` for all operating systems except CentOS, Debian, and Red Hat Linux, which use `true`.
+
+`xpack.screenshotting.browser.chromium.proxy.enabled`::
+Enables the proxy for Chromium to use. When set to `true`, you must also specify the `xpack.screenshotting.browser.chromium.proxy.server` setting. Defaults to `false`.
+
+`xpack.screenshotting.browser.chromium.proxy.server`::
+The uri for the proxy server. Providing the username and password for the proxy server via the uri is not supported.
+
+`xpack.screenshotting.browser.chromium.proxy.bypass`::
+An array of hosts that should not go through the proxy server and should use a direct connection instead. Examples of valid entries are "elastic.co", "*.elastic.co", ".elastic.co", ".elastic.co:5601".
+
+#### Kibana server settings for headless browser connection
+
+To generate screenshots for PNG and PDF reports, Reporting opens the Kibana web interface using a local
+connection to the server. In most cases, using a local connection to the Kibana server presents no issue. If
+you prefer the headless browser to connect to Kibana using a specific hostname, there are a number of
+settings that allow the headless browser to connect to Kibana through a proxy, rather than directly.
+
+============
+The `xpack.reporting.kibanaServer` settings are optional. Take caution when editing these settings. Adding
+these settings can cause the PDF/PNG {report-features} to fail. If reports fail, inspect the server logs and
+pay attention to errors regarding the headless browser being unable to connect to the server. The full Kibana
+URL that Reporting is attempting to open is logged during report execution.
+============
+
+`xpack.reporting.kibanaServer.port`:: The port for accessing Kibana.
+
+`xpack.reporting.kibanaServer.protocol`:: The protocol for accessing Kibana, typically `http` or `https`.
+
+[[xpack-kibanaServer-hostname]] `xpack.reporting.kibanaServer.hostname`:: The hostname for accessing Kibana.
+
+#### Network policy settings for headless Chromium restrictions
+
+To generate PDF reports, Reporting uses a headless Chromium browser to fully load the Kibana page on the server. This potentially involves sending requests to external hosts. For example, a request might go to an external image server to show a field formatted as an image, or to show an image in a Markdown visualization.
+
+If the headless Chromium browser is asked to send a request that violates the network policy, it will stop processing the page before the request goes out, and the report is marked as a failure. Additional information about the event is in the Kibana server logs.
+
+**Note:** Kibana installations are not designed to be publicly accessible over the internet. The Reporting network policy and other capabilities of the Elastic Stack security features do not change this condition.
+
+`xpack.screenshotting.networkPolicy`::
+Capturing a screenshot from a Kibana page involves sending out requests for all the linked web assets. For example, a Markdown visualization can show an image from a remote server.
+
+`xpack.screenshotting.networkPolicy.enabled`::
+When `false`, disables the headless browser network policy. Defaults to `true`.
+
+`xpack.screenshotting.networkPolicy.rules`::
+A policy is specified as an array of objects that describe what to allow or deny based on a host or protocol. If a host or protocol is not specified, the rule matches any host or protocol.
+
+The rule objects are evaluated sequentially from the beginning to the end of the array, and continue until there is a matching rule. If no rules allow a request, the request is denied.
+
+```yaml
+# Only allow requests to elastic.co
+xpack.screenshotting.networkPolicy:
+  rules: [ { allow: true, host: "elastic.co" } ]
+```
+
+```yaml
+# Only allow requests to https://elastic.co
+xpack.screenshotting.networkPolicy:
+  rules: [ { allow: true, host: "elastic.co", protocol: "https:" } ]
+```
+
+Example of a baseline configuration for disallowing all requests to external paths:
+
+```yaml
+xpack.screenshotting.networkPolicy:
+  rules: [ { allow: true, host: "localhost:5601", protocol: "http:" } ]
+```
+
+**Note:** Typically, Chromium will connect to Kibana on a local interface, but this may be different based on the environment and specific reporting-kibana-server-settings.
+
+A final `allow` rule with no host or protocol allows all requests that are not explicitly denied:
+
+```yaml
+# Denies requests from http://elastic.co, but anything else is allowed.
+xpack.screenshotting.networkPolicy:
+  rules: [{ allow: false, host: "elastic.co", protocol: "http:" }, { allow: true }];
+```
+
+A network policy can be composed of multiple rules:
+
+```yaml
+# Allow any request to http://elastic.co but for any other host, https is required
+xpack.screenshotting.networkPolicy
+  rules: [
+    { allow: true, host: "elastic.co", protocol: "http:" },
+    { allow: true, protocol: "https:" },
+  ]
+```
+
+============
+The `file:` protocol is always denied, even if no network policy is configured.
+============
+
+### CSV settings
+
+============
+We recommend using CSV reports to export moderate amounts of data only. The feature enables analysis of data in external tools, but it is not intended for bulk export or to backup Elasticsearch data. Report timeout and incomplete data issues are likely if you are exporting data where:
+
+- More than 250 MB of data is being exported
+- Data is stored on slow storage tiers
+- Any shard needed for the search is unavailable
+- Network latency between nodes is high
+- Cross-cluster search is used
+- ES|QL is used and result row count exceeds the limits of ES|QL queries
+
+To work around the limitations, use filters to create multiple smaller reports, or extract the data you need directly with the Elasticsearch APIs.
+
+For more information on using Elasticsearch APIs directly, see [Scroll API](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/scroll-api.html), [Point in time API](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/point-in-time-api.html), [ES|QL](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/esql-rest.html) or [SQL](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/sql-rest-format.html#_csv) with CSV response data format. We recommend that you use an official Elastic language client: details for each programming language library that Elastic provides are in the [Elasticsearch Client documentation](https://www.elastic.co/guide/en/elasticsearch/client/index.html).
+
+Reporting parameters can be adjusted to overcome some of these limiting scenarios. Results are dependent on data size, availability, and latency factors and are not guaranteed.
+============
+
+[[xpack-reporting-csv]] `xpack.reporting.csv.maxSizeBytes` ::
+The maximum {byte-units}[byte size] of a CSV file before being truncated. This setting exists to prevent large
+exports from causing performance and storage issues. Can be specified as a number of bytes. Defaults to `250mb`.
+
+`xpack.reporting.csv.scroll.size`::
+Number of documents retrieved from Elasticsearch for each scroll iteration during a CSV export. The maximum value is `10000`. Defaults to `500`.
+============
+You may need to lower this setting if the default number of documents creates a strain on network resources.
+============
+
+`xpack.reporting.csv.scroll.duration`::
+Amount of {time-units}[time] allowed before Kibana cleans the scroll context during a CSV export. Valid option is either `auto` or {time-units}[time], Defaults to `30s`.
+
+============
+If search latency in Elasticsearch is sufficiently high, such as if you are using cross-cluster search, you may either need to increase the time setting or set this config value to `auto`. When the config value is set to `auto` the scroll context will be preserved for as long as possible, before the report task is terminated due to the limits of `xpack.reporting.queue.timeout`.
+============
+
+`xpack.reporting.csv.scroll.strategy`::
+Choose the API method used to page through data during CSV export. Valid options are `scroll` and `pit`. Defaults to `pit`.
+
+============
+Each method has its own unique limitations which are important to understand.
+
+* Scroll API: Search is limited to 500 shards at the very most. In cases where data shards are unavailable or time out, the export may return partial data.
+* PIT API: Permissions to read data aliases alone will not work: the permissions are needed on the underlying indices or datastreams. In cases where data shards are unavailable or time out, the export will be empty rather than returning partial data.
+============
+
+`xpack.reporting.csv.checkForFormulas`::
+Enables a check that warns you when there's a potential formula included in the output (=, -, +, and @ chars). See OWASP: https://www.owasp.org/index.php/CSV_Injection. Defaults to `true`.
+
+`xpack.reporting.csv.escapeFormulaValues`::
+Escape formula values in cells with a `'`. See OWASP: https://www.owasp.org/index.php/CSV_Injection. Defaults to `true`.
+
+`xpack.reporting.csv.enablePanelActionDownload`::
+deprecated:[8.14.0,This setting will be removed in an upcoming version of Kibana.] When `true`, this
+setting enables a deprecated feature which allows users to download a CSV export from a saved search
+panel on a dashboard. When `false`, users can generate regular CSV reports from a saved search panel on a
+dashboard and later download them in *Stack Management > Reporting*. Defaults to `false`.
+
+`xpack.reporting.csv.useByteOrderMarkEncoding`::
+Adds a byte order mark (`\ufeff`) at the beginning of the CSV file. Defaults to `false`.

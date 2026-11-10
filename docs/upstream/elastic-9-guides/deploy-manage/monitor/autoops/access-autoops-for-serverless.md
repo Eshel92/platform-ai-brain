@@ -1,0 +1,25 @@
+---
+applies_to:
+  serverless:
+navigation_title: Access AutoOps in your project
+products:
+  - id: cloud-serverless
+---
+
+# How to access AutoOps in your {{serverless-short}} project
+
+To access AutoOps in your {{serverless-short}} project, follow these steps:
+
+1. Log in to your {{ecloud}} account.
+2. Locate the {{serverless-short}} project you want to work on and select **Manage**.
+3. Select **AutoOps** from the navigation menu or click **Open AutoOps** in the project overview.
+
+:::{image} /deploy-manage/images/serverless-autoops-how-to-access.png
+:screenshot:
+:alt: Screenshot showing the View in AutoOps button
+:::
+
+:::{note} 
+AutoOps for {{serverless-full}} is only available in supported [regions](ec-autoops-regions.md#autoops-for-serverless-full-regions). The **Storage Tier** view is available in all regions across AWS, GCP, and Azure.
+:::
+

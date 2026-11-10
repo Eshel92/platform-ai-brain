@@ -1,0 +1,51 @@
+<!-- Converted from api/logstash-configuration-management/create-logstash.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### Create Logstash pipeline API
+
+experimental[] Create a centrally-managed Logstash pipeline, or update an existing pipeline.
+
+#### Request
+
+`PUT <kibana host>:<port>/api/logstash/pipeline/<id>`
+
+#### Path parameters
+
+`id`::
+  (Required, string) The pipeline ID. Only alphanumeric characters, hyphens, and underscores are supported.
+
+#### Request body
+
+`description`::
+  (Optional, string) The pipeline description.
+
+`pipeline`::
+  (Required, string) The pipeline definition.
+
+`settings`::
+  (Optional, object) The pipeline settings. Supported settings, represented as object keys, include the following:
+  
+  * `pipeline.workers`
+  * `pipeline.batch.size`
+  * `pipeline.batch.delay`
+  * `pipeline.ecs_compatibility`
+  * `pipeline.ordered`
+  * `queue.type`
+  * `queue.max_bytes`
+  * `queue.checkpoint.writes`
+
+#### Response code
+
+`204 No Content`::
+    Indicates a successful call.
+
+#### Example
+
+```sh
+$ curl -X PUT api/logstash/pipeline/hello-world
+{
+  "pipeline": "input { stdin {} } output { stdout {} }",
+  "settings": {
+    "queue.type": "persisted"
+  }
+}
+```

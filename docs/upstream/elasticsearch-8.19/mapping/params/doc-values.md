@@ -1,0 +1,91 @@
+<!-- Converted from mapping/params/doc-values.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### `doc_values`
+
+Most fields are indexed by default, which makes them
+searchable. The inverted index allows queries to look up the search term in
+unique sorted list of terms, and from that immediately have access to the list
+of documents that contain the term.
+
+Sorting, aggregations, and access to field values in scripts requires a
+different data access pattern. Instead of looking up the term and finding
+documents, we need to be able to look up the document and find the terms that
+it has in a field.
+
+The `doc_values` field is an on-disk data structure that is built at index time and
+enables efficient data access. It stores the same values as 
+`_source`, but in a column-oriented format that is more efficient for
+sorting and aggregations. 
+
+Doc values are supported on most field types,
+excluding `text` and `annotated_text` fields. See also doc-values-disable.
+
+#### Doc-value-only fields
+
+Numeric types, date types, the boolean type,
+ip type, geo_point type and the keyword type
+can also be queried when they are not indexed but only
+have doc values enabled.
+Query performance on doc values is much slower than on index structures, but
+offers an interesting tradeoff between disk usage and query performance for
+fields that are only rarely queried and where query performance is not as
+important. This makes doc-value-only fields a good fit for fields that are
+not expected to be normally used for filtering, for example gauges or
+counters on metric data.
+
+Doc-value-only fields can be configured as follows:
+
+```console
+PUT my-index-000001
+{
+  "mappings": {
+    "properties": {
+      "status_code": { <1>
+        "type":  "long"
+      },
+      "session_id": { <2>
+        "type":  "long",
+        "index": false
+      }
+    }
+  }
+}
+```
+
+<1> The `status_code` field is a regular long field.
+<2> The `session_id` field has `index` disabled, and is therefore a
+    doc-value-only long field as doc values are enabled by default.
+
+#### Disabling doc values
+
+For all fields that support them, `doc_values` are enabled by default. In 
+some field types, such as `search_as_you_type`, 
+`doc_values` appear in API responses but can't be configured. Setting 
+`doc_values` for these fields might result in an error or have no effect.
+
+If you're
+certain you don't need to sort or aggregate on a field or access its
+value from a script, you can disable `doc_values` in order to save disk space:
+
+```console
+PUT my-index-000001
+{
+  "mappings": {
+    "properties": {
+      "status_code": { <1>
+        "type":       "keyword"
+      },
+      "session_id": { <2>
+        "type":       "keyword",
+        "doc_values": false
+      }
+    }
+  }
+}
+```
+
+<1> The `status_code` field has `doc_values` enabled by default.
+<2> The `session_id` has `doc_values` disabled, but can still be queried.
+
+**Note:** You cannot disable doc values for `wildcard`
+fields.

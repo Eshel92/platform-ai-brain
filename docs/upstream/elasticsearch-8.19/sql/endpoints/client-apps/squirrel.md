@@ -1,0 +1,48 @@
+<!-- Converted from sql/endpoints/client-apps/squirrel.asciidoc (AsciiDoc). Includes are inlined. -->
+
+### SQuirreL SQL
+
+You can use the Elasticsearch JDBC driver to access Elasticsearch data from SQuirreL SQL.
+
+**Important:** Elastic does not endorse, promote or provide support for this application; for native Elasticsearch integration in this product, please reach out to its vendor.
+
+#### Prerequisites
+
+* [SQuirreL SQL](http://squirrel-sql.sourceforge.net/) version 4.0.0 or higher
+* {es-sql} JDBC driver
+
+#### Add Elasticsearch JDBC Driver
+
+To add the Elasticsearch JDBC driver, use *Windows* > *View Drivers* menu (or CtrlShiftD shortcut):
+
+image:images/sql/client-apps/squirell-1-view-drivers.png[]
+
+Select *Elasticsearch* profile from the `Drivers` panel on the left-hand side (if it is missing check the SQuirreL SQL version or add a new entry to the list through the `+' button in the upper left corner):
+
+image:images/sql/client-apps/squirell-2-select-driver.png[]
+
+Select the *Extra Class Path* tab and *Add* the JDBC jar. Name the connection and *List Drivers* to have `Class Name` populated if it is not already filled-in :
+
+image:images/sql/client-apps/squirell-3-add-driver.png[]
+
+The driver should now appear in the list with a blue check mark next to its name:
+
+image:images/sql/client-apps/squirell-4-driver-list.png[]
+
+#### Add an alias for Elasticsearch
+
+Add a new connection or in SQuirreL terminology an _alias_ using the new driver. To do so, select the *Aliases* panel on the left and click the `+` sign:
+
+image:images/sql/client-apps/squirell-5-add-alias.png[]
+
+Name the new alias and select the `Elasticsearch` driver previously added:
+
+image:images/sql/client-apps/squirell-6-alias-props.png[]
+
+The setup is completed. Double check it by clicking on *Test Connection*.
+
+#### Execute SQL queries
+
+The connection should open automatically (if it has been created before simply click on *Connect* in the *Alias* panel). SQuirreL SQL can now issue SQL commands to Elasticsearch:
+
+image:images/sql/client-apps/squirell-7-data.png[]

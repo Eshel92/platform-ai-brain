@@ -1,0 +1,617 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/cloud/current/ec-encrypt-with-cmek.html
+applies_to:
+  deployment:
+    ess: ga
+products:
+  - id: cloud-hosted
+---
+
+# Use a customer-managed encryption key [ec-encrypt-with-cmek]
+
+The following information applies to your {{ech}} deployments.
+
+By default, Elastic already encrypts your deployment data and snapshots at rest. You can reinforce this mechanism by providing your own encryption key, also known as Bring Your Own Key (BYOK). To do that, you need a customer-managed key that you set up and manage in your cloud provider’s Key Management Service (KMS).
+
+::::{note}
+Encryption at rest using customer-managed keys is only available for the Enterprise subscription level.
+
+You can add a customer-managed key when you create a new deployment, or add one to an existing deployment. Once you set a customer-managed key on a deployment, you cannot edit or remove it. The ability to change or remove a customer-managed key will be supported on {{ech}} in the future.
+::::
+
+
+Using a customer-managed key allows you to strengthen the security of your deployment data and snapshot data at rest. Note that if you use a custom snapshot repository different from the one provided by {{ecloud}}, these snapshots are not encrypted with your customer-managed key by default. The encryption happens at the file system level.
+
+
+## How using a customer-managed key helps to improve your data security [ec_how_using_a_customer_managed_key_helps_to_improve_your_data_security]
+
+Using a customer-managed key helps protect against threats related to the management and control of encryption keys. It does not directly protect against any specific types of attacks or threats. However, the ability to keep control over your own keys can help mitigate certain types of threats such as:
+
+* **Insider threats.** By using a customer-managed key, Elastic does not have access to your encryption keys [^1^](#footnote-1). This can help prevent unauthorized access to data by insiders with malicious intent.
+* **Compromised physical infrastructure.** If a data center is physically compromised, the hosts are shut off. With customer-managed key encryption, that’s a second layer of protection that any malicious intruder would have to bypass, in addition to the existing built-in hardware encryption.
+
+Using a customer-managed key can help comply with regulations or security requirements, but it is not a complete security solution by itself. There are other types of threats that it does not protect against.
+
+^1^ $$$footnote-1$$$ You set up your customer-managed keys and their access in your key management service. When you provide a customer-managed key identifier to {{ecloud}}, we do not access or store the cryptographic material associated with that key. Customer-managed keys are not directly used to encrypt deployment or snapshot data. {{ecloud}} accesses your customer-managed keys to encrypt and decrypt data encryption keys, which, in turn, are used to encrypt the data.
+
+When a deployment encrypted with a customer-managed key is deleted or terminated, its data is locked first before being deleted, ensuring a fully secure deletion process.
+
+
+## Prerequisites [ec_prerequisites_3]
+
+:::::::{tab-set}
+:group: csps
+
+::::::{tab-item} AWS
+:sync: aws
+
+* Have permissions on AWS KMS to [create a symmetric AWS KMS key](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#symmetric-cmks) and to configure AWS IAM roles.
+
+  :::{tip}
+  {{ecloud}} also supports keys from [imported key material](https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys.html) or from [key stores external to AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/keystore-external.html), such as CipherTrust.
+  :::
+
+* Consider the cloud regions where you need your deployment to live. Refer to the [list of available regions, deployment templates, and instance configurations](cloud://reference/cloud-hosted/ec-regions-templates-instances.md) supported by {{ecloud}}.
+::::::
+
+::::::{tab-item} Azure
+:sync: azure
+
+* Have the following permissions on Azure:
+
+    * Permissions to [create an RSA key](https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys#key-types-and-protection-methods) in the Azure Key Vault where you want to store your key.
+
+      :::{tip}
+      {{ecloud}} also supports keys from [key stores external to Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/keys/byok-specification), such as CipherTrust.
+      :::
+
+    * Membership in the **Application Administrator** role. This is required to create a new service principal for {{ecloud}} in your Azure tenant.
+    * Permissions to [assign roles in your Key Vault using Access control (IAM)](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide?tabs=azure-cli#prerequisites). This is required to grant the service principal access to your key.
+
+* The Azure Key Vault where the RSA key will be stored must have [purge protection](https://learn.microsoft.com/en-us/azure/key-vault/general/soft-delete-overview#purge-protection) enabled to support the encryption of snapshots.
+* Consider the cloud regions where you need your deployment to live. Refer to the [list of available regions, deployment templates, and instance configurations](cloud://reference/cloud-hosted/ec-regions-templates-instances.md) supported by {{ecloud}}.
+::::::
+
+::::::{tab-item} Google Cloud
+:sync: gcp
+
+* Consider the cloud regions where you need your deployment to live. Refer to the [list of available regions, deployment templates, and instance configurations](cloud://reference/cloud-hosted/ec-regions-templates-instances.md) supported by {{ecloud}}.
+* Have the following permissions in Google Cloud KMS:
+
+    * Permissions to [create a KMS key](https://cloud.google.com/kms/docs/create-key) on a key ring in the same region as your deployment. If you don’t have a key ring in the same region, or want to store the key in its own key ring, then you also need permissions to [create a key ring](https://cloud.google.com/kms/docs/create-key-ring).
+
+      :::{tip}
+      {{ecloud}} also supports keys from [key stores external to Cloud KMS](https://cloud.google.com/kms/docs/ekm), such as CipherTrust.
+      :::
+
+    * Permissions to [manage access to your new key resource using IAM](https://cloud.google.com/kms/docs/iam). This is required to grant the service principals used by Elastic access to your key.
+::::::
+
+:::::::
+
+## Know before you go [ec_know_before_you_go]
+
+At this time, the following features are not supported:
+
+* Disabling encryption on a deployment
+* Azure: Encrypting deployments using Azure EC or symmetric keys
+
+
+## Create an encryption key for your deployment [create-encryption-key]
+
+:::::::{tab-set}
+:group: csps
+
+::::::{tab-item} AWS
+:sync: aws
+
+1. Create a symmetric [single-region key](https://docs.aws.amazon.com/kms/latest/developerguide/create-keys.html) or [multi-region replica key](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-replicate.html). The key must be available in each region in which you have deployments to encrypt. You can use the same key to encrypt multiple deployments. Later, you will need to provide the Amazon Resource Name (ARN) of that key or key alias to {{ecloud}}.
+
+    ::::{note}
+    Use an alias ARN instead of the key ARN itself if you plan on doing manual key rotations. When using a key ARN directly, only automatic rotations are supported.
+    ::::
+
+2. Apply a [key policy](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-overview.html) with the settings required by {{ecloud}} to the key created in the previous step. 
+
+   The first tab shows the statement {{ecloud}} requires. The second shows that statement inside a complete key policy.
+
+   ::::{tip}
+   A key policy needs more than just an `ElasticKeyAccess` statement to be valid. Make sure your key policy includes a `Version` property and `Statement` array, and a statement that allows administration of your key.
+   ::::
+
+   ::::{tab-set}
+   :::{tab-item} Required key policy statement
+    ```json
+    {
+      "Sid": "ElasticKeyAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": [
+        "kms:Decrypt", <1>
+        "kms:Encrypt", <2>
+        "kms:GetKeyRotationStatus", <3>
+        "kms:GenerateDataKey", <4>
+        "kms:DescribeKey" <5>
+      ],
+      "Resource": "*",
+      "Condition": { <6>
+        "ForAnyValue:StringLike": {
+          "aws:PrincipalOrgPaths": "o-ygducmlz12/r-e5t3/ou-e5t3-fzpdq76p/ou-e5t3-ysfcmd95/ou-e5t3-hwt05su3/*"
+       }
+     }
+    }
+    ```
+    1. [kms:Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) - This operation is used to decrypt data encryption keys stored on the deployment’s host, as well as decrypting snapshots stored in S3.
+    2. [kms:Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html) - This operation is used to encrypt the data encryption keys generated by the KMS as well as encrypting your snapshots.
+    3. [kms:GetKeyRotationStatus](https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html) - This operation is used to determine whether automatic key rotation is enabled.
+    4. [kms:GenerateDataKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html) - This operation is used to generate a data encryption key along with an encrypted version of it. The system leverages the randomness provided by the KMS to produce the data encryption key and your actual customer-managed key to encrypt the data encryption key.
+    5. [kms:DescribeKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_DescribeKey.html) - This operation is used to check whether your key is properly configured for {{ecloud}}. In addition, {{ecloud}} uses this to check if a manual key rotation was performed by comparing underlying key IDs associated with an alias.
+    6. This condition allows the accounts associated with the {{ecloud}} production infrastructure to access your key. Under typical circumstances, {{ecloud}} will only be accessing your key via two AWS accounts: the account your deployment’s host is in and the account your S3 bucket containing snapshots is in. However, determining these particular account IDs prior to the deployment creation is not possible at the moment. This encompasses all of the possibilities.     For more on this, check the [AWS documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-principalorgpaths).
+    :::
+    :::{tab-item} Example complete policy
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "EnableKeyManagement",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::CUSTOMER_ACCOUNT_ID:root" <1>
+          },
+          "Action": "kms:*",
+          "Resource": "*"
+        },
+        {
+          "Sid": "ElasticKeyAccess",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Decrypt",
+            "kms:Encrypt",
+            "kms:GetKeyRotationStatus",
+            "kms:GenerateDataKey",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "ForAnyValue:StringLike": {
+              "aws:PrincipalOrgPaths": "o-ygducmlz12/r-e5t3/ou-e5t3-fzpdq76p/ou-e5t3-ysfcmd95/ou-e5t3-hwt05su3/*"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+    1. Replace with the ARN of the principal you want to manage the key.
+
+    :::
+    ::::
+
+::::::
+
+::::::{tab-item} Azure
+:sync: azure
+
+1. Create an RSA key in your Key Vault. The key must be available in each region in which you have deployments to encrypt. You can use the same key to encrypt multiple deployments.
+2. After the key is created, view the key and note the key identifier. It should look similar to the following:
+
+    * `https://<key-vault-name>.vault.azure.net/keys/<key-name>` (without version identifier)
+    * `https://<key-vault-name>.vault.azure.net/keys/<key-name>/<version-id>` (with version identifier)
+
+        Later, you will need to provide this identifier to {{ecloud}}.
+
+
+::::{tip}
+Provide your key identifier without the key version identifier so {{ecloud}} can [rotate the key](#rotate-a-customer-managed-key) on your behalf.
+::::
+::::::
+
+::::::{tab-item} Google Cloud
+:sync: gcp
+
+1. [Create a new symmetric key](https://cloud.google.com/kms/docs/create-key) in Google Cloud KMS.
+
+    The key must be in a key ring that’s in the same region as your deployment. Do not use key ring in a multi-region location.
+
+2. After the key is created, view the key and [note its resource ID](https://cloud.google.com/kms/docs/getting-resource-ids#getting_the_id_for_a_key_and_version). The resource ID uses the following format:
+
+    `projects/PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY_NAME`
+
+    Later, you will need to provide this ID to {{ecloud}}.
+::::::
+
+:::::::
+
+## Encrypt a deployment with your key
+
+You can encrypt a deployment with your customer-managed key when you [create a new deployment](#ec_create_a_deployment_encrypted_with_your_key), or [add a key to an existing deployment](#ec_encrypt_an_existing_deployment_with_a_customer_managed_key). Choose the workflow that matches your use case.
+
+### Create a deployment encrypted with your key [ec_create_a_deployment_encrypted_with_your_key]
+
+:::::::{tab-set}
+:group: csps
+
+::::::{tab-item} AWS
+:sync: aws
+
+1. Create a new deployment. You can do it from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body), or from the API:
+
+    * from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body):
+
+        * Select **Create deployment** from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body) home page.
+        * In the **Settings**, set the **Cloud provider** to **Amazon Web Services** and select a region.
+        * Expand the **Advanced settings** and turn on **Use a customer-managed encryption key**. An additional field appears to let you specify the ARN of the AWS KMS key or key alias you will use to encrypt your new deployment.
+        * Configure the rest of your deployment to your convenience, and select **Create deployment**.
+
+    * using the API:
+
+        * Choose a **cloud region** and a **deployment template** (also called hardware profile) for your deployment from the [list of available regions, deployment templates, and instance configurations](cloud://reference/cloud-hosted/ec-regions-templates-instances.md).
+        * [Get a valid {{ecloud}} API key](/deploy-manage/api-keys/elastic-cloud-api-keys.md) with the **Organization owner** role or the **Admin** role on deployments. These roles allow you to create new deployments.
+        * Get the ARN of the symmetric AWS KMS key or of its alias. Use an alias if you are planning to do manual key rotations as specified in the [AWS documentation](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html).
+        * Use these parameters to create a new deployment with the [{{ecloud}} API]({{cloud-apis}}group/endpoint-deployments). For example:
+
+            ```bash
+            curl -XPOST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: ApiKey <replace with encoded API key>" \
+            "https://api.elastic-cloud.com/api/v1/deployments?template_id=<replace with desired template ID>" \
+            -d '
+            {
+              "name": "my-deployment",
+              "version": "8.15.0",
+              "region": "us-east-1",
+              "settings": {
+                "byok": {
+                  "key_resource_path": "<replace with your key or alias ARN>"
+                }
+              }
+            }
+            ```
+
+            ::::{tip}
+            You can also create the deployment from a snapshot of a deployment that was initially not encrypted with a customer-managed key. To encrypt an existing deployment in place instead, refer to [Encrypt an existing deployment with your key](#ec_encrypt_an_existing_deployment_with_a_customer_managed_key).
+            ::::
+
+
+The deployment is now created and encrypted using the specified key. Future snapshots will also be encrypted using that key.
+::::::
+
+::::::{tab-item} Azure
+:sync: azure
+
+To create a new deployment with a customer-managed key in Azure, you need to perform actions in {{ecloud}} and in your Azure tenant.
+
+**Step 1: Create a service principal for {{ecloud}}**
+
+1. In {{ecloud}}, retrieve the Azure application ID:
+
+    * Select **Create deployment** from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body) home page.
+    * In the **Settings**, set the **Cloud provider** to **Azure** and select a region.
+    * Expand the **Advanced settings** and turn on **Use a customer-managed encryption key**.
+    * Copy the **Azure application ID**.
+
+2. Using the ID that you copied, [create a new service principal](https://learn.microsoft.com/en-us/azure/storage/common/customer-managed-keys-configure-cross-tenant-existing-account?tabs=azure-portal#the-customer-installs-the-service-provider-application-in-the-customer-tenant) for {{ecloud}} in your Azure tenant. The service principal grants {{ecloud}} access to interact with your RSA key.
+
+    For example, you might use the following Azure CLI command to create the service principal:
+
+    ```bash
+    az ad sp create --id <azure application ID>
+    ```
+
+    ::::{tip}
+    The user performing this action needs to belong to the **Application Administrator** role.
+    ::::
+
+
+    After it’s created, the service principal appears as `ess-byok-multitenant-app-production` in your Azure tenant.
+
+3. In your Azure Portal, view the key [that you created](#create-encryption-key). In the **Access control (IAM)** settings for the key, grant the service principal the role **Key Vault Crypto User**.
+
+**Step 2: Create your deployment**<br>
+
+After you have created the service principal and granted it the necessary permissions, you can finish creating your deployment. You can do so from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body), or from the API.
+
+* Using the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body):
+
+    * Select **Create deployment** from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body) home page.
+    * In the **Settings**, set the **Cloud provider** to **Azure** and select a region.
+    * Expand the **Advanced settings** and turn on **Use a customer-managed encryption key**.
+    * Enter the Azure key identifier for the RSA key that you created.
+    * Configure the rest of your deployment according to your requirements, and then select **Create deployment**.
+
+* Using the API:
+
+    * Choose a **cloud region** and a **deployment template** (also called hardware profile) for your deployment from the [list of available regions, deployment templates, and instance configurations](cloud://reference/cloud-hosted/ec-regions-templates-instances.md).
+
+        * [Get a valid {{ecloud}} API key](/deploy-manage/api-keys/elastic-cloud-api-keys.md) with the **Organization owner** role or the **Admin** role on deployments. These roles allow you to create new deployments.
+        * Use these parameters to create a new deployment with the [{{ecloud}} API]({{cloud-apis}}group/endpoint-deployments). For example:
+
+            ```bash
+            curl -XPOST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: ApiKey <replace with encoded API key>" \
+            "https://api.elastic-cloud.com/api/v1/deployments?template_id=<replace with desired template ID>" \
+            -d '
+            {
+              "name": "my-deployment",
+              "version": "8.15.0",
+              "region": "azure-eastus",
+              "settings": {
+                "byok": {
+                  "key_resource_path": "<replace with your Azure key identifier>"
+                }
+              }
+            }
+            ```
+
+            ::::{tip}
+            You can also create the deployment from a snapshot of a deployment that was initially not encrypted with a customer-managed key. To encrypt an existing deployment in place instead, refer to [Encrypt an existing deployment with your key](#ec_encrypt_an_existing_deployment_with_a_customer_managed_key).
+            ::::
+
+
+The deployment is now created and encrypted using the specified key. Future snapshots will also be encrypted using that key.
+::::::
+
+::::::{tab-item} Google Cloud
+:sync: gcp
+
+**Step 1: Grant service principals access to your key**
+
+{{ecloud}} uses two service principals to encrypt and decrypt data using your key. You must grant these services access to your key before you create your deployment.
+
+* **Google Cloud Platform cloud storage service agent**: Used for Elastic-managed snapshots stored on Google Cloud Storage.
+* **Elastic service account**: Used for all other {{es}} data.
+
+1. In {{ecloud}}, retrieve the email addresses for the service principals that will be used by Elastic:
+
+    * Select **Create deployment** from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body) home page.
+    * In the **Settings**, set the **Cloud provider** to **Google Cloud** and select a region.
+    * Expand the **Advanced settings** and turn on **Use a customer-managed encryption key**.
+    * Note the **Elastic service account** and **Google Cloud Platform storage service agent** email addresses.
+
+2. For each email address that you copied, [grant them](https://cloud.google.com/kms/docs/iam#granting_roles_on_a_resource) the following roles on the key resource:
+
+    * **Elastic service account**:
+
+        * `cloudkms.cryptoKeyVersions.useToDecrypt`
+        * `cloudkms.cryptoKeyVersions.useToEncrypt`
+        * `cloudkms.cryptoKeys.get`
+
+    * **Google Cloud Platform cloud storage service agent**:
+
+        * `cloudkms.cryptoKeyVersions.useToDecrypt`
+        * `cloudkms.cryptoKeyVersions.useToEncrypt`
+
+
+    The user performing this action needs to belong to the **Owner** or **Cloud KMS Admin** role.
+
+
+    ::::{note}
+    If [domain restricted sharing](https://cloud.google.com/resource-manager/docs/organization-policy/restricting-domains) is enabled, then you might not be able to grant the service principals access to the key resource directly. Alternatively, you can grant access to a Google group that contains the relevant service accounts.
+
+    1. Create a new Google group within the allowed domain.
+    2. In the Google Workspace administrator panel, [turn off domain restriction for your newly created Google group](https://support.google.com/a/answer/167097).
+    3. Add the service principals to the Google group.
+    4. Grant the Google group the roles as listed.
+    
+    If you can't use Google Groups for your org, then [contact Elastic Support](https://www.elastic.co/support) for alternatives. 
+    ::::
+
+
+**Step 2: Create your deployment**
+
+After you have granted the Elastic principals the necessary roles, you can finish creating your deployment. You can do so from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body), or from the API.
+
+* Using the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body):
+
+    * Select **Create deployment** from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body) home page.
+    * In the **Settings**, set the **Cloud provider** to **Google Cloud** and select a region.
+    * Expand the **Advanced settings** and turn on **Use a customer-managed encryption key**.
+    * Enter the resource ID for the key that you created.
+    * Configure the rest of your deployment according to your requirements, and then select **Create deployment**.
+
+* Using the API:
+
+    * Choose a **cloud region** and a **deployment template** (also called hardware profile) for your deployment from the [list of available regions, deployment templates, and instance configurations](cloud://reference/cloud-hosted/ec-regions-templates-instances.md).
+
+        * [Get a valid {{ecloud}} API key](/deploy-manage/api-keys/elastic-cloud-api-keys.md) with the **Organization owner** role or the **Admin** role on deployments. These roles allow you to create new deployments.
+        * Use these parameters to create a new deployment with the [{{ecloud}} API]({{cloud-apis}}group/endpoint-deployments). For example:
+
+            ```bash
+            curl -XPOST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: ApiKey <replace with encoded API key>" \
+            "https://api.elastic-cloud.com/api/v1/deployments?template_id=<replace with desired template ID>" \
+            -d '
+            {
+              "name": "my-deployment",
+              "version": "8.15.0",
+              "region": "gcp-us-east1",
+              "settings": {
+                "byok": {
+                  "key_resource_path": "<replace with your Google Cloud resource ID>"
+                }
+              }
+            }
+            ```
+
+            ::::{tip}
+            You can also create the deployment from a snapshot of a deployment that was initially not encrypted with a customer-managed key. To encrypt an existing deployment in place instead, refer to [Encrypt an existing deployment with your key](#ec_encrypt_an_existing_deployment_with_a_customer_managed_key).
+            ::::
+
+
+The deployment is now created and encrypted using the specified key. Future snapshots will also be encrypted using that key.
+::::::
+
+:::::::
+
+### Encrypt an existing deployment with your key [ec_encrypt_an_existing_deployment_with_a_customer_managed_key]
+
+You can add a customer-managed key to a running deployment from the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body) or the {{ecloud}} API.
+
+**Before you begin**
+
+Check your index lifecycle management policies. If any ILM policy in the deployment uses the Elastic-managed `found-snapshots` repository for a `searchable_snapshot` action in its cold or frozen phase, the request to enable encryption is rejected.
+
+To find affected policies, run `GET _ilm/policy` and look for `phases.cold.actions.searchable_snapshot.snapshot_repository` (or the `frozen` equivalent) set to `found-snapshots`. Update those policies, or point them at a custom snapshot repository, before you continue.
+
+**Using the {{ecloud}} Console**
+
+1. Go to your deployment's **Security** page.
+2. Under **Encryption at rest**, select **Manage encryption key**.
+3. Enter your key identifier (the ARN for {{aws}}, the key identifier for Azure, or the resource ID for Google Cloud) and save your changes.
+
+**Using the API**
+
+Encrypting an existing deployment uses a dedicated endpoint. You can't add a customer-managed key by updating a deployment's settings.
+
+1. [Get a valid {{ecloud}} API key](/deploy-manage/api-keys/elastic-cloud-api-keys.md) with the **Organization owner** role, or the **Admin** or **Editor** role on the deployment. The **Viewer** role and billing-only roles can't perform this operation.
+2. Send your key identifier to the `byok-migration` endpoint for your deployment. For example:
+
+    ```bash
+    curl -XPOST \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: ApiKey <replace with encoded API key>" \
+    "https://api.elastic-cloud.com/api/v1/deployments/<replace with deployment ID>/byok-migration" \
+    -d '
+    {
+      "key_resource_path": "<replace with your key ARN, Azure key identifier, or Google Cloud resource ID>"
+    }
+    '
+    ```
+
+    A successful request returns `"accepted": true`.
+
+If you send the same key again for a deployment that is already configured with that key, the request succeeds but no new plan change starts.
+
+The endpoint returns an error in the following cases:
+
+* `409` if the deployment is already encrypted with a different customer-managed key.
+* `409` if another plan is already pending on the deployment. Wait for that plan to finish, then retry.
+* `400` if the key can't be reached or isn't valid for the deployment's cloud provider.
+* `400` with `byok_migration.ilm_policy_conflict` if an ILM policy uses the `found-snapshots` repository in a cold or frozen phase. Remove the `searchable_snapshot` action from the affected phase, or configure it to use a custom snapshot repository, then retry. After migration completes, you can re-configure ILM policies to use `found-snapshots` for new data, but ILM transitions fail for indices that were already mounted from that repository before migration.
+* `500` with `byok_migration.ilm_policy_check_failed` if {{ecloud}} could not read the deployment's ILM policies to run that check. No plan change starts, and the request is safe to retry.
+
+{{ecloud}} then applies a plan change to encrypt your deployment's data and snapshots with your key. Each instance is replaced with an encrypted one, and your deployment stays accessible while re-encryption runs.
+
+::::{note}
+Once you set a customer-managed key on a deployment, you cannot edit or remove it. Once encryption begins, you cannot undo it or switch to a different key. The ability to change or remove a customer-managed key will be supported on {{ech}} in the future.
+::::
+
+#### Monitor re-encryption progress
+
+In the [{{ecloud}} Console](https://cloud.elastic.co?page=docs&placement=docs-body), your deployment's **Overview** page shows a **Configuration change in progress** banner while re-encryption runs. The banner reports how far along it is, for example `3/8 instances complete, 5/8 remaining`. How long re-encryption takes depends on the size of your data and the {{stack}} version you're running. Individual instances are marked **Encrypted** as they complete.
+
+To see the underlying plan steps, select **View activity** in the banner, or go to the deployment's **Activity** page. Note that the plan change isn't labeled as a key migration there, so the **Overview** banner is the better place to watch progress.
+
+From the API, get the deployment and check `metadata.byok_migration_in_progress`:
+
+```bash
+curl -XGET \
+-H "Authorization: ApiKey <replace with encoded API key>" \
+"https://api.elastic-cloud.com/api/v1/deployments/<replace with deployment ID>?show_plans=true&show_settings=true"
+```
+
+While re-encryption is running, `metadata.byok_migration_in_progress` is `true`. When it finishes, that field is `false` and `settings.byok.key_resource_path` holds your key identifier.
+
+#### Considerations for existing deployments
+
+Keep these considerations in mind when adding a customer-managed key to an existing deployment:
+
+* **Use a highly available deployment.** Before you start, make sure your deployment is [set up for high availability](/deploy-manage/production-guidance/availability-and-resilience/resilience-in-ech.md) with two or more availability zones. High availability isn't required, but each instance is removed once its encrypted replacement has taken over, so on a deployment without replicas each shard exists in only one copy while it relocates. On a single-availability-zone deployment, the only {{es}} node is also the elected master, so brief interruptions are possible while it's replaced.
+* **Let the process finish.** Once you start encryption with a customer-managed key, let encryption run to completion rather than interrupting it.
+* **Large deployments take longer.** For deployments with more than 1 TB of data, encrypting existing data can take a significant amount of time to complete.
+* **Data transfer costs can apply.** Encrypting an existing deployment can incur data transfer (DTS) costs in your cloud provider account. These costs are expected to be low for {{es}} 8.x and later deployments. Refer to [Reduce data transfer and storage (DTS) costs in {{ecloud}}](https://www.elastic.co/blog/reduce-data-transfer-and-storage-dts-costs-in-elastic-cloud) for more detail.
+* **Snapshots without {{search-snaps}} aren't carried over.** If your deployment doesn't use {{search-snaps}} (that is, it has no frozen or cold data tier), existing snapshots in the original repository are marked for deletion rather than transferred to the new, encrypted repository.
+* **Test on a smaller deployment first.** Before encrypting a large or business-critical deployment, try the process on a smaller deployment first and confirm your cluster is healthy. This reduces the risk of the process failing partway through.
+
+## Verify your deployment encryption
+
+You can check that your hosted deployment is correctly encrypted with the key you specified. To do that, go to the deployment’s **Security** page and select **Manage encryption key** in **Encryption at rest**.
+
+## Rotate a customer-managed key [rotate-a-customer-managed-key]
+
+:::::::{tab-set}
+:group: csps
+
+::::::{tab-item} AWS
+:sync: aws
+
+{{ecloud}} will automatically rotate the keys every 31 days as a security best practice.
+
+You can also trigger a manual rotation [in AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html), which will take effect in {{ecloud}} within 30 minutes. **For manual rotations to work, you must use an alias when creating the deployment. We do not currently support [on-demand rotations](https://docs.aws.amazon.com/kms/latest/APIReference/API_RotateKeyOnDemand.html) but plan on supporting this in the future.**
+::::::
+
+::::::{tab-item} Azure
+:sync: azure
+
+To rotate your key, you can [update your key version](https://learn.microsoft.com/en-us/azure/container-registry/tutorial-rotate-revoke-customer-managed-keys) or [configure a key rotation policy](https://learn.microsoft.com/en-us/azure/key-vault/keys/how-to-configure-key-rotation) in Azure Key Vault. In both cases, the rotation will take effect in {{ecloud}} within a day.
+
+For rotations to work, you must provide your key identifier without the key version identifier when you create your deployment.
+
+{{ecloud}} does not currently support rotating your key using a new key identifier.
+::::::
+
+::::::{tab-item} Google Cloud
+:sync: gcp
+
+Key rotations are triggered in Google Cloud. You can rotate your key [manually](https://cloud.google.com/kms/docs/rotate-key#manual) or [automatically](https://cloud.google.com/kms/docs/rotate-key#automatic). In both cases, the rotation will take effect in {{ecloud}} within a day.
+::::::
+
+:::::::
+
+## Revoke a customer-managed key [ec_revoke_a_customer_managed_key]
+
+Revoking a customer-managed key in your key management service can be a break-glass procedure in case of a security breach. {{ecloud}} gets an error if an encryption key is disabled, deleted, or if the appropriate role is removed from the IAM policy. Within 30 minutes maximum, {{ecloud}} locks the directories in which your deployment data live and prompts you to delete your deployment as an increased security measure.
+
+If that happens and this is not intended, you can restore the key in the key management system. Your deployment operations will resume when the key can be reached again. For more details, check [Troubleshooting](#ec-encrypt-with-cmek-troubleshooting).
+
+When a customer-managed key is permanently revoked and isn’t restored, the data stored in {{ecloud}} is effectively crypto-shredded.
+
+In a future release of {{ecloud}}, you will be able to:
+
+* Remove a customer-managed key and revert your deployment to using an Elastic-managed encryption.
+* Edit the customer-managed key in use in a deployment to re-encrypt it with a different key.
+
+
+## Troubleshooting [ec-encrypt-with-cmek-troubleshooting]
+
+**My request to encrypt an existing deployment failed with a conflict error. Why?**
+
+{{ecloud}} can only start the encryption plan change when no other plan is pending on the deployment. If you change your deployment's configuration and then add a customer-managed key straight afterwards, or if you run the operation across several deployments in a script, your request can arrive while an earlier plan is still running. Wait for the pending plan to finish, then retry.
+
+A conflict is also returned when the deployment is already encrypted with a different customer-managed key. A customer-managed key can't be changed once it's set, so in that case the operation won't succeed. Refer to [Encrypt an existing deployment with your key](#ec_encrypt_an_existing_deployment_with_a_customer_managed_key).
+
+**My deployment became inaccessible. What’s causing this?**
+
+When {{ecloud}} can’t reach the encryption key, your deployment may become inaccessible. The most common reasons for this issue are:
+
+* Connectivity issues between {{ecloud}} and the KMS.<br>
+
+    When {{ecloud}} is unable to access the customer-managed key, Elastic is alerted and will work to identify the cause. Elastic does not pause or terminate deployment instances when detecting connectivity issues, but your deployment may be inaccessible until issues are fixed.
+
+* The customer-managed key was deleted or revoked on the KMS.<br>
+
+    Restore or recover your key, and if need be, rotate your key and associate a new key before deleting your old key. {{ecloud}} will send you alerts prompting you to restore the key if it cannot access your key and your deployment is not operational.<br>
+
+    Within 30 minutes maximum, {{ecloud}} locks the directories in which your deployment data live and prompts you to delete your deployment as an increased security measure.<br>
+
+    While it is locked, the deployment retains all data but is not readable or writable[^2^](#footnote-2):
+
+    * If access to the key is never restored, the deployment data does not become accessible again
+    * When restoring access to the key, the deployment becomes operational again:
+
+        * If Elastic didn’t have to perform any platform operations on your instances during the locked period, operations are restored with minimum downtime.
+        * If Elastic performed some platform operations on your instances during the locked period, restoring operations can require some downtime. It’s also possible that some data can’t be restored[^3^](#footnote-3) depending on the available snapshots.
+
+
+^2^ $$$footnote-2$$$ During the locked directory period, Elastic may need to perform platform operations on the machines hosting your instances that result in data loss on the {{es}} data nodes but not the deployment snapshots.
+
+^3^ $$$footnote-3$$$ Elastic recommends that you keep snapshots of your deployment in custom snapshot repositories in your own CSP account for data recovery purposes.

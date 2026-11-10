@@ -1,0 +1,629 @@
+---
+navigation_title: "ES|QL"
+mapped_pages:
+  - https://www.elastic.co/guide/en/elasticsearch/reference/current/esql-kibana.html
+  - https://www.elastic.co/guide/en/kibana/current/esql.html
+description: Learn how to use the ES|QL editor and its syntax help, KQL search, and AI-assisted capabilities to write ES|QL queries across Kibana, including Discover, dashboards, and alerting rules.
+applies_to:
+  serverless: ga
+  stack: ga
+products:
+  - id: elasticsearch
+type: overview
+---
+
+# Use {{esql}} in {{kib}} [esql-kibana]
+
+Use the {{esql}} editor to query and aggregate your data across {{kib}}, including in [Discover](/explore-analyze/discover/use-esql.md), on [dashboards](/explore-analyze/visualize/esorql.md), and in [{{es}} query rules](/explore-analyze/alerting/alerts/rule-type-es-query.md) for alerting. The editor works in many areas, and some tools are available only in **Discover**. To see every area and the editor it uses, refer to [](#esql-kibana-areas).
+
+As you write a query, the editor offers inline suggestions and syntax help, so you don't have to leave {{kib}} to check the syntax. You can also filter by time, add variables that make a query interactive, and reuse your recent and starred queries. This page describes these capabilities.
+
+To look up commands, functions, and operators, refer to the [{{esql}} reference](elasticsearch://reference/query-languages/esql/esql-syntax-reference.md).
+
+:::{agent-skill}
+:url: https://github.com/elastic/agent-skills/tree/main/skills/elasticsearch/elasticsearch-esql
+:::
+
+
+## Use {{esql}} across {{kib}} [esql-kibana-areas]
+
+Editor support varies by area. Some areas use the {{esql}} editor described on this page, while others provide a task-specific editor or embed {{esql}} in their own editor.
+
+| Area | What you can do | Editing experience |
+|------|-----------------|--------------------|
+| [Discover](/explore-analyze/discover/use-esql.md) | Explore data, visualize results, and save findings to dashboards | {{esql}} editor |
+| [Dashboards and visualizations](/explore-analyze/visualize/esorql.md) | Create visualization panels and interactive controls | {{esql}} editor |
+| [Alerting](/explore-analyze/alerting/alerts/rule-type-es-query.md) | Create alerting rules based on {{esql}} queries | {{esql}} editor |
+| [{{alerting-v2-system-cap}}](/explore-analyze/alerting/esql/system-overview.md) {applies_to}`serverless: ga` {applies_to}`stack: ga 9.6+` | Build and preview rules with separate base, alert, and recovery queries | Task-specific editor and YAML editor |
+| [Maps](/explore-analyze/visualize/maps.md) {applies_to}`serverless: beta` {applies_to}`stack: beta` | Create map layers from {{esql}} queries | {{esql}} editor |
+| [Data Visualizer](/explore-analyze/machine-learning/machine-learning-in-kibana.md) | Explore field statistics from query results | {{esql}} editor |
+| [{{agent-builder}}](/explore-analyze/ai-features/agent-builder/tools/esql-tools.md) | Create custom tools that run parameterized queries | Task-specific editor |
+| [Streams](/solutions/observability/streams/streams.md) {applies_to}`serverless: preview` {applies_to}`stack: preview 9.4+` | Define query streams | Task-specific editor |
+| [Elastic {{observability}} solution](/solutions/observability.md) | Explore [logs](/solutions/observability/logs/discover-logs.md), [traces](/solutions/observability/apm/discover-traces.md), and [metrics](/solutions/observability/infra-and-hosts/discover-metrics.md) | {{esql}} editor |
+| [{{elastic-sec}} solution](/solutions/security/esql-for-security.md) | Hunt threats, create detection rules, and investigate events | {{esql}} editor |
+| [Dev Tools Console](/explore-analyze/query-filter/tools/console.md) | Run queries through the [{{esql}} REST API](elasticsearch://reference/query-languages/esql/esql-rest.md) | Embedded in the Console editor |
+| [Workflows](/explore-analyze/workflows/steps/elasticsearch.md) | Run queries with the `elasticsearch.esql.query` action | Embedded in the YAML editor |
+| [Vega visualizations](/explore-analyze/visualize/custom-visualizations-with-vega.md#vega-esql-queries) {applies_to}`serverless: ga` {applies_to}`stack: ga 9.4+` | Use a query as a visualization data source | Embedded in the specification editor |
+
+
+## Write queries with the {{esql}} editor [esql-kibana-get-started]
+
+
+### Query structure [esql-kibana-query-bar]
+
+After any [`SET` statements](#esql-kibana-set), every {{esql}} query starts with a [source command](elasticsearch://reference/query-languages/esql/commands/source-commands.md#esql-source-commands) that retrieves data:
+
+- [`FROM`](elasticsearch://reference/query-languages/esql/commands/source-commands.md#esql-from) allows you to define the data sources to query by specifying data streams, [{{esql}} views](elasticsearch://reference/query-languages/esql/esql-views.md), indices, or aliases.
+- [`TS`](elasticsearch://reference/query-languages/esql/commands/ts.md) is optimized for querying time series data streams.
+- {applies_to}`serverless: ga` {applies_to}`stack: preview =9.4, ga 9.5+` [`PROMQL`](elasticsearch://reference/query-languages/esql/commands/promql.md) queries time series data through the {{esql}} editor using [Prometheus Query Language (PromQL)](https://prometheus.io/docs/prometheus/latest/querying/basics/) syntax.
+
+You can then chain one or more [processing commands](elasticsearch://reference/query-languages/esql/esql-commands.md#esql-processing-commands) using pipe (`|`) characters. For example, [`WHERE`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-where) filters rows and [`STATS`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-stats-by) aggregates data:
+
+```esql
+FROM kibana_sample_data_logs
+| WHERE response.keyword == "200"
+| STATS total_bytes = SUM(bytes) BY geo.dest
+```
+
+When querying many indices at once without filters, the response might be too large. If you encounter a content length error, use [`DROP`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-drop) or [`KEEP`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-keep) to limit the number of fields returned.
+
+::::{note}
+{{esql}} keywords are case-insensitive. `FROM`, `from`, and `From` are all equivalent.
+::::
+
+
+### Editor tools
+
+The {{esql}} editor includes several built-in tools to help you write queries efficiently:
+
+- [Autocomplete and in-app help](#esql-kibana-autocomplete)
+- [Query formatting](#_make_your_query_readable)
+- [Warnings](#_warnings)
+- [Query statistics](#esql-kibana-query-statistics)
+- [Keyboard shortcuts](#esql-kibana-keyboard-shortcuts)
+
+#### Autocomplete and in-app help [esql-kibana-autocomplete]
+
+{{esql}} features in-app help, inline suggestions, and an autocomplete menu so you can get started faster and don't have to leave the application to check syntax.
+
+:::{image} /explore-analyze/images/kibana-esql-in-app-help.png
+:alt: The ES|QL syntax reference and the autocomplete menu
+:screenshot:
+:::
+
+{applies_to}`serverless: ga` {applies_to}`stack: ga 9.4+` In **Discover**, the editor includes interactive browsers for selecting data sources and field names from the autocomplete menu. Refer to [](/explore-analyze/discover/browse-esql-sources.md) for details.
+
+#### Query formatting [_make_your_query_readable]
+
+For readability, you can put each processing command on a new line and add indentation. Use the {icon}`line_break` **Prettify query** button from the query editor's footer to format your query automatically. You can also adjust the editor's height by dragging its bottom border.
+
+![Automatic line breaks and indentation for ES|QL queries](https://images.contentstack.io/v3/assets/bltefdd0b53724fa2ce/bltb7c28c7b10f58b68/69ebb4e4a7cffb580c9a34c5/prettify-esql.gif "=75%")
+
+#### Warnings [_warnings]
+
+A query might result in warnings, for example when querying an unsupported field type. When that happens, the editor's footer shows the number of warnings, for example **2 warnings**. Select it to see the detailed warnings.
+
+#### Query statistics [esql-kibana-query-statistics]
+```{applies_to}
+serverless: ga
+stack: ga 9.4
+```
+
+After running a query, the editor's footer displays statistics about the last run, including the number of documents processed. These statistics are available in **Discover** and in **{{esql}} visualizations** in dashboards.
+
+#### Keyboard shortcuts [esql-kibana-keyboard-shortcuts]
+
+| Mac                | Windows/Linux       | Description                 | Shortcut availability |
+|--------------------|---------------------|-----------------------------|-----------------------|
+| {kbd}`cmd+enter`   | {kbd}`ctrl+enter`   | Run a query                 |                       |
+| {kbd}`cmd+/`       | {kbd}`ctrl+/`       | Comment or uncomment the current line or selected lines |                       |
+| {kbd}`cmd+i`       | {kbd}`ctrl+i`       | [Prettify query](#_make_your_query_readable) | {applies_to}`serverless: ga` {applies_to}`stack: ga 9.4+` |
+| {kbd}`cmd+j`       | {kbd}`ctrl+j`       | [Generate {{esql}} from a `//` comment](#esql-kibana-ai-comment) | {applies_to}`serverless: preview` {applies_to}`stack: preview 9.5+` |
+
+:::{tip}
+You can find the list of shortcuts directly from the editor. Look for the ![keyboard](../../images/keyboard.svg "keyboard =2%") icon.
+:::
+
+
+### Build ES|QL queries from KQL syntax [esql-kibana-quick-search]
+```{applies_to}
+serverless: preview
+stack: preview 9.3+
+```
+
+The {{esql}} editor includes a search bar that builds a query from text you enter, so you can filter data without writing the full {{esql}} syntax. How you open it depends on your version:
+
+- {applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` In **Discover** and on dashboards, the search bar is always visible. When you edit a visualization, a map layer, or an alerting rule, the search icon is in the editor footer.
+- {applies_to}`stack: preview 9.3-9.5` Look for the search icon in the editor, which is {icon}`magnify`, or {icon}`magnify_sparkles` when your license includes [AI features](#esql-kibana-ai-assistance). You can also press {kbd}`cmd+k` (Mac) or {kbd}`ctrl+k` (Windows/Linux).
+
+The search bar offers two modes:
+
+- **KQL**: Filter your data with free text or [KQL](elasticsearch://reference/query-languages/kql.md) syntax, as described in this section.
+- {applies_to}`serverless: preview` {applies_to}`stack: preview 9.5+` **Natural language**: Describe the query you want in plain language and let an AI agent generate it for you. Refer to [Generate a full query from natural language](#esql-kibana-quick-search-nl).
+
+To filter your data with KQL:
+
+1. If the search bar isn't visible, open it ({icon}`magnify` or {icon}`magnify_sparkles`).
+2. Set the data sources to search:
+
+   - {applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` Make sure the query in the editor names the data sources, for example `FROM logs-*`. Until the query names a data source, KQL search isn't available.
+   - {applies_to}`stack: preview 9.3-9.5` Select the data sources to search. The list starts with the data sources named in the editor.
+
+3. Enter the text you want to search for as free text or using [KQL](elasticsearch://reference/query-languages/kql.md) syntax.
+4. Submit your search by pressing {kbd}`enter`. The editor replaces the query with a source command for those data sources and a `WHERE KQL()` command that contains the text you entered. The source command is `TS` if the query in the editor starts with `TS`, otherwise `FROM`. Because the editor replaces the whole query, any other commands in it, such as `KEEP`, are removed. The new query is saved to your [query history](#esql-kibana-query-history) so you can restore it later.
+5. Refine your query with any other {{esql}} command or function that you need.
+
+
+### Write and fix queries with AI [esql-kibana-ai-assistance]
+```{applies_to}
+serverless: preview
+stack: preview 9.5+
+```
+
+When your deployment or project has a configured large language model (LLM), {{kib}} can use AI to help you author {{esql}}. The editor uses the model assigned to {{agent-builder}}'s **Fast models** feature, and falls back to the **Global model** setting if no fast model is assigned. Both accept an {{infer}} endpoint or a Generative AI connector. To view or change them, search for **Model management / Feature settings** in the [global search field](/explore-analyze/find-and-organize/find-apps-and-objects.md). You don't need to configure a specific connection for the editor.
+
+Choose the entry point that matches what you want to do:
+
+- [**Generate a full query from natural language**](#esql-kibana-quick-search-nl) in the editor's search bar, when you're starting from scratch or want to replace the whole query.
+- [**Generate {{esql}} from a comment**](#esql-kibana-ai-comment) to add or change a single pipe inside the query you're writing.
+- [**Fix query errors with AI**](#esql-kibana-ai-fix) when a query fails validation.
+
+**Requirements**
+
+- For {{ech}}, {{ece}}, and {{eck}} deployments or self-managed clusters, you need an Enterprise license.
+- A configured LLM. Refer to [Configure access to LLMs](/explore-analyze/ai-features/llm-guides/llm-connectors.md).
+
+Without an Enterprise license, the AI prompts and actions don't appear, and the editor uses only its standard autocomplete behavior. With a license but no configured model, the comment hints and **Fix with AI** still appear, and using them shows a **No AI connector available.** notification. Natural language mode in the search bar also needs a model. What you see without one depends on your version:
+
+- {applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` Natural language mode doesn't appear until you configure a model.
+- {applies_to}`stack: preview =9.5` Natural language mode appears, and selecting it shows a link to set up a connector.
+
+{applies_to}`stack: preview 9.6+` {applies_to}`serverless: unavailable` The AI agent can also use [{{esql}} Data Federation datasets](elasticsearch://reference/query-languages/esql/esql-data-federation-datasets.md) as sources. It uses them when it writes a full query, in natural language mode or from a comment when the editor contains only comments, and when you use **Fix with AI**. It uses only the datasets that you have the `read_dataset_metadata`, `manage_dataset`, `manage`, or `all` index privilege on.
+
+#### Generate a full query from natural language [esql-kibana-quick-search-nl]
+
+Not sure how to write an {{esql}} query? Describe what you want from your data in natural language and a specialized AI agent writes the query for you.
+
+1. If the search bar isn't visible, open it ({icon}`magnify_sparkles`).
+2. From the mode selector, select **Natural language**.
+3. In the input, describe the query you want. For example, `Show the average response time per host for the last 24 hours`.
+4. Press **Enter** to submit your request. The editor replaces or updates the current query, runs it, and saves it to your [query history](#esql-kibana-query-history).
+5. Review the generated query and refine it with any other {{esql}} command or function that you need.
+
+:::{tip}
+The current query in the editor is sent to the LLM as context, so you can ask follow-up requests that build on it. For example, after running a generated query, ask `Group the results by region` to extend it.
+:::
+
+:::{image} /explore-analyze/images/kibana-esql-search-bar-nl.png
+:alt: Natural language mode in the ES|QL editor search bar
+:screenshot:
+:width: 60%
+:::
+
+#### Generate {{esql}} from a comment [esql-kibana-ai-comment]
+
+Write a `//` comment that describes what you want, then press {kbd}`cmd+J` (Mac) or {kbd}`ctrl+J` (Windows/Linux). The editor sends your comment to the AI agent and inserts the generated {{esql}} on the next line.
+
+You can use this to:
+
+- Write a query from scratch when the editor is empty. For example, type `// Show the top 10 destinations by flight count` and press {kbd}`cmd+J` to generate a complete query.
+- Add a step to an existing query. Place the comment between pipes (for example `// filter for delayed flights`) and the AI agent generates a single pipe to append. If the AI agent determines that your comment describes a change to the next pipe rather than a new step, it modifies that pipe instead.
+
+While the AI agent is generating, a `Generating...` indicator appears next to your comment. Press the shortcut again to cancel the in-flight request and start a new one.
+
+When the generated code is ready, the editor highlights it and shows review actions:
+
+- **Keep** ({kbd}`cmd+shift+enter` on Mac, {kbd}`ctrl+shift+enter` on Windows/Linux) accepts the change and leaves your comment in place so you can refine it and regenerate.
+- **Undo** ({kbd}`cmd+shift+backspace` on Mac, {kbd}`ctrl+shift+backspace` on Windows/Linux) removes the generated code.
+
+:::{image} /explore-analyze/images/kibana-esql-generate-from-comment.png
+:alt: The ES|QL editor showing a query generated from a comment, highlighted with Keep and Undo review actions
+:screenshot:
+:width: 50%
+:::
+
+When the AI agent rewrites an existing pipe instead of adding one, the original pipe appears with a strikethrough and the **Keep** button becomes **Replace**, indicating that accepting the suggestion removes the original pipe.
+
+#### Fix query errors with AI [esql-kibana-ai-fix]
+
+When your query fails validation, hover over the underlined error in the editor. The error popup includes a **✨ Fix with AI** link. Select it to send the query and the error to the AI agent and have it propose a corrected version.
+
+:::{image} /explore-analyze/images/kibana-esql-fix-with-ai.png
+:alt: An ES|QL query error popup showing the Fix with AI link
+:screenshot:
+:width: 50%
+:::
+
+The proposed fix appears directly below your query, with the original lines and the suggested replacement highlighted in different colors. The same review actions as for comment-driven generation apply:
+
+- **Replace** ({kbd}`cmd+shift+enter` on Mac, {kbd}`ctrl+shift+enter` on Windows/Linux) replaces the original lines with the suggested fix.
+- **Undo** ({kbd}`cmd+shift+backspace` on Mac, {kbd}`ctrl+shift+backspace` on Windows/Linux) discards the suggestion and restores the original query.
+
+:::{image} /explore-analyze/images/kibana-esql-fix-with-ai-review.png
+:alt: An ES|QL editor showing the original lines and the proposed AI fix highlighted in different colors, with Replace and Undo actions
+:screenshot:
+:width: 50%
+:::
+
+:::{tip}
+:applies_to: {"serverless": "preview", "stack": "preview 9.5"}
+After you run a query in **Discover**, an AI agent can also analyze the results, render a chart of the main finding, and suggest drill-down queries. Refer to [Analyze your data with AI](/explore-analyze/discover/discover-get-started.md#analyze-with-ai).
+:::
+
+
+### Commands with additional editor support
+
+Some {{esql}} commands have dedicated editor features beyond autocomplete, such as in-editor index or policy creation.
+
+#### LOOKUP JOIN command and lookup indices
+
+The {{esql}} editor supports [`LOOKUP JOIN`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-lookup-join) commands and suggests lookup mode indices and join condition fields.
+
+In **Discover**, `LOOKUP JOIN` commands let you create or edit lookup indices directly from the editor. Find more information in [](/explore-analyze/discover/create-lookup-indices.md).
+
+#### Cross-cluster and cross-project lookup joins
+```{applies_to}
+serverless: ga
+stack: ga 9.2
+```
+
+Remote lookup joins are supported in [cross-cluster](elasticsearch://reference/query-languages/esql/esql-cross-clusters.md) and [cross-project](elasticsearch://reference/query-languages/esql/esql-cross-serverless-projects.md) queries. By default, {{esql}} resolves the lookup index on every remote cluster or project in the query, and each one joins against its own local index with that name.
+
+{applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` To join against a lookup index on the local cluster or origin project when that index is missing from one or more clusters or projects in the query, use [`LOOKUP JOIN` coordinator mode](elasticsearch://reference/query-languages/esql/esql-lookup-join.md#coordinator-mode).
+
+
+#### ENRICH command and enrich policies [esql-kibana-enrich]
+
+The {{esql}} [`ENRICH`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-enrich) command enables you to [enrich](elasticsearch://reference/query-languages/esql/esql-enrich-data.md) your query dataset with fields from another dataset. Before you can use `ENRICH`, you need to [create and execute an enrich policy](elasticsearch://reference/query-languages/esql/esql-enrich-data.md#esql-set-up-enrich-policy). If a policy exists, autocomplete suggests it. If not, select **Click to create** to create one.
+
+:::{image} /explore-analyze/images/elasticsearch-reference-esql-kibana-enrich-autocomplete.png
+:alt: The ES|QL editor showing the ENRICH command, with an autocomplete suggestion that reads "No available policy" and "Click to create"
+:screenshot:
+:width: 50%
+:::
+
+For detailed steps to create an enrich policy from the editor, refer to [Enrich your data](elasticsearch://reference/query-languages/esql/esql-enrich-data.md).
+
+
+## Filter by time [esql-kibana-time-filter]
+
+To display data within a specified time range, you can use the standard time filter, custom time parameters, or a WHERE command.
+
+
+### Standard time filter [_standard_time_filter]
+
+{{kib}} enables the standard [time filter](../filtering.md) when the indices you're querying have a field named `@timestamp`.
+
+
+### Custom time parameters [_custom_time_parameters]
+
+If your indices do not have a field named `@timestamp`, you can use the `?_tstart` and `?_tend` parameters to specify a time range. These parameters work with any timestamp field and automatically sync with the [time filter](../filtering.md).
+
+```esql
+FROM my_index
+| WHERE custom_timestamp >= ?_tstart AND custom_timestamp < ?_tend
+```
+
+You can also use the `?_tstart` and `?_tend` parameters with the [`BUCKET`](elasticsearch://reference/query-languages/esql/functions-operators/grouping-functions/bucket.md) function to create auto-incrementing time buckets in {{esql}} visualizations. For example:
+
+```esql
+FROM kibana_sample_data_logs
+| STATS average_bytes = AVG(bytes) BY BUCKET(@timestamp, 50, ?_tstart, ?_tend)
+```
+
+
+### Time ranges with WHERE [_where_command]
+
+You can also limit the time range using the [`WHERE`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-where) command and the [`NOW`](elasticsearch://reference/query-languages/esql/functions-operators/date-time-functions/now.md) function. For example, if the timestamp field is called `timestamp`, to query the last 15 minutes of data:
+
+```esql
+FROM kibana_sample_data_logs
+| WHERE timestamp > NOW() - 15minutes
+```
+
+To apply a time shift in an {{esql}} visualization, refer to [Compare current versus previous period with time shift](/explore-analyze/visualize/esorql.md#esql-viz-time-shift).
+
+### Timezone handling [esql-kibana-timezone]
+```{applies_to}
+serverless: ga
+stack: ga 9.4
+```
+
+{{esql}} queries use a timezone for date and time functions and time-based filtering. When you run {{esql}} queries in Discover, dashboards, or Maps, {{kib}} automatically uses the timezone from the **Time zone** (`dateFormat:tz`) [advanced setting](kibana://reference/advanced-settings.md). To change it:
+
+1. Go to **Stack Management** → **Advanced Settings** (or **Management** → **Advanced Settings** in {{serverless-short}}).
+2. Search for **Time zone** (`dateFormat:tz`).
+3. Set it to **Browser** to use your browser's timezone, or choose a specific timezone such as **UTC** or **America/New_York**.
+
+:::{important}
+Avoid `SET time_zone` in **Discover**, dashboards, and **Maps**. `SET time_zone` changes how dates are computed by {{es}}, but {{kib}} still displays timestamps following the timezone defined in its `dateFormat:tz` advanced setting, which can produce confusing results.
+:::
+
+{{es}} query rules that use {{esql}} don't use the **Time zone** setting. They run in UTC unless the rule query or the cluster sets a timezone. To control the timezone for a rule, refer to [Set the timezone for an {{esql}} query](/explore-analyze/alerting/alerts/rule-type-es-query.md#rule-type-es-query-esql-timezone).
+
+
+
+## Use variables and controls [add-variable-control]
+
+{{esql}} variables help you add interactive controls to your queries and make them more dynamic.
+
+They're available for:
+* {applies_to}`serverless: preview` {applies_to}`stack: preview 9.2+` [Discover queries](/explore-analyze/discover/esql-variable-controls.md)
+* [{{esql}} visualizations in dashboards](/explore-analyze/visualize/add-variable-controls.md)
+
+:::{include} ../../_snippets/variable-control-procedure.md
+:::
+
+:::{include} ../../_snippets/variable-control-examples.md
+:::
+
+% Link from the product
+### Multi-value variable controls [esql-multi-values-controls]
+```{applies_to}
+serverless: preview
+stack: preview 9.3
+```
+
+:::{include} ../../_snippets/multi-value-esql-controls.md
+:::
+
+
+## Manage queries
+
+The {{esql}} editor keeps track of your queries so you can reuse and organize them.
+
+![ES|QL editor query history and starred queries](https://images.contentstack.io/v3/assets/bltefdd0b53724fa2ce/blt2446c9af9847b87e/69ebb870086ade348a1acc35/esql-recent-starred.gif "=60%")
+
+### Query history [esql-kibana-query-history]
+
+You can reuse your recent {{esql}} queries. In the {{esql}} editor, select **Show recent queries**.
+
+You can then: 
+- scroll through your most recent queries
+- {applies_to}`serverless: ga` {applies_to}`stack: ga 9.2` search for specific queries of your history
+
+:::{note}
+The maximum number of queries in the history depends on the version you're using:
+- {applies_to}`serverless: ga` {applies_to}`stack: ga 9.2+` The query history can keep up to 50 KB of queries, which represents about 200 large queries, or about 300 short queries.
+- {applies_to}`stack: ga 9.0-9.1` The query history keeps your 20 most recent queries.
+:::
+
+### Starred queries [esql-kibana-starred-queries]
+
+From the query history, you can mark some queries as favorite to find and access them faster later.
+
+1. In the {{esql}} editor, select **Show recent queries**.
+2. On the **Recent** tab, star the queries you want.
+
+To find your starred queries later, open the **Starred** tab.
+
+## Create and manage {{esql}} views [esql-kibana-views]
+```{applies_to}
+stack: ga 9.6+
+serverless: ga
+```
+
+You can use [{{esql}} views](elasticsearch://reference/query-languages/esql/esql-views.md) to save queries and reuse them by name in `FROM`, just like an index. In {{kib}}, you can create views from the {{esql}} editor and manage them from the **{{esql}} Views** page.
+
+These options appear only if you have the following [privileges](elasticsearch://reference/query-languages/esql/esql-views.md#esql-views-privileges) on all indices (`*`):
+
+* `read_view_metadata` to open the **{{esql}} Views** page
+* `create_view` to create or edit views
+* `delete_view` to delete views
+
+### Create a view from the {{esql}} editor [esql-kibana-views-create]
+
+You can create a view from the {{esql}} editor in Discover, or when you edit an {{esql}} visualization in a dashboard.
+
+1. Open the **Create view** dialog in one of these ways:
+
+   * From your [query history](#esql-kibana-query-history):
+
+     1. Select **Show recent queries**.
+     2. On the **Recent** or **Starred** tab, select the {icon}`index_open` **Create view** icon on the query's row.
+
+   * From the current query: select the {icon}`index_open` **Create view** icon in the editor toolbar.
+
+     ![The ES|QL editor in Discover with the Create view tooltip showing over its icon in the editor toolbar](../../images/esql-views-create-button.png)
+
+2. Enter a name and an optional description, then select **Create**.
+
+![The Create view dialog with the name web_server_errors, a description, and the query to save](../../images/esql-views-create-modal.png)
+
+### Manage views [esql-kibana-views-manage]
+
+To list, edit, preview, or delete views, go to the **{{esql}} Views** management page using the navigation menu or the [global search field](../../find-and-organize/find-apps-and-objects.md). Each view's row has two actions:
+
+![The ES|QL Views management page listing two views, with the Open in Discover icon marked 1 and the actions menu marked 2 in the first row](../../images/esql-views-management.png)
+
+1. {icon}`product_discover` **Open in Discover** opens the view in Discover.
+2. The {icon}`boxes_vertical` actions menu has options to edit or delete the view.
+
+[Reserved views](elasticsearch://reference/query-languages/esql/esql-views.md#esql-views-reserved) are created by {{es}}, so they're read-only. They have a **Reserved** badge. To hide them from the list, select the **Reserved views** filter.
+
+
+## Define query settings with `SET` [esql-kibana-set]
+```{applies_to}
+serverless: ga
+stack: ga 9.4
+```
+
+The [`SET`](elasticsearch://reference/query-languages/esql/directives/set.md) directive lets you configure how {{es}} runs your {{esql}} query. Place one or more `SET` statements at the start of your query. Each statement sets one setting and ends with a semicolon:
+
+```esql
+SET setting_name = setting_value;
+SET other_setting_name = other_value;
+<query>
+```
+
+The {{esql}} editor autocompletes supported settings and validates their values. Settings particularly useful from {{kib}} include:
+
+- [`approximation`](#approximation-fast-mode): Trade exact results for speed on large `STATS` queries using random sampling. Several {{kib}} apps expose this functionality with a [Fast mode](#approximation-fast-mode) UI option.
+- [`project_routing`](#esql-kibana-cps): Limit a [cross-project search](/explore-analyze/cross-project-search.md) to specific projects.
+- [`unmapped_fields`](#esql-kibana-unmapped-fields): Choose how to handle fields that are not present in the index mapping.
+
+The `SET` directive also supports a `time_zone` setting. However, to change the timezone used by your {{esql}} queries in {{kib}}, update the `dateFormat:tz` advanced setting rather than using `SET time_zone`. Refer to [Timezone handling](#esql-kibana-timezone) for more information.
+
+For the full list of supported settings and their parameters, refer to the [`SET` directive reference](elasticsearch://reference/query-languages/esql/directives/set.md).
+
+
+### Search across projects with `SET project_routing` [esql-kibana-cps]
+```{applies_to}
+serverless: ga
+stack: unavailable
+```
+
+When [{{cps}}](/explore-analyze/cross-project-search.md) is enabled and you have [linked projects](/deploy-manage/cross-project-search-config/cps-config-link-and-manage.md), you can add [`SET project_routing`](elasticsearch://reference/query-languages/esql/directives/set.md) at the beginning of your {{esql}} query to [override the {{cps}} scope](/explore-analyze/cross-project-search/cross-project-search-manage-scope.md#cps-in-kibana) and target specific projects:
+
+```esql
+SET project_routing = "_alias:my_other_project";
+FROM logs-*
+| WHERE log.level == "error"
+| STATS count = COUNT(*) BY service.name
+```
+
+The editor autocompletes two built-in values when you type `SET project_routing`:
+
+- `_alias:_origin`: Search only the current (origin) project.
+- `_alias:*`: Search all linked projects.
+
+You can use any valid [project routing expression](/explore-analyze/cross-project-search/cross-project-search-project-routing.md), including tag-based and named expressions. For more details on query-level overrides, refer to [Managing {{cps}} scope](/explore-analyze/cross-project-search/cross-project-search-manage-scope.md#cps-query-overrides).
+
+
+### Handle unmapped fields with `SET unmapped_fields` [esql-kibana-unmapped-fields]
+```{applies_to}
+serverless: ga
+stack: ga 9.5+, preview =9.4
+```
+
+By default, an {{esql}} query fails if it references a field that is not present in the mapping of any searched index. Use [`SET unmapped_fields`](elasticsearch://reference/query-languages/esql/directives/set.md#esql-unmapped_fields) at the start of your query to instead treat unmapped fields as `null` (`NULLIFY`) or load them from `_source` as `keyword` (`LOAD`). For example:
+
+```esql
+SET unmapped_fields="NULLIFY";
+FROM partial_mapping_sample_data
+| KEEP event_duration, unmapped_message
+| SORT event_duration
+| LIMIT 1
+```
+
+The {{esql}} editor autocompletes the setting name and its accepted values. Once `NULLIFY` or `LOAD` is set, unmapped fields referenced in the query are added to autocomplete and treated like other columns. They stop being suggested if you drop or rename them.
+
+The first time a query references an unmapped field, the editor shows a warning so you can confirm the reference is intentional and not a typo. After a `KEEP` or `STATS` command that limits the available columns, references to unmapped fields downstream are flagged as errors.
+
+`LOAD` doesn't support every command and field type. For example, it doesn't load subfields of `flattened` fields, and it doesn't work with `PROMQL`. For the full list, refer to [Other restrictions](elasticsearch://reference/query-languages/esql/esql-unmapped-fields.md#esql-unmapped-fields-other-restrictions). Two more details depend on your version:
+
+- {applies_to}`serverless: preview` {applies_to}`stack: preview 9.5` When querying a [wired stream](/solutions/observability/streams/get-data-in.md#get-data-in-wired) and the editor detects an unknown column error, a **Load unmapped fields** quick fix is available. Select it to apply `SET unmapped_fields = "LOAD";` automatically. Refer to [Query unmapped fields](/solutions/observability/streams/get-data-in.md#streams-wired-streams-discover-unmapped) for wired stream–specific details.
+- {applies_to}`stack: preview =9.4` `LOAD` doesn't work in queries that use `FORK`, `LOOKUP JOIN`, subqueries, views, or full-text search functions. When querying multiple indices, fields that have a non-keyword type in some indices but are unmapped in others need an explicit cast (for example, `my_field::integer` or `TO_INTEGER(my_field)`) unless referenced in a `KEEP` or `DROP` command.
+
+For a conceptual overview and use cases, refer to [Unmapped fields](elasticsearch://reference/query-languages/esql/esql-unmapped-fields.md).
+
+
+## Get faster results with approximate `STATS` [approximation-fast-mode]
+```{applies_to}
+serverless: preview
+stack: preview 9.4
+```
+
+::::{admonition} Requirements
+For {{ech}}, {{ece}}, and {{eck}} deployments or self-managed clusters, approximation requires an [Enterprise subscription](https://www.elastic.co/subscriptions).
+::::
+
+On large datasets, you can trade exact results for speed by enabling [approximate results](elasticsearch://reference/query-languages/esql/esql-query-approximation.md) for [`STATS`](elasticsearch://reference/query-languages/esql/commands/processing-commands.md#esql-stats-by) queries. Approximation runs your `STATS` aggregations on a sample of the data and extrapolates to estimate results for the full dataset, so the numbers come out close to the exact ones. You can enable approximation in two ways:
+
+- {applies_to}`{serverless: "preview", stack: "preview 9.5"}` From the {{kib}} UI, with [Fast mode](#esql-kibana-fast-mode-toggle).
+- From within a query, with the [`SET approximation`](#esql-kibana-approximation) directive.
+
+However you enable it, {{es}} applies approximation only when it actually speeds up the query. When your data is smaller than the sample size (by default around 1 million rows for `STATS ... BY` queries and 100,000 rows for other `STATS` queries), or a filter has already narrowed the results, {{es}} returns exact results instead. Approximation only works with certain aggregations, so functions such as `COUNT_DISTINCT`, `MIN`, `MAX`, and `LAST` always run exactly. Because approximate results are estimates, they can vary between runs and might drop low-frequency groups. For the full conditions and supported functions, refer to [Approximate `STATS` queries](elasticsearch://reference/query-languages/esql/esql-query-approximation.md).
+
+### Use Fast mode [esql-kibana-fast-mode-toggle]
+```{applies_to}
+serverless: preview
+stack: preview 9.5
+```
+
+Fast mode is the {{kib}} UI control for {{esql}} approximation. Select the {icon}`bolt` **Fast mode** option to turn it on.
+
+:::{image} /explore-analyze/images/kibana-esql-fast-mode.png
+:alt: The Fast mode option turned on in the query bar
+:screenshot:
+:::
+
+Where it applies depends on the context:
+
+- In [**Discover**](/explore-analyze/discover/use-esql.md), in {{esql}} mode, the button is always available, but **Fast mode** applies only to queries that use exactly one `STATS` command.
+- In **Dashboards** or when previewing a dashboard created with [{{agent-builder}}](/explore-analyze/ai-features/agent-builder/agent-builder-dashboards-and-visualizations.md), {icon}`bolt` **Fast mode** can return faster, estimated results for [{{esql}} visualizations](/explore-analyze/visualize/esorql.md), {{esql}}-based Discover sessions, [custom panels](/explore-analyze/visualize/custom-panels.md) that have an {{esql}} query, and {{esql}}-powered [Vega and Vega-Lite panels](/explore-analyze/visualize/custom-visualizations-with-vega.md#vega-esql-queries) that use one `STATS` command. You can turn **Fast mode** on when the dashboard includes at least one {{esql}}-based panel.
+- {applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` Turning **Fast mode** on does not change a map with an {{esql}} layer. To approximate a `STATS` query on the map, use the [SET approximation directive](#esql-kibana-approximation) in the layer query. The option can still appear when that map is an {{esql}}-based panel on the dashboard.
+
+**Fast mode** is preserved when you:
+
+- Save or share a dashboard
+- {applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` Save and reopen a Discover session. Refer to [Save a Discover session](/explore-analyze/discover/save-open-search.md#_save_a_discover_session).
+
+To override the toggle for a single query, use the [`SET approximation`](#esql-kibana-approximation) directive.
+
+:::{tip}
+:applies_to: {"serverless": "preview", "stack": "preview 9.6"}
+To tell whether approximation was applied, look for the {icon}`bolt` badge in Discover or in the panel header on a dashboard. Refer to [Interpret approximate results](#esql-kibana-approximation-columns).
+:::
+
+### Use the `SET approximation` directive [esql-kibana-approximation]
+```{applies_to}
+serverless: preview
+stack: preview 9.4
+```
+
+The [`SET approximation`](elasticsearch://reference/query-languages/esql/commands/set.md) directive enables approximation from within a query. It takes precedence over the [Fast mode](#esql-kibana-fast-mode-toggle) toggle, so you can force approximate or exact results for a specific query.
+
+To approximate a `STATS` query with default settings, prepend `SET approximation=true;` to your query:
+
+```esql
+SET approximation=true;
+FROM kibana_sample_data_logs
+| WHERE @timestamp >= NOW()-30d
+| STATS total_hits = COUNT(),
+        avg_bytes = AVG(bytes)
+  BY geo.dest
+| SORT total_hits DESC
+| LIMIT 5
+```
+
+{applies_to}`serverless: preview` {applies_to}`stack: preview 9.5+` To get exact results while **Fast mode** is on, prepend `SET approximation=false;` to your query.
+
+To tune the sample size or turn off confidence intervals, pass a map. For example:
+
+- `SET approximation={"rows":5000000};` increases the sample size from the default.
+- `SET approximation={"confidence_level":null};` skips confidence interval computation for additional speedup.
+
+The editor suggests these map parameters as you type.
+
+For supported aggregation functions, output columns, tuning options, and limitations, refer to [Approximate `STATS` queries](elasticsearch://reference/query-languages/esql/esql-query-approximation.md).
+
+### Interpret approximate results [esql-kibana-approximation-columns]
+
+An approximate query returns your usual `STATS` columns, plus two extra columns for each approximated value, where `<column>` is the name of the approximated column (for example, `_approximation_confidence_interval(count)`):
+
+- `_approximation_confidence_interval(<column>)`: The range that the exact value is very likely to fall within (with a 90% confidence level). For example, an estimated count of `769` shown with `[759, 779]` means the exact count is very likely between 759 and 779. A narrower range means a more precise estimate. It's empty when no range can be computed, and zero-width (such as `[769, 769]`) when the result is actually exact.
+- `_approximation_certified(<column>)`: Whether the estimate passed the statistical checks behind the confidence interval. `true` means the interval is reliable. `false` means the estimate might still be accurate, but the interval couldn't be fully validated.
+
+{applies_to}`serverless: preview` {applies_to}`stack: preview 9.5+` In [**Discover**](/explore-analyze/discover/esql-results.md#esql-kibana-results-table), these appear as additional columns in the results table. 
+
+{applies_to}`serverless: preview` {applies_to}`stack: preview 9.6+` A {icon}`bolt` badge shows when {{es}} applied approximation, so you can tell estimates from exact results. In Discover, the badge appears next to the chart actions and in the table toolbar. On a dashboard, it appears in the header of each panel that ran an approximate query. Hover over the badge to see why the results are approximate. If {{es}} still [returns exact results](#approximation-fast-mode), such as when the time range matches few documents, no badge appears.
+
+:::{image} /explore-analyze/images/kibana-esql-approximation-badge.png
+:alt: A dashboard panel with the bolt badge in its header and the tooltip that says the panel shows approximate results
+:screenshot:
+:::
+
+For more details, refer to [Approximate `STATS` queries](elasticsearch://reference/query-languages/esql/esql-query-approximation.md).
+
+
+## Related pages
+
+- [{{esql}} reference](elasticsearch://reference/query-languages/esql/esql-syntax-reference.md): Complete list of commands, functions, and operators.
+- [Get started with {{esql}} in Discover](/explore-analyze/discover/try-esql.md): Hands-on tutorial for your first {{esql}} queries in Discover.
+- [Use Discover with {{esql}}](/explore-analyze/discover/use-esql.md): Discover tasks that are specific to {{esql}} mode.
+- [{{esql}} for {{elastic-sec}}](/solutions/security/esql-for-security.md): Use cases and examples for threat hunting and detection rules.
+- [{{esql}} visualizations](/explore-analyze/visualize/esorql.md): Create and edit {{esql}}-based visualizations in dashboards.
+- [Add variable controls to dashboards](/explore-analyze/visualize/add-variable-controls.md): Add {{esql}}-powered variable controls to dashboards.
+- {applies_to}`serverless: ga` {applies_to}`stack: ga 9.4` [Custom Vega visualizations](/explore-analyze/visualize/custom-visualizations-with-vega.md#vega-esql-queries): Use {{esql}} queries as a data source in Vega and Vega-Lite visualizations.
+- [Optimize {{esql}} query performance](elasticsearch://reference/query-languages/esql/esql-query-performance.md): Techniques for writing fast queries and identifying slow ones.

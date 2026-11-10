@@ -1,0 +1,80 @@
+---
+mapped_pages:
+  - https://www.elastic.co/guide/en/serverless/current/intro.html
+applies_to:
+  serverless: ga
+  deployment:
+    ess: ga
+products:
+  - id: cloud-serverless
+---
+
+# {{ecloud}} [intro]
+
+{{ecloud}} allows you to centrally manage [hosted deployments](elastic-cloud/cloud-hosted.md) of the {{stack}} and [serverless projects](elastic-cloud/serverless.md) for your Observability, Security, and Search use cases. 
+
+These hosted deployments and serverless projects are hosted on {{ecloud}}, through the cloud provider and regions of your choice, and are tied to your organization account.
+
+You can check the operational status of {{ecloud}} at any time from [status.elastic.co](https://status.elastic.co/). If you are on a FedRAMP High deployment, use the [FedRAMP High status page](https://ela.st/fedramphighstatus) instead. You must log in to view this page.
+
+## Sign up
+
+You can get started by creating an {{ecloud}} organization on [cloud.elastic.co](https://cloud.elastic.co/registration).
+
+For more details on the available sign up options and trial information, go to [](elastic-cloud/create-an-organization.md).
+
+## Benefits of {{ecloud}}
+
+Some of the unique benefits of {{ecloud}} include:
+
+- Regular updates and improvements automatically deployed or made available.
+- Built-in security, including encryption at rest.
+- Central management of billing and licensing.
+- Built-in tools for monitoring and scaling your {{ecloud}} resources.
+- Central management of users, roles, and authentication, including integration with SSO providers.
+
+For more information, refer to [](/deploy-manage/cloud-organization.md).
+
+## Compare {{ech}} and {{serverless-short}} [general-what-is-serverless-elastic-differences-between-serverless-projects-and-hosted-deployments-on-ecloud]
+
+You can have multiple hosted deployments and serverless projects in the same {{ecloud}} organization, and each deployment type has its own specificities.
+
+
+| Option | Serverless | Hosted |
+| --- | --- | --- |
+| **Cluster management** | Fully managed by Elastic. | You provision and manage your hosted clusters. Shared responsibility with Elastic. |
+| **Scaling** | Autoscales out of the box. | Manual scaling or autoscaling available for you to enable. |
+| **Upgrades** | Automatically performed by Elastic. | You choose when to upgrade. |
+| **Pricing** | Individual per project type and based on your usage. | Based on deployment size and subscription level. |
+| **Performance** | Autoscales based on your usage. | Manual scaling. |
+| **Solutions** | Single solution per project. | Full {{stack}} per deployment. |
+| **User management** | {{ecloud}}-managed users. | {{ecloud}}-managed users and native {{kib}} users. |
+| **API support** | Subset of [APIs](https://www.elastic.co/docs/api). | All Elastic APIs. |
+| **Backups** | Projects automatically backed up by Elastic. | Your responsibility with Snapshot & Restore. |
+| **Data retention** | Editable on data streams. | Index Lifecycle Management. |
+
+## APIs
+
+{{ecloud}} offers APIs to manage your organization and its resources. Check the [{{ecloud}}]({{cloud-apis}}) and [{{ecloud}} serverless]({{cloud-serverless-apis}}) APIs.
+
+More tools are available for you to make the most of your {{ecloud}} organization and {{es}}. Refer to [](/deploy-manage/deploy/elastic-cloud/tools-apis.md).
+
+## Browser access requirements [browser-access]
+
+If your organization restricts outbound browser traffic with a firewall, proxy, or secure web gateway, ensure users can access the following domains.
+
+### Standard {{ecloud}} domains
+
+These domains are used for the {{ecloud}} console, authentication, and deployment or project endpoints:
+
+* `cloud.elastic.co`
+* `*.cloud.es.io`
+* `*.elastic.cloud`
+
+### Additional required domains
+
+These domains are required to load certain assets used by the {{ecloud}} console and {{kib}}:
+
+* `console.estccdn.com`: Serves static assets required by the {{ecloud}} console after sign-in. If unreachable, some pages in `cloud.elastic.co` might appear blank.
+
+* `kibana.estccdn.com`: Serves assets required to load {{kib}} in {{serverless-short}} projects. If unreachable, {{kib}} might appear as a blank page.

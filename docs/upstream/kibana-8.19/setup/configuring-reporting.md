@@ -1,0 +1,241 @@
+<!-- Converted from setup/configuring-reporting.asciidoc (AsciiDoc). Includes are inlined. -->
+
+## Configure reporting in Kibana
+
+============
+Kibana PNG/PDF Reporting uses a custom binary of headless Chromium, and support comes with special caveats:
+
+* The functionality requires special OS dependencies which may not be available for all distributions and configurations of Linux.
+* It is subject to system resource configurations such as the limited number of file descriptors, allowed processes, and types of processes.
+* Linux versions that are in end-of-life phase are not supported.
+* Linux systems with SELinux or fapolicyd are not supported.
+
+Before upgrading Kibana in a production environment, we encourage you to test your screenshotting use cases in a pre-production environment
+to make sure your hosts support our latest build of Chromium. For the most reliable configuration of PDF/PNG {report-features}, consider
+installing Kibana using Docker, or using Elastic Cloud.
+============
+
+For security, you grant users access to the {report-features} and secure the reporting endpoints with TLS/SSL encryption. Additionally, you can install graphical packages into the operating system to enable the Kibana server to have screenshotting capabilities.
+
+============
+
+Starting in 8.19.0, report generation requests are authenticated by API keys instead of session cookies. There are several key differences between the authentication methods. API keys capture your role privileges, whereas session cookie are based on your user credentials. API keys are also longer-lived, compared to session cookies, which have a shorter lifespan.
+
+If you have a cross-cluster search environment and want to generate reports from remote clusters, you must have the appropriate cluster and index privileges on the remote cluster and local cluster. For example, if requests are authenticated with an API key, the API key requires certain privileges on the local cluster that contains the local index, in addition to the remote. For more information and examples, refer to [Configure roles and users for remote clusters](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/remote-clusters-cert.html#remote-clusters-privileges-cert).
+
+============
+
+* grant-user-access
+* reporting-roles-user-api
+* grant-user-access-basic
+* grant-user-access-external-provider
+* securing-reporting
+* install-reporting-packages
+* set-reporting-server-host
+* reporting-elasticsearch-configuration
+
+### Grant users access to reporting
+
+When security is enabled, the preferred method to grant users access to {report-features} is with Kibana application privileges. This will allow you to create custom roles that control the spaces and applications where users may generate reports.
+
+. We recommend you explicitly opt-out of the default access control model, which will enable application privileges in Reporting. To do this, change a setting that controls the Reporting access control model in `kibana.yml`:
+```yaml
+xpack.reporting.roles.enabled: false
+```
+**Note:** In Kibana 8.x versions, the default `xpack.reporting.roles.enabled: true` setting uses an older access control model separate from Kibana application
+privileges. The default model grants users with the built-in `reporting_user` role access to create any type of report in Kibana. Since the default model
+is not based on Kibana application privileges, users that do not have permission to create reports will see {report-features} in Kibana, but will receive an
+error if they attempt to request a report. The default model also does not allow API keys or authentication tokens to authorize report generation. Refer to
+reporting security settings for information and caveats about the `xpack.reporting.roles.enabled` settings.
+
+. Create the reporting role.
+
+.. Go to the *Roles* management page using the navigation menu or the 
+global search field.
+
+.. Click *Create role*.
+
+. Specify the role settings.
+
+.. Enter the *Role name*. For example, `custom_reporting_user`.
+
+.. Specify the *Indices* and *Privileges*.
+Access to data is an index-level privilege. For each index that contains the data you want to include in reports, add a line, then give each index `read` and `view_index_metadata` privileges.
+**Note:** If you use index aliases, you must also grant `read` and `view_index_metadata` privileges to underlying indices to generate CSV reports.
+For more information, refer to [Security privileges](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/security-privileges.html).
+
+. Add the Kibana privileges.
+
+.. Click *Add Kibana privilege*.
+
+.. Select one or more *Spaces*.
+
+.. Click *Customize*, then click *Analytics*.
+
+.. For each application, select *All*, or to customize the privileges, select *Read* and *Customize sub-feature privileges*.
+**Note:** If you have a Basic license, sub-feature privileges are unavailable. For details, check out grant-user-access-basic.
+(Figure: user/reporting/images/kibana-privileges-with-reporting.png)
+**Note:** If the *Reporting* options for application features are unavailable, and the cluster license is higher than Basic, contact your administrator, or check that `xpack.reporting.roles.enabled` is set to `false` in kibana.yml.
+
+.. Click *Add Kibana privilege*.
+
+. Click *Create role*.
+
+. Assign the reporting role to a user.
+
+.. Go to the *Users* management page using the navigation menu or the 
+global search field.
+
+.. Select the user you want to assign the reporting role to.
+
+.. From the *Roles* dropdown, select *custom_reporting_user*.
+
+.. Click *Update user*.
+
+Granting the privilege to generate reports also grants the user the privilege to view their reports in *Stack Management > Reporting*. Users can only access their own reports.
+
+#### Grant access with the role API
+
+With Kibana application privileges enabled in Reporting, you can also use the [role APIs](https://www.elastic.co/docs/api/doc/kibana/group/endpoint-roles) to grant access to the {report-features}, using *All* privileges, or sub-feature privileges.
+
+**Note:** This API request needs to be run against the Kibana API endpoint.
+
+```sh
+PUT <kibana host>:<port>/api/security/role/custom_reporting_user
+{
+	"elasticsearch": {
+		"cluster": [],
+		"indices": [],
+		"run_as": []
+	},
+	"kibana": [{
+		"spaces": ["*"],
+		"base": [],
+		"feature": {
+			"dashboard": ["generate_report",  <1>
+      "download_csv_report"], <2>
+      "discover": ["generate_report"], <3>
+			"canvas": ["generate_report"], <4>
+			"visualize": ["generate_report"] <5>
+		}
+	}]
+}
+```
+
+<1> Grants access to generate PNG and PDF reports in *Dashboard*.
+<2> Grants access to generate CSV reports from saved Discover session panels in *Dashboard*.
+<3> Grants access to generate CSV reports from saved Discover sessions in *Discover*.
+<4> Grants access to generate PDF reports in *Canvas*.
+<5> Grants access to generate PNG and PDF reports in *Visualize Library*.
+
+### Grant users access with a Basic license
+
+With a Basic license, you can grant users access with custom roles to {report-features} with Kibana application privileges. However, with a Basic license, sub-feature privileges are unavailable. Create a role, then select *All* privileges for the applications where users can create reports.
+
+(Figure: user/reporting/images/kibana-privileges-with-reporting-basic.png)
+
+With a Basic license, sub-feature application privileges are unavailable, but you can use the [role API](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/security-api-put-role.html) to grant access to CSV {report-features}:
+
+```sh
+PUT localhost:5601/api/security/role/custom_reporting_user
+{
+  "elasticsearch": { "cluster": [], "indices": [], "run_as": [] },
+  "kibana": [
+    {
+      "base": [],
+      "feature": {
+        "dashboard": [ "all" ], <1>
+        "discover": [ "all" ], <2>
+      },
+      "spaces": [ "*" ]
+    }
+  ],
+  "metadata": {} // optional
+}
+```
+
+<1> Grants access to generate CSV reports from saved Discover sessions in *Discover*.
+<2> Grants access to generate CSV reports from saved Discover session panels in *Dashboard*.
+
+#### Grant access using an external provider
+
+If you are using an external identity provider, such as LDAP or Active Directory, you can assign roles to individual users or groups of users. Role mappings are configured in [`config/role_mapping.yml`](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/mapping-roles.html).
+
+For example, assign the `kibana_admin` and `reporting_user` roles to the Bill Murray user:
+
+```yaml
+kibana_admin:
+  - "cn=Bill Murray,dc=example,dc=com"
+reporting_user:
+  - "cn=Bill Murray,dc=example,dc=com"
+```
+
+### Secure the reporting endpoints
+
+To automatically generate reports with Watcher, you must configure Watcher to trust the Kibana server certificate.
+
+. Enable {stack-security-features} on your Elasticsearch cluster. For more information, see [Getting started with security](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/security-getting-started.html).
+
+. Configure TLS/SSL encryption for the Kibana server. For more information, see configuring-tls.
+
+. Specify the Kibana server CA certificate chain in `elasticsearch.yml`:
+If you are using your own CA to sign the Kibana server certificate, then you need to specify the CA certificate chain in Elasticsearch to properly establish trust in TLS connections between Watcher and Kibana. If your CA certificate chain is contained in a PKCS #12 trust store, specify it like so:
+
+```yaml
+xpack.http.ssl.truststore.path: "/path/to/your/truststore.p12"
+xpack.http.ssl.truststore.type: "PKCS12"
+xpack.http.ssl.truststore.password: "optional decryption password"
+```
+
+Otherwise, if your CA certificate chain is in PEM format, specify it like so:
+
+```yaml
+xpack.http.ssl.certificate_authorities: ["/path/to/your/cacert1.pem", "/path/to/your/cacert2.pem"]
+```
+
+For more information, see [the Watcher HTTP TLS/SSL Settings](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/notification-settings.html#ssl-notification-settings).
+
+. Add one or more users who have access to the {report-features}.
+Once you've enabled SSL for Kibana, all requests to the reporting endpoints must include valid credentials.
+
+For more information on sharing reports, direct links, and more, refer to Reporting and sharing.
+
+### Install the dependencies for the headless browser
+
+If using PNG/PDF {report-features}, make sure the Kibana server operating system has the appropriate packages installed for the distribution.
+
+If you are using RHEL operating systems, install the following packages:
+
+* `xorg-x11-fonts-100dpi`
+* `xorg-x11-fonts-75dpi`
+* `xorg-x11-utils`
+* `xorg-x11-fonts-cyrillic`
+* `xorg-x11-fonts-Type1`
+* `xorg-x11-fonts-misc`
+* `vlgothic-fonts`
+* `fontconfig`
+* `freetype`
+
+If you are using Ubuntu/Debian systems, install the following packages:
+
+* `fonts-liberation`
+* `libfontconfig1`
+* `libnss3`
+
+The screenshotting plugin used for {reporting-features} has a built-in utility to check for common issues, such as missing dependencies. See
+reporting-diagnostics for more information.
+
+### Set the `server.host` for the headless browser
+
+If using PNG/PDF {report-features} in a production environment, it is preferred to use the setting of
+`server.host: 0.0.0.0` in the `kibana.yml` configuration file. This allows the headless browser used for
+PDF/PNG reporting to reach Kibana over a local interface, while also allowing the Kibana server to listen on
+outward-facing network interfaces, as it makes the Kibana server accessible from any network interface on the
+machine. Make sure that no firewall rules or other routing rules prevent local services from accessing this
+address.
+
+### Ensure Elasticsearch allows built-in templates
+
+Reporting relies on Elasticsearch to install a mapping template for the data stream that stores reports. Ensure that Elasticsearch allows built-in
+templates to be installed by keeping the `stack.templates.enabled` setting at the default value of `true`. For more information, see
+[Index management settings](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/index-management-settings.html#stack-templates-enabled).
