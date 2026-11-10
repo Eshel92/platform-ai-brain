@@ -87,6 +87,5 @@ Start pages: `commons/knowledge/platform-versions.md` (what runs where) and each
 
 ## Next (phase 2)
 
-A shared search server (keyword ranking over the brain and `docs/upstream/`), following the
-team-redbull/redbull-brain example, and docs for Elasticsearch and Redis when those teams join.
-See `docs/ADMIN.md`.
+A shared search server, only if local search turns out too slow or the models don't use it, and an
+automatic lookup on every message if the pilot shows they don't search on their own. See `docs/ADMIN.md`.

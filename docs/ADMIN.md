@@ -44,5 +44,5 @@ python3 scripts/sync_upstream_docs.py --list             # vendor-doc sources (r
 | Switch to merge requests | Protect `main` (Maintainers only) and change `push()` in `scripts/brain_save.py` to push a branch and open an MR. Background: `commons/decisions/brain-saves-push-straight-to-main.md`. |
 | Refresh the vendor docs | On a connected machine with PyYAML (`pip3 install pyyaml`): `python3 scripts/sync_upstream_docs.py` (or name one source). Bring `docs/upstream/` into the air gap, copy it over your clone, then `bash scripts/run.sh brain_save.py -m "docs(upstream): refresh" docs/upstream`. |
 | Pin a vendor-doc version | Change `ref` and `name` of that source in `docs/upstream/sources.json` (e.g. `release-3.2` → `release-3.1` for Argo CD), refresh it, delete the old folder, update `commons/knowledge/upstream-docs.md`. |
-| Add vendor docs (e.g. Elasticsearch) | Add an entry to `docs/upstream/sources.json` (`repo`, `ref`, `paths`, optional `include` / `exclude`, `convert: rst` or `adoc` for non-Markdown docs), refresh it, add a row to `commons/knowledge/upstream-docs.md`. |
-| Phase 2: search server | Model it on redbull-brain's `team-knowledge` server: one standard-library MCP server with keyword ranking over the brain and offline upstream docs, run once on OpenShift for the whole team. |
+| Add vendor docs | Step by step in `docs/upstream/README.md`, section "Adding new vendor docs". |
+| Phase 2: shared search | Only if needed: wrap `brain.py search` in a small MCP server run once on OpenShift, so every engineer gets ranked search as a tool. |
