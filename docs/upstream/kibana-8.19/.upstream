@@ -8,10 +8,12 @@
   "paths": [
     "docs"
   ],
-  "files": 352,
-  "bytes": 2756697,
+  "files": 404,
+  "bytes": 2764649,
   "license": "Apache-2.0",
   "format": "Markdown, converted from AsciiDoc (snippets inlined)",
-  "notes": [],
+  "notes": [
+    "3 big page(s) split into sections"
+  ],
   "synced": "2026-11-10T09:22:55Z"
 }

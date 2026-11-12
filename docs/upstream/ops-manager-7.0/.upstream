@@ -8,10 +8,12 @@
   "paths": [
     "content/ops-manager/v7.0/source"
   ],
-  "files": 621,
-  "bytes": 4846287,
+  "files": 665,
+  "bytes": 4855809,
   "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
   "format": "Markdown, converted from reStructuredText (includes inlined)",
-  "notes": [],
+  "notes": [
+    "8 big page(s) split into sections"
+  ],
   "synced": "2026-11-09T08:12:12Z"
 }

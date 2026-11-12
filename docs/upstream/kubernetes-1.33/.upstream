@@ -8,8 +8,11 @@
   "paths": [
     "content/en/docs"
   ],
-  "files": 1495,
-  "bytes": 10765080,
+  "files": 1563,
+  "bytes": 10782411,
   "license": "CC BY 4.0",
-  "synced": "2026-11-08T16:06:09Z"
+  "synced": "2026-11-08T16:06:09Z",
+  "notes": [
+    "15 big page(s) split into sections"
+  ]
 }

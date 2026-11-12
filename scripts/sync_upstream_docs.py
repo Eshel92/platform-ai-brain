@@ -10,6 +10,7 @@ MongoDB conversion (pip3 install pyyaml). Sources marked "convert" become one Ma
     python3 scripts/sync_upstream_docs.py mck-1.7 vector   # only these
     python3 scripts/sync_upstream_docs.py --list           # show the sources
     python3 scripts/sync_upstream_docs.py --versions       # only rebuild VERSIONS.md
+    python3 scripts/sync_upstream_docs.py --resplit        # split big pages in what's already downloaded
 
 Environment:
   UPSTREAM_GIT_BASE   git host to clone from (default https://github.com), e.g. https://gitlab.internal/mirrors
@@ -28,7 +29,7 @@ import tempfile
 from pathlib import Path
 
 sys.dont_write_bytecode = True
-from upstream_convert import convert_tree  # noqa: E402  (same folder)
+from upstream_convert import convert_tree, split_large_pages  # noqa: E402  (same folder)
 
 ROOT = Path(__file__).resolve().parent.parent
 UPSTREAM = ROOT / "docs" / "upstream"
@@ -121,6 +122,11 @@ def sync(source: dict) -> str:
         elif source.get("license"):  # no license file in the repo: use the one stated in sources.json
             label = source["license"]
 
+        if source.get("split", True):  # huge pages become a contents page + one file per section
+            split = split_large_pages(build)
+            if split:
+                notes.add(f"{split} big page(s) split into sections")
+            files = sum(1 for p in build.rglob("*.md"))
         size = sum(p.stat().st_size for p in build.rglob("*") if p.is_file())
         meta = {
             "name": name, "team": source["team"], "about": source["about"],
@@ -165,12 +171,33 @@ def main() -> int:
     parser.add_argument("names", nargs="*", help="source names (default: all)")
     parser.add_argument("--list", action="store_true", help="list the sources and exit")
     parser.add_argument("--versions", action="store_true", help="only rebuild VERSIONS.md")
+    parser.add_argument("--resplit", action="store_true",
+                        help="split big pages in folders already downloaded (no download)")
     args = parser.parse_args()
 
     sources = json.loads(SOURCES.read_text(encoding="utf-8"))["sources"]
     if args.list:
         for s in sources:
             print(f"{s['name']:28s} {s['repo']} @ {s['ref']}")
+        return 0
+    if args.resplit:
+        for source in sources:
+            folder = UPSTREAM / source["name"]
+            if (args.names and source["name"] not in args.names) or not folder.is_dir():
+                continue
+            if not source.get("split", True):
+                print(f"{source['name']}: not split (split: false)")
+                continue
+            split = split_large_pages(folder)
+            meta_file = folder / ".upstream"
+            if split and meta_file.is_file():
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                meta["files"] = sum(1 for p in folder.rglob("*.md"))
+                meta["bytes"] = sum(p.stat().st_size for p in folder.rglob("*") if p.is_file())
+                meta["notes"] = sorted(set(meta.get("notes", [])) | {f"{split} big page(s) split into sections"})
+                meta_file.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+            print(f"{source['name']}: {split} page(s) split")
+        write_versions()
         return 0
     if not args.versions:
         unknown = set(args.names) - {s["name"] for s in sources}

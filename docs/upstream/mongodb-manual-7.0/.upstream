@@ -8,10 +8,12 @@
   "paths": [
     "content/manual/v7.0/source"
   ],
-  "files": 1525,
-  "bytes": 12500432,
+  "files": 1673,
+  "bytes": 12534026,
   "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
   "format": "Markdown, converted from reStructuredText (includes inlined)",
-  "notes": [],
+  "notes": [
+    "21 big page(s) split into sections"
+  ],
   "synced": "2026-11-09T08:11:53Z"
 }

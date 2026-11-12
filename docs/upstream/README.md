@@ -83,6 +83,7 @@ rm -rf /tmp/peek
 | `root_files` | no | Extra files from the repo root, e.g. `["README.md"]` |
 | `extra_extensions` | no | File types beyond `.md .rst .adoc .txt .yaml`, e.g. `[".cue"]` |
 | `license` | no | The license, when the repo has no `LICENSE` file |
+| `split` | no | `false` to keep big pages whole. Use it for "no derivatives" licenses (default: pages over ~60 KB are split into sections) |
 
 ### 4. Download and check it
 
@@ -99,8 +100,8 @@ certificate error. Then check the result:
   should be near the top.
 - Leftover placeholders: `grep -rhoE '\{[a-z][a-z0-9.-]+\}' docs/upstream/<name> | sort | uniq -c | sort -rn | head`.
   Fill common ones with `attrs` and run the download again.
-- Huge pages: `find docs/upstream/<name> -name '*.md' -size +200k`. These are fine (Claude reads them by
-  section), but if most of the size is one kind of generated page, `exclude` it.
+- Huge pages are split automatically: a page over ~60 KB becomes a short contents page plus one file
+  per section in `<page>.parts/`. If most of the size is one kind of generated page, `exclude` it instead.
 
 If a download fails, the old folder stays as it was. Fix `sources.json` and run it again.
 
@@ -110,14 +111,17 @@ If a download fails, the old folder stays as it was. Fix `sources.json` and run 
   how that compares to what we run (`[UNKNOWN]` if you don't know).
 - If the license isn't in a `LICENSE` file in the folder, add a line to `NOTICE`.
 
-### 6. Bring it into the air gap and save it
+### 6. Bring it into the air gap
 
-Copy `docs/upstream/<name>/`, `docs/upstream/sources.json` and `docs/upstream/VERSIONS.md` into your
-clone, along with the catalog page, then:
+Export on the connected machine and import in the air gap (README, "Moving it into the air gap"):
 
 ```bash
-bash scripts/run.sh brain_save.py -m "docs(upstream): add <name>" docs/upstream commons/knowledge/upstream-docs.md
+python3 scripts/transfer.py export                                  # connected machine
+bash scripts/run.sh transfer.py import ~/platform-ai-brain.zip --apply   # air gap
 ```
+
+The catalog row from step 5 travels too, if nobody in the air gap changed that page; otherwise
+import keeps their version and puts yours in `.transfer/incoming/` to merge by hand.
 
 **To remove a source:** delete its entry in `sources.json` and its folder, run
 `python3 scripts/sync_upstream_docs.py --versions`, remove its row from the catalog page, and save.
@@ -129,11 +133,10 @@ python3 scripts/sync_upstream_docs.py                   # all sources
 python3 scripts/sync_upstream_docs.py mck-1.7           # just one
 ```
 
-Then bring `docs/upstream/` into the air gap and save it:
-
-```bash
-bash scripts/run.sh brain_save.py -m "docs(upstream): refresh" docs/upstream
-```
+Then export and import, as in step 6.
 
 To move to another version, change `ref` (and the folder `name`) in `sources.json`, refresh, delete
 the old folder and update the catalog page.
+
+To split big pages in folders already downloaded (no download needed):
+`python3 scripts/sync_upstream_docs.py --resplit`.

@@ -718,3 +718,122 @@ def convert_tree(kind: str, source: Path, out: Path, keep=None, attrs: dict | No
         total += len(text)
         count += 1
     return count, converter.notes
+
+
+# ---------------------------------------------------------------- splitting huge pages
+
+SPLIT_OVER = 60_000  # pages bigger than this are split into one file per section
+PART_TARGET = 20_000  # neighbouring small sections are merged into parts of about this size
+SPLIT_MARK = "This page was over"
+ATX = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+HTML_H = re.compile(r"^<h([1-6])\b[^>]*>\s*([^<\n]*)", re.I)  # generated API references use <h2>…</h2>
+
+
+def _headings(lines: list[str]) -> list[tuple[int, int, str]]:
+    """(index, level, title) of Markdown headings outside code fences."""
+    found, fenced = [], False
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced and (m := ATX.match(line)):
+            found.append((i, len(m.group(1)), m.group(2)))
+        elif not fenced and (m := HTML_H.match(line)):
+            found.append((i, int(m.group(1)), m.group(2).strip() or f"section {i}"))
+    return found
+
+
+def _sections(text: str, prefix: str = "") -> tuple[str, list[tuple[str, str]]]:
+    """Split text at its shallowest heading level that has two or more headings.
+    Returns (text before the first section, [(title, section text)]). A section still over
+    SPLIT_OVER is split one level deeper, or into line chunks if it has no sub-headings."""
+    lines = text.split("\n")
+    heads = _headings(lines)
+    for level in sorted({h[1] for h in heads}):
+        cuts = [h for h in heads if h[1] == level]
+        if len(cuts) < 2:
+            continue
+        preamble = "\n".join(lines[: cuts[0][0]])
+        parts = []
+        for n, (start, _, title) in enumerate(cuts):
+            end = cuts[n + 1][0] if n + 1 < len(cuts) else len(lines)
+            body = "\n".join(lines[start:end])
+            name = f"{prefix}{title}"
+            if len(body) <= SPLIT_OVER:
+                parts.append((name, body))
+                continue
+            heading_line, _, rest = body.partition("\n")
+            inner_pre, inner = _sections(rest, prefix=f"{name} › ")
+            if inner:
+                parts.append((name, heading_line + "\n" + inner_pre))
+                parts += inner
+            else:
+                parts += _chunks(name, body)
+        return preamble, parts
+    return text, []
+
+
+def _chunks(title: str, body: str) -> list[tuple[str, str]]:
+    """Cut a heading-less block into line-aligned chunks below SPLIT_OVER."""
+    out, current, size = [], [], 0
+    for line in body.split("\n"):
+        if size + len(line) > SPLIT_OVER * 2 // 3 and current:
+            out.append((f"{title} (part {len(out) + 1})", "\n".join(current)))
+            current, size = [], 0
+        current.append(line)
+        size += len(line) + 1
+    if current:
+        out.append((f"{title} (part {len(out) + 1})" if out else title, "\n".join(current)))
+    return out
+
+
+def _merge(parts: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Join neighbouring small sections into parts of about PART_TARGET, titled "first … last"."""
+    merged, titles, bodies, size = [], [], [], 0
+    for title, body in parts:
+        if bodies and size + len(body) > PART_TARGET:
+            merged.append((titles[0] if len(titles) == 1 else f"{titles[0]} … {titles[-1].split(' › ')[-1]}", "\n\n".join(bodies)))
+            titles, bodies, size = [], [], 0
+        titles.append(title)
+        bodies.append(body)
+        size += len(body)
+    if bodies:
+        merged.append((titles[0] if len(titles) == 1 else f"{titles[0]} … {titles[-1].split(' › ')[-1]}", "\n\n".join(bodies)))
+    return merged
+
+
+def split_large_pages(folder: Path) -> int:
+    """Turn every page over SPLIT_OVER into a short contents page plus <page>.parts/NNN-<section>.md.
+    Safe to run again: pages already split are small."""
+    split = 0
+    for page in sorted(folder.rglob("*.md")):
+        if page.stat().st_size <= SPLIT_OVER or page.parent.name.endswith(".parts"):
+            continue
+        text = page.read_text(encoding="utf-8", errors="replace")
+        if SPLIT_MARK in text:  # already a contents page from an earlier split
+            continue
+        preamble, parts = _sections(text)
+        if len(parts) < 2:  # no usable headings: cut it into chunks instead
+            preamble, parts = "", _chunks(page.stem, text)
+        if len(preamble) > PART_TARGET:  # a long intro becomes its own part; keep only the header block
+            header = preamble[: preamble.find("\n---", 3) + 4] if preamble.startswith("---") else ""
+            intro = preamble[len(header):]
+            intro_parts = _chunks("Introduction", intro) if len(intro) > SPLIT_OVER else [("Introduction", intro)]
+            parts, preamble = intro_parts + parts, header
+        parts = _merge(parts)
+        if len(parts) < 2:
+            continue
+        out_dir = page.parent / f"{page.stem}.parts"
+        out_dir.mkdir(exist_ok=True)
+        rel = page.relative_to(folder).as_posix()
+        listing = []
+        for n, (title, body) in enumerate(parts, start=1):
+            slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:50] or "part"
+            name = f"{n:03d}-{slug}.md"
+            (out_dir / name).write_text(f"<!-- Part {n} of {len(parts)} of {rel} (split because the page is big). -->\n\n"
+                                        f"{body.strip()}\n", encoding="utf-8")
+            listing.append(f"- `{name}`: {title[:140]}")
+        page.write_text(f"{preamble.rstrip()}\n\n"
+                        f"<!-- {SPLIT_MARK} {SPLIT_OVER // 1000} KB, so its sections are separate files. -->\n\n"
+                        f"## Sections (in `{out_dir.name}/`)\n\n" + "\n".join(listing) + "\n", encoding="utf-8")
+        split += 1
+    return split

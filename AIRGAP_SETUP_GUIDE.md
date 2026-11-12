@@ -14,12 +14,15 @@
 
 ## 1. Bring it in
 
-On the Mac: zip `~/Documents/platform-ai-brain`, transfer it the approved way, unzip it inside.
-The zip is about 31 MB, mostly the offline vendor docs in `docs/upstream/`. A clone is about 130 MB
-(about 98 MB of files plus the git history).
+On the connected machine, in the brain folder: `python3 scripts/transfer.py export`. It writes
+`platform-ai-brain.zip` (about 33 MB, mostly the offline vendor docs) next to the folder. Transfer it
+the approved way. A clone is about 130 MB (about 98 MB of files plus the git history).
 
-The vendor docs can't be refreshed inside the air gap: refresh them on a connected machine and
-bring them in (`docs/upstream/README.md`).
+**Already have the brain in GitLab (any earlier version)?** Skip step 2's push and use import instead:
+README, "Moving it into the air gap". It keeps everything the team saved.
+
+The vendor docs can't be refreshed inside the air gap: refresh them on a connected machine
+(`docs/upstream/README.md`), export, and import.
 
 ## 2. GitLab project (once)
 
@@ -29,9 +32,10 @@ bring them in (`docs/upstream/README.md`).
    - Allowed to push and merge: **Developers + Maintainers** (saves push straight to main)
    - Allowed to force push: off
    - Code owner approval: off (with it on, GitLab rejects direct pushes)
-3. Push the content:
+3. Push the content (first time only, into the empty project):
 
 ```bash
+unzip platform-ai-brain.zip
 cd platform-ai-brain
 git init -b main
 git add -A
@@ -40,8 +44,8 @@ git remote add origin <gitlab-url>/platform-engineering/platform-ai-brain.git
 git push -u origin main
 ```
 
-If you already pushed the earlier version: clone it, delete everything except `.git`, copy the new
-files in, then `git add -A` (this records the deletions too), commit and push.
+New versions later: export on the connected machine, then import in the air gap (README, "Moving it
+into the air gap").
 
 ## 3. Each engineer (once)
 
@@ -54,7 +58,7 @@ claude plugin install brain@platform-ai-brain
 Optional, in your shell profile:
 
 ```bash
-export BRAIN_TEAM=team1-mongodb-cassandra   # Quick Rules from commons + your team only
+export BRAIN_TEAM=team1-mongodb-cassandra   # Quick Rules and search: commons + your team only
 export BRAIN_DIR=/some/other/path            # only if you didn't clone to ~/platform-ai-brain
 ```
 
@@ -86,7 +90,7 @@ rm -f ~/.claude/commands/brain.md ~/.claude/commands/learn.md
 
 ```bash
 claude plugin list                         # brain@platform-ai-brain  ✔ enabled
-bash ~/platform-ai-brain/tests/test_flow.sh   # once per OS: 42 checks, runs in a temp folder (Git Bash on Windows)
+bash ~/platform-ai-brain/tests/test_flow.sh   # once per OS: 63 checks, runs in a temp folder (Git Bash on Windows)
 bash ~/platform-ai-brain/scripts/run.sh ../plugin/scripts/session_start.py   # prints the session briefing
 ```
 
@@ -116,7 +120,7 @@ pages, hooks and skills reach everyone on their next session, with no reinstall.
 | Variable | Default | Effect |
 |---|---|---|
 | `BRAIN_DIR` | `~/platform-ai-brain` | Where the clone is |
-| `BRAIN_TEAM` | (all) | Show Quick Rules from commons + this team only |
+| `BRAIN_TEAM` | (all) | Quick Rules and vendor-doc search: commons + this team only (faster, fewer stray hits) |
 | `BRAIN_RULES_LIMIT` | 25 | Max Quick Rules in the session briefing |
 | `BRAIN_NUDGE_MIN_TOOLS` | 20 | Tool calls before the "anything worth saving?" question |
 | `BRAIN_NUDGE_DISABLE` | unset | `1` turns that question off |

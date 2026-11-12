@@ -8,8 +8,11 @@
   "paths": [
     "content/docs"
   ],
-  "files": 69,
-  "bytes": 219845,
+  "files": 73,
+  "bytes": 221283,
   "license": "Apache-2.0 (stated in the csm-docs README)",
-  "synced": "2026-11-08T16:08:34Z"
+  "synced": "2026-11-08T16:08:34Z",
+  "notes": [
+    "1 big page(s) split into sections"
+  ]
 }

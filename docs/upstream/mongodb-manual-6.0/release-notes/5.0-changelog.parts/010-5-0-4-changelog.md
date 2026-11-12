@@ -1,0 +1,434 @@
+<!-- Part 10 of 12 of release-notes/5.0-changelog.md (split because the page is big). -->
+
+## 5.0.4 Changelog
+
+### Sharding
+
+- SERVER-40865 The ShardServerCatalogCacheLoader does not serialize read operations with other operations for the same collection
+- SERVER-49897 Insert no-op entries into oplog buffer collections for resharding so resuming is less wasteful
+- SERVER-53335 Queries, updates, and deletes with non-"simple" collations may miss documents when using hashed sharding
+- SERVER-54231 Resharding can leave behind local collection on former primary shard that doesn't own any chunks
+- SERVER-54623 Decrease number of jobs in causal consistency passthrough suites
+- SERVER-55412 Mirrored reads should propagate the shard version field
+- SERVER-55429 Abort migration earlier when receiver is not cleaning overlapping ranges
+- SERVER-55557 Range deletion of aborted migration can fail after a refine shard key
+- SERVER-56985 Complete TODO listed in SERVER-56500
+- SERVER-57217 Don't report remainingOperationTimeEstimatedSecs in currentOp metrics for resharding for donors and coordinators
+- SERVER-57266 Create IDL representations for resharding metrics time intervals.
+- SERVER-57276 Capture max/min percent complete in FTDC metrics as seen by the commit monitor
+- SERVER-57479 Remove resharding_test_util.js
+- SERVER-57654 Call Pipeline::dispose() if Pipeline::getNext() throws in ReshardingCollectionCloner
+- SERVER-57655 Call Pipeline::dispose() if Pipeline::getNext() throws in ReshardingTxnCloner
+- SERVER-57665 Remove the unused disallowWritesForResharding() method
+- SERVER-57675 random_DDL_CRUD_operations.js may attempt to rename to a same destination ns twice
+- SERVER-57686 We need test coverage that runs resharding in the face of elections
+- SERVER-57760 Introduce dedicated OpCounters-like metrics for resharding and use them in ReshardingOplogApplier
+- SERVER-57761 Increment insert opcounter as part of resharding collection cloning
+- SERVER-58082 Fail resharding operation if allowMigrations has already been set to false
+- SERVER-58304 "metrics" field in resharding's donor, recipient, and coordinator documents isn't marked as optional
+- SERVER-58343 Re-enable reshard_collection_failover_shutdown_basic.js
+- SERVER-58407 Resharding components do not retry on FailedToSatisfyReadPreference when targeting remote shard, leading to server crash
+- SERVER-58433 ReshardingCoordinatorService Transaction In bumpCollectionVersionAndChangeMetadataInTxn Possibly Too Large
+- SERVER-58592 Make ReshardingCoordinatorService more robust when stepdowns happen near the end of a resharding operation.
+- SERVER-58871 Set fixed db primary in write_concern_basic.js
+- SERVER-58914 Create ReshardingDonorWriteRouter class with function stubs
+- SERVER-58915 Implement ReshardingDonorWriteRouter functionality along with unit tests
+- SERVER-58960 Measure the overhead from ShardingWriteRouter on the write codepath
+- SERVER-58980 Prevent Resharding Coordinator StepDownStepUpEachTransition test race between stepdown and done
+- SERVER-58990 Resharding always write new collection timestamp
+- SERVER-59023 Resharding can fail with NamespaceNotSharded following a primary failover on a recipient shard
+- SERVER-59160 Disable balancer in test_stacked_migration_cleanup.js
+- SERVER-59208 Allow retryable write in resharding_replicate_updates_as_insert_delete.js to fail with ShardCannotRefreshDueToLocksHeld
+- SERVER-59500 DDL coordinators must not release dist locks on stepdown
+- SERVER-59585 ReshardingOpObserver performs an invalid CollectionShardingRuntime cast on config servers
+- SERVER-59694 Resharding Prohibited Commands Incorrectly Assumes Consistency In Config.Cache.Collections Collection
+- SERVER-59769 Balancer conflicts with chunk migration tests
+- SERVER-59775 ReshardingDonorOplogIterator triggers an fassert() when it continues to run in member state SECONDARY following a stepdown
+- SERVER-59803 Set maxTimeMs for catalog cache refresh aggregation
+- SERVER-59811 ReshardingOplogFetcher can see the postBatchResumeToken move backwards in time when switching sync sources, stalling the resharding operation
+- SERVER-59812 ReshardingMetrics::onStepDown() is called while data replication components are still running, leading to an invariant failure
+- SERVER-59849 Add test to verify behavior of ReshardingOplogFetcher when pre/post image cannot be fetched
+- SERVER-59890 Exclude migration_coordinator_shutdown_in_critical_section.js test from the config stepdown suite
+- SERVER-59903 Do not wipe out renamed tags upon resuming the rename of sharded metadata
+- SERVER-59916 T{1, 2}Starts{First, Second}AndWins In WriteConflictHelpers Does Not Synchronize Committing Of Failed Transaction
+- SERVER-59923 Retry reshardCollection command from background thread in ReshardingTest fixture
+- SERVER-59927 Resharding's RecipientStateMachine::_restoreMetrics() doesn't retry on transient errors, leading to fassert() on stepdown
+- SERVER-59965 Distributed deadlock between renameCollection and multi-shard transaction
+- SERVER-60094 ReshardingOplogApplicationRules does not version all writes
+- SERVER-60142 Shard can migrate on top of orphans after filtering metadata was cleared
+- SERVER-60161 Deadlock between config server stepdown and _configsvrRenameCollectionMetadata command
+- SERVER-60220 ReshardingCoordinator::installCoordinatorDoc should update in memory state before calling logChange
+- SERVER-60266 Retry WriteConcernError exceptions in DDL coordinators
+- SERVER-60291 Resharding Prohibited Commands Does Not Wait For The Recipient To Be Done
+- SERVER-60413 Fix the critical section reason used by the moveChunk command
+- SERVER-60508 Shard server OnReplicationRollback throws when recovering critical section on time-series collection
+- SERVER-60592 DDL participant commands need to ensure they make a write with their txnNumber
+- SERVER-60731 Postpone database critical section release in drop database coordinator  
+- SERVER-60737 Remove incorrect chunk timestamp check from ShardServerCatalogCacheLoaderTest
+- SERVER-60774 Resharding may apply through reshardFinalOp without transitioning to strict consistency, stalling write operations on collection being resharded until critical section times out
+- SERVER-60811 Drop database could drop new collections after stepdown
+- SERVER-60858 _configsvrReshardCollection command which joins existing ReshardingCoordinator may miss being interrupted on stepdown
+- SERVER-60859 ReshardingCoordinator waits on _canEnterCritical future without cancellation, potentially preventing config server primary step-up from ever completing
+- SERVER-60916 CPS Restores failed with a snapshot with documents in reshardingOperation
+- SERVER-61026 Invert order of shards receiving drop collection participant command
+- SERVER-61052 Resharding Donor & Recipient's Coordinator Doc Updates Can Time Out Waiting for Replication on Coordinator Doc, Leading to Fatal Assertion
+- SERVER-61066 Make shardsvr DDL commands check primary status after marking opCtx as interruptible
+- SERVER-61108 ReshardingCoordinatorService, Config Collection Deletes Can Time Out Waiting for Replication on Coordinator Doc, Leading to Fatal Assertion
+
+### Replication
+
+- SERVER-58988 Avoid sync source selection cycle during primary catchup.
+- SERVER-59170 Exclude max_doc_size.js from tenant_migration_multi_stmt_txn_jscore_passthrough suite
+- SERVER-59646 Check that the difference in ping times is greater than changeSyncSourceThreshold before evaluating sync source in  nodes_in_primarys_datacenter_dont_sync_across_datacenters.js
+- SERVER-60153 More INFO level logs during election
+
+### Query
+
+- SERVER-51806 bulk key insertion phase of index build holds IX lock without yielding
+- SERVER-55516 Remove tags for Time-series tests in sharded passthroughs
+- SERVER-57321 $mod match expression incorrectly handles NaN, Infinity and large values
+- SERVER-57376 CollectionImpl and IndexCatalogImpl stats are uninitialized and can be written to the logs 
+- SERVER-60586 out_max_time_ms.js does not correctly enable "maxTimeNeverTimeOut" failpoint leading to spurious test failure
+
+### Aggregation
+
+- SERVER-59308 Match After $lookup-$unwind not applied correctly to $lookup results
+- SERVER-59613 $range expression should error if it exceeds memory limit
+- SERVER-59924 Error executing aggregate with $out with "available" read concern on sharded clusters
+
+### Storage
+
+- SERVER-58130 Changing time-series collection validator is acknowledged by server without errors
+- SERVER-59057 Do not enforce fast count in validate command for config.transactions collection
+
+### Operations
+
+- SERVER-53242 Always log collmod command
+- SERVER-59883 Have mongo shell message about using mongosh respect the --quiet flag
+
+### Internals
+
+- SERVER-52310 Enable feature flag for Integration work to support new $search parameters
+- SERVER-53350 Expose methods on ReshardingTest fixture for sending replSetStepUp, SIGTERM, and SIGKILL to shards and config server while resharding is running
+- SERVER-53351 Add resharding fuzzer task with step-ups enabled for shards
+- SERVER-53913 ReshardingDonorService instances to load metrics state upon instantiation
+- SERVER-54206 Create a non-blocking API for the Fetcher class (or create an alternate class)
+- SERVER-54726 Fix typo in 'numScannedAferResume'
+- SERVER-54774 Architecture Guide updates for PM-2191
+- SERVER-54775 Create Feature flag for PM-2191
+- SERVER-55711 Coverity analysis defect 118014: 'state' variable shadowed in checkState()
+- SERVER-56416 mongod --version returns with extraneous log line on M1 laptops
+- SERVER-56602 Track usage of match expressions in serverStatus
+- SERVER-56639 Timestamp index ident drops for startup recovery
+- SERVER-56801 Update placeholder links for the reconfig check in PSA sets
+- SERVER-56813 Have Resharding be [RRFaM] aware
+- SERVER-56887 setIndexCommitQuorum command returns {ok: 1} when run against a mongos on a non-existent index build
+- SERVER-57000 Fix handling of correlated pipeline with facet
+- SERVER-57229 killOp_against_journal_flusher_thread.js must ensure the JournalFlusher doesn't reset the opCtx between finding the opId and running killOp 
+- SERVER-57295 Rotate audit log on startup
+- SERVER-57315 Enable shardCollection command for a time series collection
+- SERVER-57350 ShardKeyPattern::parseShardKeyPattern() - NaN representation is being cast to integer
+- SERVER-57437 Implement insert routing for sharded time series collection
+- SERVER-57565 Ensure time series measurements do not update orphan buckets on sharded cluster
+- SERVER-57566 Implement sharding admin commands behaviour for time series collection
+- SERVER-57567 Update sharded passthrough suite to handle time series collections 
+- SERVER-57568 Implement query routing behaviour for sharded time series collections
+- SERVER-57570 Disable updating granularity on sharded time-series collection
+- SERVER-57572 Rewrite secondary indexes on mongos for sharded time-series collections
+- SERVER-57573 Implement orphan filtering logic for $sample stage on sharded time-series collections
+- SERVER-57589 Enhance testing for cluster collStats and indexStats commands to ensure top-level 'timeseries' summation works 
+- SERVER-57603 timeseries::MinMax::minUpdates/maxUpdates should consider calls to timeseries::MinMax::min/max when determining updates to include
+- SERVER-57605 Expose Decimal128 equality comparison helper to shell
+- SERVER-57697 Measure latency/throughput of ReshardingOplogApplier::_applyBatch
+- SERVER-57700 Measure latency/throughput of resharding::data_copy::fillBatchForInsert in ReshardingCollectionCloner::doOneBatch
+- SERVER-57717 Add time-series stub to update command
+- SERVER-57718 Add time-series stub to delete command
+- SERVER-57733 Determine whether an update/delete's query depends only on a time-series collection's metaField
+- SERVER-57734 Determine whether an update modifies only a time-series collection's metaField
+- SERVER-57735 Translate a single update on a time-series collection's metaField into an update on its buckets collections
+- SERVER-57736 Translate a delete on a time-series collection's metaField into a delete on its buckets collection
+- SERVER-57742 Create a non-specialized version of the OperationLatencyHistogram class
+- SERVER-57780 Improve BlackDuck timeout handling
+- SERVER-57784 TryUntilLoop Does Not Synchronize Destructor and Promise resolution
+- SERVER-58112 Add explicit synchronization to TaskExecutor's exhaust command promises
+- SERVER-58122 Replace searching logs for invariant failure with failpoint usage in resync_majority_member.js
+- SERVER-58139 Avoid leaking state from NetworkInterfaceTest::CancelLocally
+- SERVER-58148 mirrored_reads.js assertion does not consider mirrored read failure
+- SERVER-58166 Resumable index build rollback tests can run out of RamLog space
+- SERVER-58170 Prohibit dropping system.views if timeseries collections are present
+- SERVER-58175 Round time values before routing inserts to sharded timeseries collections
+- SERVER-58183 _applyPrepareTransaction does not ensure prepareConflictBehavior is kIgnoreConflictAcceptWrites on retry attempts
+- SERVER-58203 improve $unionWith stage
+- SERVER-58263 Fix absl map erase loop in TenantMigrationAccessBlockerRegistry
+- SERVER-58331 Fail time-series updates and deletes in multi-document transactions
+- SERVER-58370 StringMap element use-after-free in RollbackImpl
+- SERVER-58385 recovery oplog application updates multikey info on wrong collection
+- SERVER-58386 assign unique collection names to test cases in null_query_semantics.js
+- SERVER-58390 Test time-series metaField-only deletes with collation
+- SERVER-58393 Enable "collation" for time-series metaField-only updates
+- SERVER-58394 Translate multiple ordered updates on a time-series collection's metaField into updates on its buckets collections
+- SERVER-58396 Translate multiple unordered updates on a time-series collection's metaField into updates on its buckets collections
+- SERVER-58406 Enable debug logging when the TestingProctor is enabled
+- SERVER-58412 Changing settings.chainingEnabled in replica set configuration should affect change in sync sources
+- SERVER-58480 Add the necessary parameters to the ContinuousTenantMigration hook to allow for proper transient error retry 
+- SERVER-58485 Retry transaction on transient errors in api_params_transaction.js
+- SERVER-58492 Test time-series metaField-only deletes with let
+- SERVER-58493 Test time-series metaField-only deletes with hint
+- SERVER-58519 Fix metaField-only time-series deletes with concurrent collection drops
+- SERVER-58583 Query analysis for mongocryptd does not handle expressive projections in find
+- SERVER-58617 Allow updates on a time-series collection with no metaField
+- SERVER-58721 processReplSetInitiate does not set a stableTimestamp or take a stable checkpoint
+- SERVER-58722 assign unique collection names to test cases in wildcard_index_multikey.js
+- SERVER-58739 Complete TODO listed in SERVER-58334
+- SERVER-58774 Clean up timeseries_update_delete_util.h and update references to queryOnlyDependsOnMetaField()
+- SERVER-58777 Inserts and updates disagree on whether an empty subdocument is a level of nesting
+- SERVER-58796 Enable "let" for time-series metaField-only updates
+- SERVER-58797 Enable "hint" for time-series metaField-only updates
+- SERVER-58798 Test "arrayFilters" for time-series metaField-only updates
+- SERVER-58803 Test that time-series metaField-only deletes close in-memory buckets
+- SERVER-58804 Ensure time-series metaField-only updates close in-memory buckets
+- SERVER-58811 Unit test query functions in timeseries_update_delete_util.h
+- SERVER-58861 ephemeralForTest sorted data interface does not work on big endian machines
+- SERVER-58872 Add require_fcv_51 tag for sharded timeseries tests
+- SERVER-58877 Ban spilling to disk in SpillableCache if there is no storage engine available.
+- SERVER-58888 $unionWith explain with mode "executionStats" does not account for stages which are pushed down
+- SERVER-58896 Fix metaField-only time-series updates with concurrent collection drops
+- SERVER-58899 Set curOp namespace to view collection for time-series updates
+- SERVER-58903 Deny list index_many2.js from tenant migration stepdown/kill/terminate passthrough suites
+- SERVER-58930 mongodb-enterprise-unstable-server conflicts with mongodb-enterprise-unstable-shell
+- SERVER-58967 Set curOp namespace to view collection for time-series deletes
+- SERVER-59024 Unit test update functions in timeseries_update_delete_util.h
+- SERVER-59036 Use a unique bucket collection name in clustered_index_types.js
+- SERVER-59054 Enforce timeouts for generated fuzzer tasks
+- SERVER-59067 Fix TLS Race condition
+- SERVER-59072 Disallow updates on time-series collections where upsert:true
+- SERVER-59074 Do not acquire storage tickets just to set/wait on oplog visibility
+- SERVER-59088 Create Feature flag for Minimal support for sharding time-series collections: update and delete
+- SERVER-59092 Support $jsonSchema operator for time-series deletes
+- SERVER-59094 shardCollection command should ensure that time-series collection is created properly
+- SERVER-59104 Remove usages of findNthChild() in time-series update/delete code
+- SERVER-59108 Resolve race with transaction operation not killed after step down
+- SERVER-59110 Update connection error message in powercycle
+- SERVER-59120 Create unit tests for commitChunksMerge
+- SERVER-59126 drop collection on time-series collection should drop the underlying buckets collection on config server 
+- SERVER-59140 Validate shard key pattern for timeseries shardCollection command
+- SERVER-59141 Review RPM spec files for potential errors
+- SERVER-59143 hard fail if "--ninja" tool option is used with ninja module in place
+- SERVER-59150 non_durable_writes_on_primary_can_reach_majority.js does not wait for durable timestamp on secondary to advance
+- SERVER-59154 Add more comprehensive time-series update document test cases
+- SERVER-59159 $min/max window function null semantics are different than their accumulator counterparts
+- SERVER-59164 All write commands on sharded time-series namespace should translate to buckets namespace, on mongos
+- SERVER-59173 Audit error messages for time-series updates and deletes
+- SERVER-59174 Report number of documents updated/deleted for time-series updates/deletes
+- SERVER-59180 Implement update rewrite and routing for sharded time-series collections
+- SERVER-59181 Implement delete rewrite and routing for sharded time-series collections
+- SERVER-59184 Add tests to verify correctness of Time Series index and bucket collection after chunk migration
+- SERVER-59190 IndexAccessMethod can be destructed during index build bulk load yield
+- SERVER-59191 SPIKE: git.get_project fails to clone
+- SERVER-59194 Exclude timeseries_update_concurrent.js from running in parallel with other tests
+- SERVER-59196 Add tests for explain command for sharded timeseries collection
+- SERVER-59214 include query results in oplog_visibility.js assertion message
+- SERVER-59218 Only replace the top-level metaField with "meta" for time-series updates/deletes
+- SERVER-59226 Deadlock when stepping down with a profile session marked as uninterruptible
+- SERVER-59294 Check action type for oidReset
+- SERVER-59298 Generated fuzzer tasks should use timeout_secs not exec_timeout_secs
+- SERVER-59299 Improve $match stage
+- SERVER-59321 Update suffix var to v5.0 in compile expansions
+- SERVER-59409 Race between reconfig replication and stepup can cause RSM to be stuck in reporting ReplicaSetNoPrimary
+- SERVER-59410 Clean up time-series update and delete tests
+- SERVER-59413 Fix possible race in tenant_migration_fetch_committed_transactions_retry.js
+- SERVER-59425 Ninja fails to install archive targets locally
+- SERVER-59445 Increase storage log verbosity in oplog_sampling.js
+- SERVER-59456 Start the LDAPReaper threadpool
+- SERVER-59459 mongodb fails to build with glibc-2.34
+- SERVER-59476 validate_commit_message does not allow wiredtiger imports to be reverted
+- SERVER-59483 tenant_migration_collection_ttl.js must account for race between recipient cloner and donor TTL sweep
+- SERVER-59491 Add "requires_multi_updates" tag to geo_update2.js
+- SERVER-59505 Time-series query on mixed, nested measurements can miss some events
+- SERVER-59515 Fix defaults in MergeAuthzCollection command
+- SERVER-59525 TenantMigrationRecipientAccessBlocker isn't being initialized correctly on recovery
+- SERVER-59591 LockerNoop::isW() always returns true allowing multiple operations think they are holding the global exclusive lock at the same time
+- SERVER-59606 Do not set dynamic timeouts on tasks with tests that have no runtime history
+- SERVER-59635 Mark ConfigSvrMoveChunkCommand as interruptible on stepdown
+- SERVER-59649 multiversion generated suite filenames should be different from normal tasks
+- SERVER-59662 Create a concurrency test with time-series inserts and interrupt generating commands
+- SERVER-59666 Renaming system.buckets collection should be disallowed
+- SERVER-59669 Unprotected variable in the concurrent test TransientSSLParamsStressTestWithManager
+- SERVER-59672 Fix stopping replication in step_down_during_draining3.js
+- SERVER-59676 DocumentSourceFindAndModifyImageLookup can hit invariant when used in a shard
+- SERVER-59693 ReshardingTest fixture must accommodate nodes going into ROLLBACK while attempting to run replSetStepUp
+- SERVER-59701 Error when working with some timezones when using external timezones database
+- SERVER-59720 Correctly handle $rename in time-series metaField-only updates
+- SERVER-59727 TenantMigrationAccessBlockerRegistry::_remove doesn't remove when both mtabs are present
+- SERVER-59765 $dateAdd/$dateSubtract do not detect an overflow for certain 'amount' values
+- SERVER-59778 Robustify timeseries_query.js test
+- SERVER-59796 Wait for replication before stopping replication on secondaries in catchup.js 
+- SERVER-59804 Using a separate branch for YCSB in system_perf.yml
+- SERVER-59805 Provide a way to check for and to remove invalid index catalog options
+- SERVER-59843 Complete TODO listed in SERVER-56639
+- SERVER-59865 Update repl arch guide to reflect new implicit default write concern formula
+- SERVER-59866 Stop FCV from waiting for majority when currentCommittedSnapshot is dropped
+- SERVER-59867 Split horizon mappings in ReplSetConfig/MemberConfig should be serialized deterministically
+- SERVER-59868 Fix index build race in durable_history_index_usage.js
+- SERVER-59876 Large delays in returning from libcrypto.so while establishing egress connections
+- SERVER-59885 Wait for replica set to stabilize before validating collections
+- SERVER-59925 Stress test and fix deadlock in expiring idle buckets
+- SERVER-59934 Dropping a View and creating a Collection on same namespace may be replicated out-of-order
+- SERVER-59943 Multiversion setup should not download assets from test branches
+- SERVER-59952 Fix multiversion burnin_tests error during resmoke process
+- SERVER-59970 Fix return value from authenticate command
+- SERVER-60007 Implement command to drop collection if its UUID differs from the expected
+- SERVER-60025 queue document crashes the server due to producing invalid runtime object
+- SERVER-60038 Ban setWindowFields in transaction with read concern snapshot
+- SERVER-60062 Fix duplicate uuid and server description deep copy found in topology description clone
+- SERVER-60096 Add rollbackHangCommonPointBeforeReplCommitPoint failpoint to RVR
+- SERVER-60145 generated task resmoke config files should be based on task names
+- SERVER-60150 Add variant to 5.0 with some feature flags
+- SERVER-60201 Clean up time-series update and delete util functions
+- SERVER-60218 Improve $group stage
+- SERVER-60223 Container hosts should look for evergreen binary at /
+- SERVER-60228 RPM external dependency scanner is deprecated
+- SERVER-60259 set require_multiversion in task generation
+- SERVER-60263 stitch_support library fails to load due to missing static initializers
+- SERVER-60269 Enable ShardedTimeSeriesUpdateDelete feature flag
+- SERVER-60270 Add tags to window functions read concern test
+- SERVER-60283 Disable tests incompatible with the ephemeralForTest storage engine
+- SERVER-60285 Create FSM test for deletes on sharded time-series collections
+- SERVER-60290 Update Windows external auth test distro
+- SERVER-60299 Backport PCRE bugfix for Bugzilla #2613
+- SERVER-60322 Failed index build initialization during rename collection between dbs may not clean itself up from collection metadata
+- SERVER-60326 Windows Server fails to start when X509 certificate has empty subject name
+- SERVER-60340 Don't forward mongo ports through SSH tunnel in powercycle
+- SERVER-60343 Single-phase index builds perform un-timestamped catalog writes on abort
+- SERVER-60348 Add featureFlagTimeseriesUpdatesAndDeletes to 5.0 backport builder
+- SERVER-60406 $searchMeta fails on unsharded collection in sharded cluster when there are no search results
+- SERVER-60418 drop_sharded_timeseries_collection would not support step downs
+- SERVER-60420 The slow 'shardCollection' path performs heavy work under the critical section
+- SERVER-60424 TenantOplogFetcher times out on recreating aggregation cursor
+- SERVER-60430 [v5.0] tenant_migration_recipient_access_blocker_rollback.js holds a failpoint that prevents previous instance from completing
+- SERVER-60450 Add error check for $dateSubtract when negating amount value
+- SERVER-60451 Index builds code can access an invalid BSONObj because the cursor was saved&restored at a lower level
+- SERVER-60452 Fix time-series shard key validation when the collection does not exist
+- SERVER-60456 LDAPBindOptions go out of scope during heavily delayed binds on Windows
+- SERVER-60469 Retryable deletes reserve two optimes for preImage chaining despite not capturing a preImage
+- SERVER-60495 Retry FailedToSatisfyReadPreference in DDL coordinators
+- SERVER-60497 renameCollectionForApplyOps should skip system.buckets rename check
+- SERVER-60511 getPinnedOplog return value should always be std::min compared with the pinned timestamp
+- SERVER-60518 Best effort checks in range deleter can leave orphans
+- SERVER-60523 Standalone fixture incorrectly handles directory creation exceptions
+- SERVER-60544 Replace remaining references to slaveDelay in replication system
+- SERVER-60548 Timeseries insert path segfault
+- SERVER-60550 migration_util function may miss some response errors when submitting remote commands through sendToRecipient()
+- SERVER-60554 Reduce ConnectionAttempts in ssh connection options in powercycle
+- SERVER-60588 $multiply incorrectly throws an error in some cases in the classic engine
+- SERVER-60593 Robustify sample_timeseries.js test
+- SERVER-60606 Race condition during initial sync when index builds start in data cloning phase
+- SERVER-60651 Backport the autoSplitVector logic to v5.0
+- SERVER-60661 [5.0] Add test to ensure that sharded time-series collections work correctly when the feature flag is off
+- SERVER-60739 Change chunk size in timeseries_balancer.js to split chunks sooner
+- SERVER-60740 Robustify timeseries_multiple_mongos.js test
+- SERVER-60762 $setWindowFields partitionBy an array should consistently error
+- SERVER-60766 Add 'does_not_support_transactions' for sharded time-series tests
+- SERVER-60801 Fix logkeeper snapshot location
+- SERVER-60869 Re-add logic to set feature compatibility version on arbiters
+- SERVER-60877 Correct inadvertent copy of MutableOplogEntry on replLogUpdate
+- SERVER-60896 Fast forward audit spooler before triggering filtered event
+- SERVER-60913 Package testing is failing on some platforms
+- SERVER-60948 Insert document in new collection in migration_id_index.js to await successful index build on secondary
+- SERVER-60971 Remove calls to BF suggestion service
+- SERVER-61094 Generating KeyStrings from MultiIndexBlock can result in memory limits not being respected
+- SERVER-61096 ResetDbPath sometimes errors while recreating dbpath on Windows
+- WT-5009 Migrate remaining wiredtiger-perf-lsm tests to Evergreen
+- WT-5270 Create wtperf script for evergreen 
+- WT-5743 Rewrite cells when the transaction ids are cleared for VLCS
+- WT-5939 Fix naming conflict resulting in "cannot remove directory" error in test_config06 (OSX only)
+- WT-6077 Add new stats to track compact progress
+- WT-6193 Re-enable VLCS testing in format-test
+- WT-6669 Enable VLCS coverage and checkpoint tests in evergreen
+- WT-6900 Write "schema" subpage for Architecture Guide
+- WT-6903 Write "dhandle/btree" subpage for Architecture Guide
+- WT-6907 Write "snapshots" subpage for Architecture Guide
+- WT-6909 Eviction architecture guide
+- WT-6913 file system and os interface architecture guide
+- WT-7169 Commit ts should not be lesser than the last durable ts in test_timestamp22.py
+- WT-7250 Fix the test to perform explicit eviction instead of relying on low cache size
+- WT-7294 Re-enable VLCS evergreen endianness tests
+- WT-7392 Added evicted flag to dhandle for use by session sweep
+- WT-7494 Add Python test to trigger update restore eviction during recovery
+- WT-7601 Fix typo in operation tracking documentation
+- WT-7695 Dump entire tree when key out-of-order found in __cursor_key_order_check_row
+- WT-7745 Add macro to identify uris for btree objects
+- WT-7757 Skip obsolete leaf pages without having to read them
+- WT-7844 Add tiered_abort stress test for tiered storage.
+- WT-7885 Ensure WiredTiger testing uses tcmalloc where possible
+- WT-7902 Retry the alter command after a system wide checkpoint
+- WT-7914 Update the documentation only when required
+- WT-7942 Release timestamp lock in test/format when all_durable timestamp is not found
+- WT-7949 Change local store cache and bucket directories to be relative to WT_HOME
+- WT-7957 Tiered storage should look in local system for objects
+- WT-7959 Skipped_pages is less than expected_pages_skipped in test_cursor17
+- WT-7980 Create interface to "log:" cursor which switches log files before returning them
+- WT-7987 Create Unit Test to check compact does not rewrite overflow items 
+- WT-7989 Compact quits when running at the same time as a system checkpoint
+- WT-7992 Provide API to return the last key in a table regardless of visibility
+- WT-7993 If gathering handles and not in aggressive eviction mode, have eviction sleep to let checkpoint grab a contentious spinlock.
+- WT-8001 Fix Inconsistent API behaviour when setting global oldest and stable timestamps
+- WT-8007 Update script to correctly generate new test for the CPP test suite framework
+- WT-8011 Add format support for randomly choosing RS or VLCS
+- WT-8017 Re-enable VLCS format stress testing in evergreen.
+- WT-8019 VLCS snapshot-isolation search mismatch
+- WT-8022 Verify WT_CURSOR.modify return values in format test program
+- WT-8023 Use global transaction information to assess if a session has active transaction
+- WT-8024 Add link text to cross-references in Arch Guide
+- WT-8026 Run PPC/zSeries/macOS mainline builds less frequently in Evergreen
+- WT-8034 Use the PR branch when docs are compiled in PR testing
+- WT-8035 Handle prefix enabled lexicographical comparisons for string key formats
+- WT-8036 Added connection panic flag in two assert statements in wt_evict_thread_run and _wt_evict_thread_stop.
+- WT-8039 Add a new flag for API check instead of clearing prepared flag which may incorrectly force a roll back
+- WT-8041 Rollback to stable unpacks values repeatedly
+- WT-8042 Create an evergreen job to run test/checkpoint variation 
+- WT-8043 Tidy the "ripcip" argument into the visibility code
+- WT-8044 Prefix enabled search near only returns matching keys
+- WT-8048 Remove split_8 timing stress configuration
+- WT-8055 Fix issue when compact quits when running at the same time as a checkpoint
+- WT-8057 Add a test to verify that changing compact is not resulting in data loss
+- WT-8059 Add a check in salvage when no overflow items are found
+- WT-8067 Fix the code that ensures to insert the newest history store value as full update
+- WT-8068 Improve __rollback_row_modify control flow
+- WT-8069 Coverity analysis defect 120706: Redundant test
+- WT-8070 Remove discrepancy between prefix_key and prefix_search
+- WT-8075 Coverity analysis defect 120712: 'Constant' variable guards dead code
+- WT-8077 Mark the page dirty once the prepared updates are resolved
+- WT-8078 Implement tiered storage local retention caching
+- WT-8079 Add breakpoint to verify error macros, clean up API processing
+- WT-8081 Fix tiered hook functions to provide default for config string
+- WT-8086 Create cpp test for prefix search near entries
+- WT-8092 Prefix early exit when keys are present in the insert list
+- WT-8094 Fix use after free in csv extractor
+- WT-8101 Enable diagnostic mode for the CPP tests in evergreen
+- WT-8103 Skip a dhandle if it isn't a btree
+- WT-8104 Fix memory leaks noted by ASAN
+- WT-8108 Use temporary files and rename in local store
+- WT-8112 Skip null check, per coverity
+- WT-8113 Remove dead code, per coverity
+- WT-8115 Define macros only when necessary in cpp files
+- WT-8116 Fix issues related to inheritance in the cpp testing framework
+- WT-8119 Add targeted compact testing to the existing testing framework
+- WT-8121 Create a long running stress test which inserts a large amount of data over a long period
+- WT-8125 Update hs_cleanup cppsuite test to use the new thread_context logic
+- WT-8126 Mark btree as dirty only if not newly created when instantiating a deleted row-store leaf page
+- WT-8146 Stop the tracking component when a CPP test ends
+- WT-8147 Detect invalid syntax in cppsuite configs
+- WT-8148 Fix comment typo in util_verify.c
+- WT-8161 Reduce verbosity of CMake Evergreen smoke
+- WT-8162 Refactor uses of SMOKE arg in 'define_c_test' helper
+- WT-8164 Disable rollback_to_stable10 python test on Windows
+- WT-8168 Fix unused variables in search near cpp tests
+- WT-8171 Implement a C style test in the CPP testing framework
+- WT-8193 Wrong corner case in VLCS rollback-to-stable
+- WT-8199 Make s_all accept Python PEP8 compliant line breaks 
+- WT-8203 Fix the layering violation in accessing the page
+- WT-8204 Fix possible race condition in "wt7989_compact_checkpoint" CSuite test
+- WT-8214 Only publish the docs from the WiredTiger develop Evergreen project
+- WT-8225 Fix data race in zstd get context
+- WT-8226 Fix largest_key failed to consider prepared update

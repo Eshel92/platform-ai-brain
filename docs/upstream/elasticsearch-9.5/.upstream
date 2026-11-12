@@ -4,15 +4,17 @@
   "about": "Elasticsearch 9.5 reference and release notes: configuration, mappings, index settings, REST APIs, Query DSL, Painless",
   "repo": "elastic/elasticsearch",
   "ref": "9.5",
-  "commit": "1a23ebfce1c5edceb38088897f3ebe7c8382381e",
+  "commit": "aa6da9740a549f87e484218f25ca89045a99f16d",
   "paths": [
     "docs/reference",
     "docs/release-notes"
   ],
-  "files": 811,
-  "bytes": 6204738,
+  "files": 849,
+  "bytes": 6214753,
   "license": "Apache-2.0",
   "format": "Markdown (substitutions filled in, shared snippets inlined)",
-  "notes": [],
-  "synced": "2026-11-10T09:28:36Z"
+  "notes": [
+    "5 big page(s) split into sections"
+  ],
+  "synced": "2026-11-10T10:47:43Z"
 }

@@ -1,5 +1,5 @@
 {
-  "_about": "Offline upstream docs. Edit this list, then run scripts/sync_upstream_docs.py on a machine that can reach the git host. 'paths' are folders in the repo; 'root_files' are extra files from the repo root; 'include' / 'exclude' are patterns on paths inside those folders. 'license' is used when the repo has no license file; 'extra_extensions' adds file types beyond the usual text ones. 'convert' (rst | adoc) turns each page into one self-contained Markdown file; 'checkout' adds folders needed only during conversion (shared code examples). 'attrs' fills in placeholders the converter doesn't know.",
+  "_about": "Offline upstream docs. Edit this list, then run scripts/sync_upstream_docs.py on a machine that can reach the git host. 'paths' are folders in the repo; 'root_files' are extra files from the repo root; 'include' / 'exclude' are patterns on paths inside those folders. 'license' is used when the repo has no license file; 'extra_extensions' adds file types beyond the usual text ones. 'convert' (rst | adoc) turns each page into one self-contained Markdown file; 'checkout' adds folders needed only during conversion (shared code examples). 'attrs' fills in placeholders the converter doesn't know. Pages over ~60 KB are split into one file per section, unless 'split' is false (kept verbatim for no-derivatives licenses).",
   "sources": [
     {
       "name": "mongodb-manual-7.0",
@@ -291,7 +291,8 @@
       ],
       "include": [
         "*.md"
-      ]
+      ],
+      "split": false
     },
     {
       "name": "elasticsearch-9.5",

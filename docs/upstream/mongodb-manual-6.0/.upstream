@@ -8,10 +8,12 @@
   "paths": [
     "source"
   ],
-  "files": 1373,
-  "bytes": 10690130,
+  "files": 1437,
+  "bytes": 10703080,
   "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
   "format": "Markdown, converted from reStructuredText (includes inlined)",
-  "notes": [],
+  "notes": [
+    "11 big page(s) split into sections"
+  ],
   "synced": "2026-11-09T08:12:03Z"
 }

@@ -8,8 +8,11 @@
   "paths": [
     "docs"
   ],
-  "files": 436,
-  "bytes": 2784077,
+  "files": 425,
+  "bytes": 2785160,
   "license": "Apache-2.0",
-  "synced": "2026-11-08T16:06:16Z"
+  "synced": "2026-11-08T16:06:16Z",
+  "notes": [
+    "1 big page(s) split into sections"
+  ]
 }

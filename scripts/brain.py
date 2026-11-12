@@ -7,13 +7,15 @@ Standard library only, so it runs on any workstation without pip.
     python3 scripts/brain.py index                    # writes INDEX.md files (not committed)
     python3 scripts/brain.py rules [--team T] [--limit N]
     python3 scripts/brain.py stale [--days N]
-    python3 scripts/brain.py search <words> [--folder F ...] [--docs] [--limit N]
+    python3 scripts/brain.py search <words> [--folder F ...] [--brain | --docs | --everything] [--limit N]
     python3 scripts/brain.py show <file> [<section>] [--from LINE] [--lines N]
 """
 from __future__ import annotations
 
 import argparse
+import json
 import math
+import os
 import datetime as dt
 import re
 import sys
@@ -251,18 +253,26 @@ def stale(days: int) -> int:
 # ---------- search & show ----------
 
 UPSTREAM = ROOT / "docs" / "upstream"
+SYNONYMS = ROOT / "docs" / "search-synonyms.txt"
 STOP = set("a an and are as at be by can do does for from how i if in into is it its of on or that the "
            "this to was we what when where which why will with you your".split())
 WORD = re.compile(r"[a-z0-9_][a-z0-9_.\-]*[a-z0-9_]|[a-z0-9_]")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+HTML_HEADING = re.compile(r"^<h([1-6])\b[^>]*>\s*([^<\n]*)", re.I)
 
 
 def words(text: str) -> list[str]:
     return [w for w in WORD.findall(text.lower()) if len(w) > 1 and w not in STOP]
 
 
+def term_pattern(term: str) -> re.Pattern:
+    """A word or phrase, as a whole word, plural allowed (snapshot = snapshots)."""
+    body = r"\s+".join(re.escape(part) for part in term.split())
+    return re.compile(rf"(?<![a-z0-9_]){body}(?:s|es)?(?![a-z0-9_])")
+
+
 def count_word(low: str, word: str) -> int:
-    return len(re.findall(rf"(?<![a-z0-9_]){re.escape(word)}(?![a-z0-9_])", low))
+    return len(term_pattern(word).findall(low))
 
 
 def outline(lines: list[str]) -> list[tuple[int, int, str]]:
@@ -273,6 +283,8 @@ def outline(lines: list[str]) -> list[tuple[int, int, str]]:
             fenced = not fenced
         elif not fenced and (m := HEADING.match(line)):
             found.append((number, len(m.group(1)), m.group(2)))
+        elif not fenced and (m := HTML_HEADING.match(line)):
+            found.append((number, int(m.group(1)), m.group(2).strip() or f"section at line {number}"))
     return found
 
 
@@ -285,87 +297,159 @@ def page_title(text: str, path: Path) -> str:
     return heads[0][2] if heads else path.stem
 
 
-def search_scope(folders: list[str] | None, docs: bool) -> list[Path]:
-    if docs:
-        return [UPSTREAM]
-    if not folders:
-        return [ROOT / t for t in TEAMS if (ROOT / t).is_dir()] + [ROOT / INBOX]
-    scope = []
-    for name in folders:
-        for candidate in (ROOT / name, UPSTREAM / name):
-            if candidate.is_dir():
-                scope.append(candidate)
+def synonym_groups() -> list[list[str]]:
+    groups = []
+    if SYNONYMS.is_file():
+        for line in SYNONYMS.read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0].strip()
+            group = [" ".join(term.lower().split()) for term in line.split(",") if term.strip()]
+            if len(group) > 1:
+                groups.append(group)
+    return groups
+
+
+def concepts(query: str) -> list[tuple[str, list[str]]]:
+    """What to look for: (query word or phrase, all its alternatives). A synonym phrase in the query
+    ("replica set") stays one concept; every other word becomes its own."""
+    groups = synonym_groups()
+    rest = " " + " ".join(query.lower().split()) + " "
+    found = []
+    for group in groups:
+        for alt in sorted(group, key=len, reverse=True):
+            if " " in alt and f" {alt} " in rest:
+                found.append((alt, group))
+                rest = rest.replace(f" {alt} ", " ")
                 break
-        else:
-            names = ", ".join(sorted(p.name for p in UPSTREAM.iterdir() if p.is_dir())) if UPSTREAM.is_dir() else ""
-            sys.exit(f"no folder '{name}'. Brain folders: {', '.join(TEAMS)}. Vendor docs: {names}")
-    return scope
+    for word in dict.fromkeys(words(rest)):
+        alts = [word] + [a for g in groups if word in g for a in g if a != word]
+        if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):  # snapshots -> snapshot
+            singulars = {word[:-1]} | ({word[:-2]} if word.endswith("es") and len(word) > 4 else set())
+            alts = [a for a in alts if a != word] + sorted(singulars)  # a singular also matches its plural
+        found.append((word, list(dict.fromkeys(alts))))
+    return found
 
 
-def search(query: str, folders: list[str] | None, docs: bool, limit: int) -> int:
-    terms = list(dict.fromkeys(words(query)))
-    if not terms:
+def upstream_team(folder: Path) -> str:
+    try:
+        return json.loads((folder / ".upstream").read_text(encoding="utf-8")).get("team", "")
+    except (OSError, ValueError):
+        return ""
+
+
+def search_scope(folders: list[str] | None, mode: str) -> tuple[list[Path], list[Path]]:
+    """(our folders, vendor-doc folders) to search."""
+    vendors_all = sorted(p for p in UPSTREAM.iterdir() if p.is_dir()) if UPSTREAM.is_dir() else []
+    if folders:
+        ours, vendors = [], []
+        for name in folders:
+            name = name.rstrip("/").removeprefix("docs/upstream/")
+            if (ROOT / name).is_dir() and name in TEAMS + [INBOX]:
+                ours.append(ROOT / name)
+            elif (UPSTREAM / name).is_dir():
+                vendors.append(UPSTREAM / name)
+            else:
+                sys.exit(f"no folder '{name}'. Our folders: {', '.join(TEAMS)}. "
+                         f"Vendor docs: {', '.join(p.name for p in vendors_all)}")
+        return ours, vendors
+    ours = [ROOT / t for t in TEAMS if (ROOT / t).is_dir()] + [ROOT / INBOX]
+    team = os.environ.get("BRAIN_TEAM", "").strip()
+    vendors = vendors_all
+    if team and mode != "everything":  # commons + this team's vendor docs only
+        vendors = [p for p in vendors_all if upstream_team(p) in ("commons", team, "")]
+    if mode == "brain":
+        vendors = []
+    if mode == "docs":
+        ours = []
+    return ours, vendors
+
+
+def search(query: str, folders: list[str] | None, mode: str, limit: int) -> int:
+    wanted = concepts(query)
+    if not wanted:
         sys.exit("give some search words")
-    files = [p for base in search_scope(folders, docs) for p in sorted(base.rglob("*.md")) if p.name != "INDEX.md"]
-    hits, df = [], {t: 0 for t in terms}
-    for path in files:
+    patterns = {alt: term_pattern(alt) for _, alts in wanted for alt in alts}
+    ours, vendors = search_scope(folders, mode)
+    files = [(p, True) for base in ours for p in sorted(base.rglob("*.md")) if p.name != "INDEX.md"]
+    files += [(p, False) for base in vendors for p in sorted(base.rglob("*.md"))]
+    first_words = {alt: alt.split()[0] for alt in patterns}
+    hits, df = [], {label: 0 for label, _ in wanted}
+    for path, own in files:
         text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
         low = text.lower()
-        rel = path.relative_to(ROOT).as_posix()
-        if not any(t in low or t in rel.lower() for t in terms):
+        if not any(w in low for w in first_words.values()):
             continue
-        counts = {t: count_word(low, t) for t in terms}
+        counts = {label: sum(len(patterns[a].findall(low)) for a in alts if first_words[a] in low)
+                  for label, alts in wanted}
         if not any(counts.values()):
             continue
-        for t, c in counts.items():
-            df[t] += 1 if c else 0
-        hits.append((path, rel, text, low, counts))
+        for label, c in counts.items():
+            df[label] += 1 if c else 0
+        hits.append((path, own, text, low, counts))
+    total = len(files)
     if not hits:
-        print(f'nothing found for "{query}"')
+        print(f'nothing found for "{query}" ({total} pages searched)')
         return 0
 
-    total = len(files)
     avg = sum(len(h[3]) for h in hits) / len(hits)
+    phrase = " ".join(query.lower().split())
     ranked = []
-    for path, rel, text, low, counts in hits:
+    for path, own, text, low, counts in hits:
+        rel = path.relative_to(ROOT).as_posix()
         title = page_title(text, path)
         title_low, rel_low = title.lower(), rel.lower()
         score, matched = 0.0, 0
-        for t in terms:
-            idf = math.log(1 + (total - df[t] + 0.5) / (df[t] + 0.5))
-            tf = counts[t]
+        for label, alts in wanted:
+            idf = math.log(1 + (total - df[label] + 0.5) / (df[label] + 0.5))
+            tf = counts[label]
             if tf:
                 matched += 1
                 score += idf * tf * 2.2 / (tf + 1.2 * (0.25 + 0.75 * len(low) / avg))
-            if count_word(title_low, t):
+            if any(patterns[a].search(title_low) for a in alts):
                 score += 2 * idf
-            if t in rel_low:
+            if any(a.replace(" ", "-") in rel_low for a in alts):
                 score += idf
-        score *= matched / len(terms)
-        if len(terms) > 1 and " ".join(terms) in " ".join(words(low)[:20000]):
+        score *= matched / len(wanted)
+        if len(wanted) > 1 and phrase in low:
             score *= 1.5
-        ranked.append((score, rel, title, text, len(text)))
+        ranked.append((score, own, rel, title, text, matched))
     ranked.sort(key=lambda r: -r[0])
 
-    where = ", ".join(p.relative_to(ROOT).as_posix() for p in search_scope(folders, docs))
-    print(f'Top matches for "{query}" in {where} ({total} pages searched):')
-    for number, (score, rel, title, text, size) in enumerate(ranked[:limit], start=1):
-        best, best_line = -1.0, (0, "")
-        body_start = text.find("\n---", 3) + 4 if text.startswith("---") else 0  # skip the header block
-        offset = text.count("\n", 0, body_start)
-        for line_no, line in enumerate(text[body_start:].split("\n"), start=offset + 1):
-            if line.lstrip("# ").strip() == title or line.startswith("<!--"):  # title / converter note
-                continue
-            ll = line.lower()
-            present = sum(1 for t in terms if t in ll) + (0.5 if line.startswith("#") else 0)
-            if present >= 1 and present > best:
-                best, best_line = present, (line_no, line.strip())
-        print(f" {number}. {rel}  [{max(1, size // 1000)} KB]")
-        print(f"    {title[:110]}")
-        if best_line[0]:
-            print(f"    L{best_line[0]}: {best_line[1][:130]}")
+    alts_all = [a for _, alts in wanted for a in alts]
+    expanded = [f"{label} = {', '.join(alts[1:4])}" for label, alts in wanted if len(alts) > 1]
+    print(f'Search "{query}": {total} pages ({len(ours)} of our folders, {len(vendors)} vendor-doc folders)')
+    if expanded:
+        print(f"Also matching: {'; '.join(expanded)}")
+    enough = max(1, (len(wanted) + 1) // 2)  # our pages must match at least half the search words
+    own_hits = [r for r in ranked if r[1] and r[5] >= enough][: (limit if not vendors else min(3, limit))]
+    vendor_hits = [r for r in ranked if not r[1]][: limit - len(own_hits)]
+    number = 0
+    for heading, group in (("Our pages", own_hits), ("Vendor docs", vendor_hits)):
+        if not group:
+            continue
+        print(f"{heading}:")
+        for score, own, rel, title, text, _ in group:
+            number += 1
+            print(f" {number}. {rel}  [{max(1, len(text) // 1000)} KB]")
+            print(f"    {title[:110]}")
+            line_no, line = best_line(text, title, alts_all)
+            if line_no:
+                print(f"    L{line_no}: {line[:130]}")
     print('Next: brain.py show <path> for the outline, show <path> "<section>" for one section.')
     return 0
+
+
+def best_line(text: str, title: str, alts: list[str]) -> tuple[int, str]:
+    best, found = -1.0, (0, "")
+    body_start = text.find("\n---", 3) + 4 if text.startswith("---") else 0  # skip the header block
+    offset = text.count("\n", 0, body_start)
+    for line_no, line in enumerate(text[body_start:].split("\n"), start=offset + 1):
+        if line.lstrip("# ").strip() == title or line.startswith("<!--"):  # title / converter note
+            continue
+        ll = line.lower()
+        present = sum(1 for a in alts if a in ll) + (0.5 if line.startswith("#") else 0)
+        if present >= 1 and present > best:
+            best, found = present, (line_no, line.strip())
+    return found
 
 
 def show(file: str, section: str | None, start: int | None, count: int) -> int:
@@ -430,7 +514,10 @@ def main() -> int:
     p_search = sub.add_parser("search", help="rank pages by how well they match some words")
     p_search.add_argument("query", nargs="+")
     p_search.add_argument("--folder", action="append", help="a team folder or a docs/upstream folder (repeatable)")
-    p_search.add_argument("--docs", action="store_true", help="search all of docs/upstream")
+    p_search.add_argument("--brain", dest="mode", action="store_const", const="brain", help="only our pages")
+    p_search.add_argument("--docs", dest="mode", action="store_const", const="docs", help="only vendor docs")
+    p_search.add_argument("--everything", dest="mode", action="store_const", const="everything",
+                          help="ignore BRAIN_TEAM and search every vendor-doc folder")
     p_search.add_argument("--limit", type=int, default=10)
     p_show = sub.add_parser("show", help="print a page's outline, one section, or a range of lines")
     p_show.add_argument("file")
@@ -440,7 +527,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "search":
-        return search(" ".join(args.query), args.folder, args.docs, args.limit)
+        return search(" ".join(args.query), args.folder, args.mode or "all", args.limit)
     if args.command == "show":
         return show(args.file, args.section, args.start, args.lines)
 

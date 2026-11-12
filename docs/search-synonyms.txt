@@ -1,0 +1,50 @@
+# Search synonyms for `brain.py search`: one group of equivalent terms per line, comma-separated.
+# Searching for any term in a group also finds the others. Multi-word terms are fine.
+# Plurals are handled automatically (snapshot = snapshots). This file goes to GitHub: generic terms only.
+
+# MongoDB
+resync, initial sync, initialsync, re-sync
+fcv, featurecompatibilityversion, feature compatibility version
+ops manager, opsmanager, om
+mck, mongodb controllers for kubernetes, mongodb kubernetes operator, enterprise operator
+replica set, replicaset, replica-set
+mongosh, mongo shell
+oplog, operations log
+
+# Cassandra
+dc, datacenter, data center, cassandradatacenter
+k8ssandra, k8ssandracluster
+
+# Elastic
+es, elasticsearch
+kib, kibana
+eck, elastic cloud on kubernetes
+ilm, index lifecycle management, index lifecycle
+slm, snapshot lifecycle management
+ccr, cross-cluster replication, cross cluster replication
+ccs, cross-cluster search, cross cluster search
+esql, es|ql
+
+# Redis
+redis enterprise, redis software, redis enterprise software, rlec
+
+# Kubernetes / OpenShift
+k8s, kubernetes
+ocp, openshift
+pvc, persistent volume claim, persistentvolumeclaim
+pv, persistent volume, persistentvolume
+sts, statefulset, stateful set
+cm, configmap, config map
+crd, custom resource definition, customresourcedefinition
+ns, namespace
+pdb, pod disruption budget, poddisruptionbudget
+hpa, horizontal pod autoscaler
+oom, out of memory, oomkilled
+crashloopbackoff, crash loop, crashloop
+
+# GitOps and monitoring
+argocd, argo cd
+applicationset, application set, appset
+servicemonitor, service monitor
+prometheusrule, prometheus rule
+victoriametrics, victoria metrics

@@ -187,6 +187,61 @@ check "show: outline lists the headings" contains "$out" "Steps"
 out="$("$PY" -B "$A/scripts/brain.py" show docs/upstream/fake-vendor/upgrade.md Steps 2>&1)"
 check "show: prints only the asked section" test "$(echo "$out" | grep -c 'setFeatureCompatibilityVersion') $(echo "$out" | grep -c 'Check the FCV')" = "1 0"
 
+printf '# Rebuild a member\n\nRun an initial sync on the member.\n' >"$A/docs/upstream/fake-vendor/rebuild.md"
+check "search: synonyms (resync finds 'initial sync')" contains "$("$PY" -B "$A/scripts/brain.py" search resync --folder fake-vendor 2>&1)" "rebuild.md"
+check "search: plurals (snapshots finds 'snapshot')" contains "$("$PY" -B "$A/scripts/brain.py" search snapshots --folder fake-vendor 2>&1)" "backup.md"
+out="$("$PY" -B "$A/scripts/brain.py" search test upgrade 2>&1)"
+check "search: one search shows our pages before vendor docs" test "$(echo "$out" | grep -nE '^(Our pages|Vendor docs):' | cut -d: -f2 | tr '\n' ',')" = "Our pages,Vendor docs,"
+
+"$PY" - "$A/docs/upstream/fake-vendor/big.md" <<'EOF'
+import sys
+sections = [f"## Section {n}\n\n" + "\n".join(f"line {n}.{i} keyword{n} filler text to make it big" for i in range(700)) for n in (1, 2, 3)]
+open(sys.argv[1], "w").write("# Big page\n\nIntro.\n\n" + "\n\n".join(sections) + "\n")
+EOF
+"$PY" -B -c "import sys, pathlib; sys.path.insert(0, '$A/scripts'); from upstream_convert import split_large_pages; split_large_pages(pathlib.Path('$A/docs/upstream/fake-vendor'))"
+check "split: big page becomes a short contents page" test "$(wc -c <"$A/docs/upstream/fake-vendor/big.md")" -lt 5000
+check "split: one file per section, nothing lost" test "$(cat "$A"/docs/upstream/fake-vendor/big.parts/*.md | grep -c 'filler text')" -eq 2100
+check "split: search finds text inside a part" contains "$("$PY" -B "$A/scripts/brain.py" search keyword3 --folder fake-vendor 2>&1)" "big.parts/"
+
+echo "== export / import"
+MAC="$T/seed"   # plays the connected machine; carol plays a fresh clone in the air gap
+printf 'old note\n' >"$MAC/docs/old-note.md"
+"$PY" -B "$MAC/scripts/transfer.py" export --out "$T/x1.zip" >"$T/out" 2>&1
+check "export: writes the zip" contains "$(cat "$T/out")" "Exported"
+git clone -q "$T/origin.git" "$T/carol"
+C="$T/carol"
+git -C "$C" config user.name carol; git -C "$C" config user.email carol@test
+"$PY" -B "$C/scripts/transfer.py" import "$T/x1.zip" --apply >"$T/out" 2>&1
+check "import: first import saves" contains "$(cat "$T/out")" "[brain-saved]"
+echo "mac line" >>"$MAC/README.md"                                   # the connected machine moves on
+rm "$MAC/docs/old-note.md"
+mkdir -p "$MAC/docs/upstream/fake-x" && printf '# New vendor page\n' >"$MAC/docs/upstream/fake-x/new.md"
+echo "Mac edit" >>"$MAC/commons/knowledge/observability.md"
+echo "Mac change" >>"$MAC/commons/knowledge/america-platform.md"
+echo "teammate edit" >>"$C/commons/knowledge/gitops-pipeline.md"     # so does the air gap
+echo "teammate change" >>"$C/commons/knowledge/america-platform.md"  # same page as the Mac: a conflict
+page "$C/commons/knowledge/teammate-page.md" knowledge "Teammate page" "Body."
+mkdir -p "$C/docs/upstream/fake-x" && printf '# Stray\n' >"$C/docs/upstream/fake-x/stray.md"
+save "$C" -m "brain(test): teammate work" commons/knowledge/gitops-pipeline.md commons/knowledge/america-platform.md commons/knowledge/teammate-page.md docs/upstream/fake-x/stray.md
+"$PY" -B "$MAC/scripts/transfer.py" export --out "$T/x2.zip" >"$T/out" 2>&1
+check "export: lists what changed since the last export" contains "$(cat "$T/out")" "removed: 1"
+cp "$T/x2.zip" "$C/"                                                  # a zip copied into the clone is fine
+out="$("$PY" -B "$C/scripts/transfer.py" import "$C/x2.zip" 2>&1)"
+check "import dry run: shows the plan" contains "$out" "To apply: add --apply"
+check "import dry run: changes nothing" test -z "$(git -C "$C" status --porcelain | grep -v '\.zip$')" -a -f "$C/docs/old-note.md"
+"$PY" -B "$C/scripts/transfer.py" import "$C/x2.zip" --apply >"$T/out" 2>&1
+check "import: saved and pushed" contains "$(cat "$T/out")" "[brain-saved]"
+check "import: tool file updated" grep -q "mac line" "$C/README.md"
+check "import: file removed on the connected machine is deleted" test ! -e "$C/docs/old-note.md"
+check "import: new vendor file added, stray one removed" test -f "$C/docs/upstream/fake-x/new.md" -a ! -e "$C/docs/upstream/fake-x/stray.md"
+check "import: page nobody changed here is updated" grep -q "Mac edit" "$C/commons/knowledge/observability.md"
+check "import: page a teammate changed is kept" grep -q "teammate edit" "$C/commons/knowledge/gitops-pipeline.md"
+check "import: page that exists only here is untouched" test -f "$C/commons/knowledge/teammate-page.md"
+check "import: conflict keeps the air-gap version" grep -q "teammate change" "$C/commons/knowledge/america-platform.md"
+check "import: conflict puts the export's version aside" grep -q "Mac change" "$C/.transfer/incoming/commons/knowledge/america-platform.md"
+out="$("$PY" -B "$MAC/scripts/transfer.py" import "$T/x2.zip" --into "$C" 2>&1)"
+check "import --into (first time, run from the zip's copy): reads the target clone" test "$(echo "$out" | grep -c 'CONFLICT') $(echo "$out" | grep -c '  add:')" = "1 0"
+
 mkdir -p "$T/tx"
 "$PY" - "$T/tx" <<'EOF'
 import json, sys, pathlib

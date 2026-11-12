@@ -7,7 +7,10 @@ bash scripts/run.sh brain.py validate                        # check every page
 bash scripts/run.sh brain.py index                           # rebuild INDEX.md (also done at session start)
 bash scripts/run.sh brain.py rules --team team1-mongodb-cassandra
 bash scripts/run.sh brain.py stale --days 180                # pages nobody re-checked lately
-bash scripts/run.sh brain.py search <words> [--folder F]      # ranked search (brain pages, or a docs/upstream folder)
+bash scripts/run.sh brain.py search <words> [--folder F]      # ranked search: our pages first, then vendor docs
+python3 scripts/sync_upstream_docs.py --resplit                # split big vendor pages already downloaded
+python3 scripts/transfer.py export                             # zip for the air gap (connected machine)
+bash scripts/run.sh transfer.py import <zip> [--apply]         # bring it in (air gap)
 bash scripts/run.sh brain.py show <file> ["<section>"]        # outline of a page, or one section
 bash scripts/run.sh brain_save.py -m "brain(<team>): ..." <files>
 bash scripts/run.sh brain_save.py --push                     # push commits that are waiting
@@ -42,7 +45,9 @@ python3 scripts/sync_upstream_docs.py --list             # vendor-doc sources (r
 | Smaller briefing | `BRAIN_TEAM` and `BRAIN_RULES_LIMIT`; hard cap `MAX_CHARS` in `plugin/scripts/session_start.py`. |
 | Turn on CI | Set the CI/CD variable `BRAIN_CI_IMAGE` to a Python image in your internal registry (see `.gitlab-ci.yml`). Add a weekly pipeline schedule for the stale report. |
 | Switch to merge requests | Protect `main` (Maintainers only) and change `push()` in `scripts/brain_save.py` to push a branch and open an MR. Background: `commons/decisions/brain-saves-push-straight-to-main.md`. |
-| Refresh the vendor docs | On a connected machine with PyYAML (`pip3 install pyyaml`): `python3 scripts/sync_upstream_docs.py` (or name one source). Bring `docs/upstream/` into the air gap, copy it over your clone, then `bash scripts/run.sh brain_save.py -m "docs(upstream): refresh" docs/upstream`. |
+| Refresh the vendor docs | On a connected machine with PyYAML (`pip3 install pyyaml`): `python3 scripts/sync_upstream_docs.py` (or name one source), then export and import (README, "Moving it into the air gap"). |
 | Pin a vendor-doc version | Change `ref` and `name` of that source in `docs/upstream/sources.json` (e.g. `release-3.2` → `release-3.1` for Argo CD), refresh it, delete the old folder, update `commons/knowledge/upstream-docs.md`. |
+| Bring a new version into the air gap | `python3 scripts/transfer.py export` on the connected machine, then `transfer.py import` in the air gap: README, "Moving it into the air gap". |
+| Add a search synonym | Add a line to `docs/search-synonyms.txt`: equivalent terms, comma-separated (e.g. `pvc, persistent volume claim`). It's pushed to GitHub, so generic terms only. |
 | Add vendor docs | Step by step in `docs/upstream/README.md`, section "Adding new vendor docs". |
 | Phase 2: shared search | Only if needed: wrap `brain.py search` in a small MCP server run once on OpenShift, so every engineer gets ranked search as a tool. |

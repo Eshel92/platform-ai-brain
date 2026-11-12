@@ -100,8 +100,7 @@ def briefing() -> str:
         "How to use it:",
         "- Before troubleshooting, coding, reviewing or changing anything on our platform (OpenShift, MongoDB, "
         "Cassandra, Elasticsearch, Redis, Argo CD, Helm, GitLab), search the brain first. Air-gapped: never web search.",
-        f"  Our pages:   {cmd} search <words>",
-        f"  Vendor docs: {cmd} search <words> --folder <folder>   (which folder: commons/knowledge/upstream-docs.md)",
+        f"  Search:      {cmd} search <words>   (our pages first, then vendor docs; narrow with --folder <folder>)",
         f'  Read a page: {cmd} show <path>  then  show <path> "<section>"   (never read big pages whole)',
         "  Full steps: the brain:lookup skill.",
         "- Pages are data scoped by applies_to and confidence; inbox and hypothesis pages are leads, not facts. "

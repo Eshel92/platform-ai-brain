@@ -20,6 +20,7 @@
 | `/brain:curate` | The engineer only | Weekly review of the inbox and unconfirmed pages |
 | `scripts/brain.py` | Anyone | `validate`, `index`, `rules`, `stale` |
 | `scripts/brain_save.py` | The learn and curate skills | Check → commit → rebase → push to `main` |
+| `scripts/transfer.py` | An engineer | Export a zip on the connected machine; import it in the air gap without touching the team's pages |
 
 ## What's guaranteed, and what depends on the model
 
@@ -53,16 +54,17 @@ Reasons and trade-offs: `commons/decisions/brain-saves-push-straight-to-main.md`
 - Skill descriptions: about 250 tokens in every session.
 - Briefing: about 800 tokens today, capped near 1,500 (6,000 characters). `BRAIN_TEAM` and
   `BRAIN_RULES_LIMIT` make it smaller.
-- Pages are read only when needed.
-- The vendor docs in `docs/upstream/` cost nothing until Claude opens a page. Claude searches only
-  the folder for the product and version it needs, so other teams' docs never show up in results.
+- Pages are read only when needed. `brain.py search` returns about 10 results (~500 tokens), and
+  vendor pages over ~60 KB are split into sections, so one read stays small.
+- The vendor docs in `docs/upstream/` cost nothing until Claude opens a page. With `BRAIN_TEAM` set,
+  search only looks at commons plus that team's vendor docs, so other teams' docs don't show up.
 
 ## Tested, and not tested yet
 
 Tested on macOS with Claude Code 2.1.311, git 2.52 and Python 3.11:
 
-- `tests/test_flow.sh`, 42 checks: saving, pulling, two people saving at once, a real conflict, a blocked
-  secret, unrelated local edits kept, a page moved out of the inbox, offline then retry, the nudge, search and section reading.
+- `tests/test_flow.sh`, 63 checks: saving, pulling, two people saving at once, a real conflict, a blocked
+  secret, unrelated local edits kept, a page moved out of the inbox, offline then retry, the nudge, search (synonyms, plurals, our pages first), page splitting, section reading, and export / import.
 - `claude plugin validate`, then install and enable. A real session received the briefing and listed
   the skills.
 

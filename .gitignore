@@ -1,5 +1,12 @@
-# Generated at every session start by scripts/brain.py index
-INDEX.md
+# Generated at every session start by scripts/brain.py index. Only these paths: a bare INDEX.md
+# pattern would also hide vendor pages named index.md on case-insensitive disks (macOS, Windows).
+/INDEX.md
+/commons/INDEX.md
+/team*/INDEX.md
+/inbox/INDEX.md
 __pycache__/
 *.pyc
 .DS_Store
+.transfer/
+# Export manifest inside an unzipped export
+/TRANSFER.json

@@ -8,10 +8,12 @@
   "paths": [
     "content/kubernetes/v1.7/source"
   ],
-  "files": 152,
-  "bytes": 1518884,
+  "files": 164,
+  "bytes": 1521982,
   "license": "CC BY-NC-SA 3.0 (stated in the mongodb/docs README)",
   "format": "Markdown, converted from reStructuredText (includes inlined)",
-  "notes": [],
+  "notes": [
+    "2 big page(s) split into sections"
+  ],
   "synced": "2026-11-09T08:12:18Z"
 }
